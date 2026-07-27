@@ -307,11 +307,19 @@ export default function Cms() {
                       <input type="text" value={editingItem.title} onChange={e => setEditingItem({...editingItem, title: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1" required />
                     </div>
                     <div>
+                      <label className="text-xs font-bold text-navy">Deskripsi (Subtitle)</label>
+                      <input type="text" value={editingItem.subtitle || ''} onChange={e => setEditingItem({...editingItem, subtitle: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1" />
+                    </div>
+                    <div>
                       <FileUpload label="Upload Gambar" accept="image/*" previewUrl={editingItem.imageUrl} onFileSelect={(base64) => setEditingItem({...editingItem, imageUrl: base64})} />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Badge (Label Atas)</label>
                       <input type="text" value={editingItem.badge} onChange={e => setEditingItem({...editingItem, badge: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1" required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-navy">Teks Tombol (CTA Text)</label>
+                      <input type="text" value={editingItem.ctaText || ''} onChange={e => setEditingItem({...editingItem, ctaText: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1" placeholder="Contoh: Baca Warta" required />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Call to Action Type</label>
@@ -322,6 +330,13 @@ export default function Cms() {
                         <option value="schedule">Jadwal</option>
                         <option value="warta">Warta Jemaat</option>
                         <option value="prayer">Doa</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-navy">Status</label>
+                      <select value={editingItem.isActive ? 'true' : 'false'} onChange={e => setEditingItem({...editingItem, isActive: e.target.value === 'true'})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1">
+                        <option value="true">Aktif (Muncul di Halaman)</option>
+                        <option value="false">Nonaktif (Tidak Muncul)</option>
                       </select>
                     </div>
                   </>
@@ -485,7 +500,7 @@ export default function Cms() {
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Deskripsi (Subtitle)</label>
-                      <input type="text" value={formData.subtitle || ''} onChange={e => setFormData({...formData, subtitle: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
+                      <input type="text" value={formData.subtitle || ''} onChange={e => setFormData({...formData, subtitle: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" />
                     </div>
                     <div>
                       <FileUpload label="Upload Gambar" accept="image/*" previewUrl={formData.imageUrl} onFileSelect={(base64) => setFormData({...formData, imageUrl: base64})} />
@@ -493,6 +508,10 @@ export default function Cms() {
                     <div>
                       <label className="text-xs font-bold text-navy">Badge (Label Atas)</label>
                       <input type="text" value={formData.badge || ''} onChange={e => setFormData({...formData, badge: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-navy">Teks Tombol (CTA Text)</label>
+                      <input type="text" value={formData.ctaText || ''} onChange={e => setFormData({...formData, ctaText: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" placeholder="Contoh: Baca Warta" required />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Call to Action Type</label>
@@ -503,6 +522,13 @@ export default function Cms() {
                         <option value="schedule">Jadwal</option>
                         <option value="warta">Warta Jemaat</option>
                         <option value="prayer">Doa</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-navy">Status</label>
+                      <select value={formData.isActive !== undefined ? (formData.isActive ? 'true' : 'false') : 'true'} onChange={e => setFormData({...formData, isActive: e.target.value === 'true'})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none">
+                        <option value="true">Aktif (Muncul di Halaman)</option>
+                        <option value="false">Nonaktif (Tidak Muncul)</option>
                       </select>
                     </div>
                   </>

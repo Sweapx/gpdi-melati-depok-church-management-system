@@ -167,7 +167,7 @@ export interface HeroSlide {
   title: string;
   subtitle: string;
   ctaText: string;
-  ctaType: 'jemaat_baru' | 'pendataan_terdaftar' | 'baptisan' | 'event' | 'schedule' | 'prayer';
+  ctaType: 'jemaat_baru' | 'pendataan_terdaftar' | 'baptisan' | 'event' | 'schedule' | 'warta' | 'prayer';
   eventName?: string;
   isActive: boolean;
   orderIndex: number;
