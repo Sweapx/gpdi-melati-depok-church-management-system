@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import clsx from 'clsx';
 import { HeroSlide } from '../../types/index.ts';
 
 export default function HeroSection() {
+  const navigate = useNavigate();
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -103,7 +105,9 @@ export default function HeroSection() {
                     document.getElementById('jadwal')?.scrollIntoView({ behavior: 'smooth' });
                   } else if (slides[currentIndex].ctaType === 'event') {
                     document.getElementById('pengumuman')?.scrollIntoView({ behavior: 'smooth' });
-                  } else if (slides[currentIndex].ctaType === 'warta' || slides[currentIndex].ctaType === 'prayer') {
+                  } else if (slides[currentIndex].ctaType === 'warta') {
+                    navigate('/warta');
+                  } else if (slides[currentIndex].ctaType === 'prayer') {
                     document.getElementById('warta')?.scrollIntoView({ behavior: 'smooth' });
                   }
                 }}
