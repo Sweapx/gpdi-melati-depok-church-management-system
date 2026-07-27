@@ -28,12 +28,18 @@ router.post("/login", async (req, res) => {
     let user;
 
     if (usePostgres && pool) {
-      // Query with alias to match camelCase naming in code
+      // Query with direct column names (no alias)
       const { rows } = await pool.query(
-        "SELECT id, username, password_hash as passwordHash, name, role, must_change_password as mustChangePassword FROM admin_users WHERE username = $1",
+        "SELECT id, username, password_hash, name, role, must_change_password FROM admin_users WHERE username = $1",
         [username]
       );
-      user = rows[0];
+      if (rows.length > 0) {
+        user = {
+          ...rows[0],
+          passwordHash: rows[0].password_hash,
+          mustChangePassword: rows[0].must_change_password
+        };
+      }
     } else {
       user = inMemoryDB.adminUsers.find(u => u.username === username);
     }
