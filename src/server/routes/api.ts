@@ -115,7 +115,7 @@ router.post("/chat", async (req, res) => {
     let knowledgeBase = inMemoryDB.knowledgeBase;
     if (usePostgres && pool) {
       const { rows } = await pool.query(
-        "SELECT id, category, intent, patterns, bot_response, is_active FROM knowledge_base WHERE is_active = true"
+        "SELECT id, intent, patterns, bot_response, is_active FROM knowledge_base WHERE is_active = true"
       );
       knowledgeBase = rows.map(row => ({
         ...row,
