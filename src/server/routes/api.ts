@@ -47,6 +47,7 @@ createCrud("knowledge-base", "knowledgeBase");
 createCrud("prayers", "prayerRequests");
 createCrud("warta-jemaat", "wartaJemaat");
 createCrud("hero-slides", "heroSlides");
+createCrud("certificate-requests", "certificateRequests");
 
 // Custom endpoint for validating certificate
 router.get("/certificates/validate/:code", (req, res) => {

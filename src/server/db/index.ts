@@ -13,6 +13,7 @@ class InMemoryStore {
   adminUsers: AdminUser[] = [];
   announcements: AnnouncementItem[] = [];
   certificates: CertificateDoc[] = [];
+  certificateRequests: any[] = [];
   heroSlides: HeroSlide[] = [];
   jemaat: Jemaat[] = [];
   knowledgeBase: KnowledgeBaseQA[] = [];
