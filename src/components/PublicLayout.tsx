@@ -23,7 +23,7 @@ export default function PublicLayout() {
       <nav className="bg-white shadow-sm border-b border-border-subtle sticky top-0 z-40 h-20">
         <div className="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-navy rounded-full flex items-center justify-center text-gold font-bold text-xl">G</div>
+            <img src="/gpdi-logo.png" alt="GPdI Melati Depok Logo" className="w-10 h-10 object-contain" />
             <div>
               <h1 className="font-bold text-lg text-navy leading-none tracking-tight">GPdI MELATI DEPOK</h1>
               <p className="text-[10px] uppercase tracking-[0.2em] text-text-light font-semibold mt-1">Sistem Manajemen Gereja Digital</p>
@@ -61,7 +61,7 @@ export default function PublicLayout() {
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-navy font-bold text-xl">G</div>
+              <img src="/gpdi-logo.png" alt="GPdI Melati Depok Logo" className="w-10 h-10 object-contain" />
               <div>
                 <h1 className="font-bold text-lg text-white leading-none tracking-tight">GPdI MELATI DEPOK</h1>
               </div>

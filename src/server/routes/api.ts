@@ -125,6 +125,9 @@ router.post("/chat", async (req, res) => {
       }));
     }
     
+    console.log('Knowledge base loaded:', knowledgeBase.length, 'items');
+    console.log('Knowledge base items:', JSON.stringify(knowledgeBase, null, 2));
+    
     // 1. Fallback to knowledge base first if perfect match or no api key
     let kbMatch = null;
     for (const kb of knowledgeBase) {
