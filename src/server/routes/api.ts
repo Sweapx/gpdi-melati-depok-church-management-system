@@ -110,9 +110,23 @@ router.post("/chat", async (req, res) => {
   const lowercaseMsg = message.toLowerCase();
   
   try {
+    // Load knowledge base from PostgreSQL if available
+    let knowledgeBase = inMemoryDB.knowledgeBase;
+    if (usePostgres && pool) {
+      const { rows } = await pool.query(
+        "SELECT id, category, intent, patterns, bot_response, is_active FROM knowledge_base WHERE is_active = true"
+      );
+      knowledgeBase = rows.map(row => ({
+        ...row,
+        patterns: Array.isArray(row.patterns) ? row.patterns : (typeof row.patterns === 'string' ? JSON.parse(row.patterns) : []),
+        botResponse: row.bot_response || row.botResponse,
+        isActive: row.is_active !== undefined ? row.is_active : row.isActive
+      }));
+    }
+    
     // 1. Fallback to knowledge base first if perfect match or no api key
     let kbMatch = null;
-    for (const kb of inMemoryDB.knowledgeBase) {
+    for (const kb of knowledgeBase) {
       if (!kb.isActive) continue;
       for (const pattern of kb.patterns) {
         if (lowercaseMsg.includes(pattern.toLowerCase())) {

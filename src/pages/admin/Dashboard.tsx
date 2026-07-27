@@ -26,7 +26,7 @@ export default function Dashboard() {
       const regs = regRes.data || [];
       const prayers = prayerRes.data || [];
       
-      const aktif = jemaat.filter((j: any) => j.statusJemaat === 'Aktif');
+      const aktif = jemaat.filter((j: any) => j.status_jemaat === 'Aktif' || j.statusJemaat === 'Aktif');
       
       setStats({
         totalAktif: aktif.length,

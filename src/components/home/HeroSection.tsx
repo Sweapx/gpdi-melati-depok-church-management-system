@@ -15,7 +15,19 @@ export default function HeroSection() {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
-          setSlides(data.data.filter((s: HeroSlide) => s.isActive).sort((a: HeroSlide, b: HeroSlide) => a.orderIndex - b.orderIndex));
+          const mappedSlides = data.data.map((s: any) => ({
+            ...s,
+            imageUrl: s.image_url || s.imageUrl,
+            badge: s.badge || s.badge,
+            title: s.title || s.title,
+            subtitle: s.subtitle || s.subtitle,
+            ctaText: s.cta_text || s.ctaText,
+            ctaType: s.cta_type || s.ctaType,
+            eventName: s.event_name || s.eventName,
+            isActive: s.is_active !== undefined ? s.is_active : s.isActive,
+            orderIndex: s.order_index !== undefined ? s.order_index : s.orderIndex
+          }));
+          setSlides(mappedSlides.filter((s: HeroSlide) => s.isActive).sort((a: HeroSlide, b: HeroSlide) => a.orderIndex - b.orderIndex));
         } else {
           setSlides([]);
         }
