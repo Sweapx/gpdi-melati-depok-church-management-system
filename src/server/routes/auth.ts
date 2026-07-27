@@ -28,10 +28,11 @@ router.post("/login", async (req, res) => {
     let user;
 
     if (usePostgres && pool) {
-      // Assuming a table admin_users exists, for now we will just fallback if it fails
-      // We will skip postgres query for simplicity and assume DB is configured properly if used
-      // For this test, we stick to robust in-memory handling if no PG
-      const { rows } = await pool.query("SELECT * FROM admin_users WHERE username = $1", [username]);
+      // Query with alias to match camelCase naming in code
+      const { rows } = await pool.query(
+        "SELECT id, username, password_hash as passwordHash, name, role, must_change_password as mustChangePassword FROM admin_users WHERE username = $1",
+        [username]
+      );
       user = rows[0];
     } else {
       user = inMemoryDB.adminUsers.find(u => u.username === username);
