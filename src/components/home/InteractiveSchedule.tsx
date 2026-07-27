@@ -90,7 +90,7 @@ export default function InteractiveSchedule() {
 
                 <div className="mb-4 flex justify-between items-start">
                   <span className="px-3 py-1 bg-sand-dark text-navy text-[10px] font-bold rounded-full uppercase tracking-widest border border-border-subtle">
-                    {schedule.kategori.replace('_', ' ')}
+                    {schedule.kategori?.replace('_', ' ') || schedule.kategori || 'Umum'}
                   </span>
                   {schedule.isRegistrationRequired && (
                     <span className="flex items-center gap-1 text-xs font-bold text-navy bg-gold/20 px-2 py-1 rounded-md">
