@@ -35,9 +35,6 @@ export default function PublicLayout() {
             <Link to="/warta" className="text-text-muted hover:text-navy">Warta Jemaat</Link>
             <a href="/#jadwal" className="text-text-muted hover:text-navy">Jadwal</a>
             <a href="/#pengumuman" className="text-text-muted hover:text-navy">Pengumuman</a>
-            <button className="ml-4 px-6 py-2.5 bg-navy text-white rounded-full text-xs font-bold uppercase tracking-wider hover:bg-navy-light transition-all">
-              Ibadah Live
-            </button>
           </div>
 
           {/* Mobile Toggle */}
