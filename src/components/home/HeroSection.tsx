@@ -103,7 +103,7 @@ export default function HeroSection() {
                     document.getElementById('jadwal')?.scrollIntoView({ behavior: 'smooth' });
                   } else if (slides[currentIndex].ctaType === 'event') {
                     document.getElementById('pengumuman')?.scrollIntoView({ behavior: 'smooth' });
-                  } else if (slides[currentIndex].ctaType === 'prayer') {
+                  } else if (slides[currentIndex].ctaType === 'warta' || slides[currentIndex].ctaType === 'prayer') {
                     document.getElementById('warta')?.scrollIntoView({ behavior: 'smooth' });
                   }
                 }}

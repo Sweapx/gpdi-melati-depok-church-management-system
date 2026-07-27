@@ -320,6 +320,7 @@ export default function Cms() {
                         <option value="jemaat_baru">Pendaftaran Jemaat Baru</option>
                         <option value="baptisan">Pendaftaran Baptisan</option>
                         <option value="schedule">Jadwal</option>
+                        <option value="warta">Warta Jemaat</option>
                         <option value="prayer">Doa</option>
                       </select>
                     </div>
@@ -500,6 +501,7 @@ export default function Cms() {
                         <option value="jemaat_baru">Pendaftaran Jemaat Baru</option>
                         <option value="baptisan">Pendaftaran Baptisan</option>
                         <option value="schedule">Jadwal</option>
+                        <option value="warta">Warta Jemaat</option>
                         <option value="prayer">Doa</option>
                       </select>
                     </div>
