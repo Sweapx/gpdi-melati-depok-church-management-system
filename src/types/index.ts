@@ -85,12 +85,12 @@ export interface CustomEventField {
 
 export interface ScheduleItem {
   id: string;
-  kategori: 'ibadah_raya' | 'sekolah_minggu' | 'youth' | 'event_special' | 'doa';
+  kategori: string;
   judul: string;
   hariJam: string;
-  pembicara: string;
-  lokasi: string;
-  deskripsi: string;
+  pembicara?: string;
+  lokasi?: string;
+  deskripsi?: string;
   isRegistrationRequired?: boolean;
   kategoriEvent?: string;
   customFields?: CustomEventField[];

@@ -6,6 +6,7 @@ export default function KnowledgeBase() {
   const [data, setData] = useState<KnowledgeBaseQA[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<KnowledgeBaseQA | null>(null);
   const [formData, setFormData] = useState({
     category: '',
     patterns: '',
@@ -59,6 +60,38 @@ export default function KnowledgeBase() {
         setShowAddForm(false);
       }
     }
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    
+    const patterns = formData.patterns.split(',').map(s => s.trim());
+    const res = await fetch(`/api/knowledge-base/${editingItem.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ 
+        ...editingItem,
+        category: formData.category, 
+        botResponse: formData.botResponse, 
+        patterns, 
+        lastUpdated: new Date().toISOString() 
+      })
+    });
+    if (res.ok) {
+      setData(data.map(k => k.id === editingItem.id ? { ...editingItem, category: formData.category, botResponse: formData.botResponse, patterns } : k));
+      setEditingItem(null);
+      setFormData({ category: '', patterns: '', botResponse: '' });
+    }
+  };
+
+  const startEdit = (item: KnowledgeBaseQA) => {
+    setEditingItem(item);
+    setFormData({
+      category: item.category,
+      patterns: item.patterns ? item.patterns.join(', ') : '',
+      botResponse: item.botResponse
+    });
   };
 
   return (
@@ -122,7 +155,58 @@ export default function KnowledgeBase() {
               <button type="submit" className="bg-navy text-gold px-6 py-2 rounded-full font-bold text-sm hover:bg-navy-light transition-colors">
                 Simpan
               </button>
-              <button type="button" onClick={() => setShowAddForm(false)} className="bg-sand-dark text-navy px-6 py-2 rounded-full font-bold text-sm hover:bg-sand-darker transition-colors">
+              <button type="button" onClick={() => { setShowAddForm(false); setFormData({ category: '', patterns: '', botResponse: '' }); }} className="bg-sand-dark text-navy px-6 py-2 rounded-full font-bold text-sm hover:bg-sand-darker transition-colors">
+                Batal
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editingItem && (
+        <div className="bg-white rounded-2xl border border-border-subtle shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-bold text-navy mb-4">Edit Pertanyaan & Jawaban</h2>
+          <form onSubmit={handleEdit} className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-navy uppercase tracking-wider mb-2 block">
+                Kategori / Topik
+              </label>
+              <input 
+                type="text" 
+                value={formData.category}
+                onChange={(e) => setFormData({...formData, category: e.target.value})}
+                className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-gold outline-none"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-navy uppercase tracking-wider mb-2 block">
+                Pertanyaan (Patterns)
+              </label>
+              <input 
+                type="text" 
+                value={formData.patterns}
+                onChange={(e) => setFormData({...formData, patterns: e.target.value})}
+                className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-gold outline-none"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-navy uppercase tracking-wider mb-2 block">
+                Jawaban Bot
+              </label>
+              <textarea 
+                value={formData.botResponse}
+                onChange={(e) => setFormData({...formData, botResponse: e.target.value})}
+                className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-gold outline-none h-24 resize-none"
+                required
+              />
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="bg-navy text-gold px-6 py-2 rounded-full font-bold text-sm hover:bg-navy-light transition-colors">
+                Simpan Perubahan
+              </button>
+              <button type="button" onClick={() => { setEditingItem(null); setFormData({ category: '', patterns: '', botResponse: '' }); }} className="bg-sand-dark text-navy px-6 py-2 rounded-full font-bold text-sm hover:bg-sand-darker transition-colors">
                 Batal
               </button>
             </div>
@@ -163,8 +247,8 @@ export default function KnowledgeBase() {
                     <td className="px-6 py-4 font-medium">{item.patterns ? item.patterns.join(', ') : '-'}</td>
                     <td className="px-6 py-4 truncate max-w-xs">{item.botResponse}</td>
                     <td className="px-6 py-4 flex justify-center gap-2">
-                      <button className="p-1.5 text-text-muted hover:text-navy hover:bg-sand-dark rounded-lg transition-colors" onClick={() => alert('Fitur edit sedang disiapkan.')}><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(item.id)} className="p-1.5 text-text-muted hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                      <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => startEdit(item)}><Edit2 size={16} /></button>
+                      <button onClick={() => handleDelete(item.id)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))

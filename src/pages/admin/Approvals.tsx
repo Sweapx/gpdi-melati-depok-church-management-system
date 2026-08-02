@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, CheckCircle, XCircle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { RegistrationItem } from '../../types';
 import clsx from 'clsx';
 
@@ -30,6 +30,21 @@ export default function Approvals() {
       });
       if (res.ok) {
         setData(data.map(item => item.id === id ? { ...item, status: action === 'approve' ? 'Disetujui' : 'Ditolak' } : item));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Yakin ingin menghapus data pendaftaran ini?')) return;
+    try {
+      const res = await fetch(`/api/registrations/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        setData(data.filter(item => item.id !== id));
       }
     } catch (err) {
       console.error(err);
@@ -109,7 +124,15 @@ export default function Approvals() {
                             </button>
                           </>
                         ) : (
-                          <span className="text-xs text-text-muted italic">Selesai</span>
+                          <>
+                            <button 
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Hapus"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
                         )}
                       </td>
                     </tr>

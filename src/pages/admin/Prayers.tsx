@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Heart, Search, CheckCircle } from 'lucide-react';
+import { Heart, Search, CheckCircle, Trash2 } from 'lucide-react';
 import { PrayerRequest } from '../../types';
 import clsx from 'clsx';
 
@@ -29,6 +29,21 @@ export default function Prayers() {
       });
       if (res.ok) {
         setData(data.map(item => item.id === id ? { ...item, status: 'Didoakan' } : item));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Yakin ingin menghapus permohonan doa ini?')) return;
+    try {
+      const res = await fetch(`/api/prayers/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        setData(data.filter(item => item.id !== id));
       }
     } catch (err) {
       console.error(err);
@@ -69,13 +84,24 @@ export default function Prayers() {
                   <Heart size={14} className={item.status === 'Didoakan' ? "text-rose-500 fill-rose-500" : "text-text-muted"} /> 
                   {item.status}
                 </span>
-                <button 
-                  onClick={() => handleMendoakan(item.id)}
-                  disabled={item.status === 'Didoakan'}
-                  className="px-4 py-2 bg-sand-dark hover:bg-gold/20 text-navy rounded-full text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  <CheckCircle size={14} /> {item.status === 'Didoakan' ? 'Sudah' : 'Doakan'}
-                </button>
+                <div className="flex gap-2">
+                  {item.status === 'Didoakan' ? (
+                    <button 
+                      onClick={() => handleDelete(item.id)}
+                      className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1"
+                    >
+                      <Trash2 size={14} /> Hapus
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => handleMendoakan(item.id)}
+                      disabled={item.status === 'Didoakan'}
+                      className="px-4 py-2 bg-sand-dark hover:bg-gold/20 text-navy rounded-full text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                      <CheckCircle size={14} /> Doakan
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))

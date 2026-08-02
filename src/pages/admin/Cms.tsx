@@ -128,8 +128,8 @@ export default function Cms() {
             <thead className="bg-sand-dark text-text-muted text-xs uppercase font-bold tracking-wider border-b border-border-subtle">
               <tr>
                 <th className="px-6 py-4">Judul / Utama</th>
-                <th className="px-6 py-4">Kategori / Tipe</th>
-                <th className="px-6 py-4">Waktu / Status</th>
+                <th className="px-6 py-4">Detail / Tanggal</th>
+                <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
@@ -150,15 +150,18 @@ export default function Cms() {
                        activeTab === 'hero' ? item.title : item.edisi}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-sand-dark text-text-muted">
-                        {activeTab === 'announcements' || activeTab === 'schedules' ? item.kategori : 
-                         activeTab === 'hero' ? item.ctaType : 'Warta'}
-                      </span>
+                      {activeTab === 'announcements' ? (item.ringkasan || item.isi?.substring(0, 50) + '...') : 
+                       activeTab === 'schedules' ? item.hariJam : 
+                       activeTab === 'hero' ? item.subtitle : new Date(item.tanggal).toLocaleDateString('id-ID')}
                     </td>
                     <td className="px-6 py-4">
-                      {activeTab === 'announcements' ? item.tanggal : 
-                       activeTab === 'schedules' ? item.hariJam : 
-                       activeTab === 'hero' ? (item.isActive ? 'Aktif' : 'Nonaktif') : new Date(item.tanggal).toLocaleDateString('id-ID')}
+                      {activeTab === 'hero' ? (
+                        <span className={item.isActive ? "text-emerald-600" : "text-text-muted"}>
+                          {item.isActive ? 'Aktif' : 'Nonaktif'}
+                        </span>
+                      ) : (
+                        <span className="text-text-muted">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 flex justify-center gap-2">
                       <button className="p-1.5 text-text-muted hover:text-navy hover:bg-sand-dark rounded-lg transition-colors" onClick={() => setEditingItem(item)}><Edit2 size={16} /></button>
@@ -190,10 +193,6 @@ export default function Cms() {
                       <label className="text-xs font-bold text-navy">Judul</label>
                       <input type="text" value={editingItem.judul} onChange={e => setEditingItem({...editingItem, judul: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1" required />
                     </div>
-                    <div>
-                      <label className="text-xs font-bold text-navy">Kategori</label>
-                      <input type="text" value={editingItem.kategori} onChange={e => setEditingItem({...editingItem, kategori: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1" required />
-                    </div>
                   </>
                 )}
 
@@ -201,7 +200,7 @@ export default function Cms() {
                   <>
                     <div>
                       <label className="text-xs font-bold text-navy">Ringkasan</label>
-                      <textarea rows={2} value={editingItem.ringkasan || ''} onChange={e => setEditingItem({...editingItem, ringkasan: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 resize-none" required />
+                      <textarea rows={2} value={editingItem.ringkasan || ''} onChange={e => setEditingItem({...editingItem, ringkasan: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 resize-none" />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Isi Pengumuman</label>
@@ -315,11 +314,11 @@ export default function Cms() {
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Badge (Label Atas)</label>
-                      <input type="text" value={editingItem.badge} onChange={e => setEditingItem({...editingItem, badge: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1" required />
+                      <input type="text" value={editingItem.badge} onChange={e => setEditingItem({...editingItem, badge: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1" />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Teks Tombol (CTA Text)</label>
-                      <input type="text" value={editingItem.ctaText || ''} onChange={e => setEditingItem({...editingItem, ctaText: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1" placeholder="Contoh: Baca Warta" required />
+                      <input type="text" value={editingItem.ctaText || ''} onChange={e => setEditingItem({...editingItem, ctaText: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1" placeholder="Contoh: Baca Warta" />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Call to Action Type</label>
@@ -394,10 +393,6 @@ export default function Cms() {
                     <div>
                       <label className="text-xs font-bold text-navy">Judul</label>
                       <input type="text" value={formData.judul || ''} onChange={e => setFormData({...formData, judul: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-navy">Kategori</label>
-                      <input type="text" value={formData.kategori || ''} onChange={e => setFormData({...formData, kategori: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
                     </div>
                   </>
                 )}
@@ -507,11 +502,11 @@ export default function Cms() {
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Badge (Label Atas)</label>
-                      <input type="text" value={formData.badge || ''} onChange={e => setFormData({...formData, badge: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
+                      <input type="text" value={formData.badge || ''} onChange={e => setFormData({...formData, badge: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Teks Tombol (CTA Text)</label>
-                      <input type="text" value={formData.ctaText || ''} onChange={e => setFormData({...formData, ctaText: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" placeholder="Contoh: Baca Warta" required />
+                      <input type="text" value={formData.ctaText || ''} onChange={e => setFormData({...formData, ctaText: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" placeholder="Contoh: Baca Warta" />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Call to Action Type</label>

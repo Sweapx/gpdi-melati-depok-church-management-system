@@ -1,5 +1,5 @@
 import { Outlet, Link } from 'react-router-dom';
-import { Menu, X, MapPin, Phone, Mail } from 'lucide-react';
+import { Menu, X, MapPin, Phone, Mail, Facebook, Instagram, Youtube } from 'lucide-react';
 import { useState } from 'react';
 import ChatbotWidget from './ChatbotWidget.tsx';
 
@@ -23,7 +23,7 @@ export default function PublicLayout() {
       <nav className="bg-white shadow-sm border-b border-border-subtle sticky top-0 z-40 h-20">
         <div className="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
           <Link to="/" className="flex items-center gap-3">
-            <img src="/gpdi-logo.png" alt="GPdI Melati Depok Logo" className="w-10 h-10 object-contain" />
+            <img src="/gpdi-logo.png" alt="GPdI Melati Depok Logo" className="w-16 h-16 object-contain" />
             <div>
               <h1 className="font-bold text-lg text-navy leading-none tracking-tight">GPdI MELATI DEPOK</h1>
               <p className="text-[10px] uppercase tracking-[0.2em] text-text-light font-semibold mt-1">Sistem Manajemen Gereja Digital</p>
@@ -31,10 +31,12 @@ export default function PublicLayout() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium">
-            <Link to="/warta" className="text-text-muted hover:text-navy">Warta Jemaat</Link>
-            <a href="/#jadwal" className="text-text-muted hover:text-navy">Jadwal</a>
-            <a href="/#pengumuman" className="text-text-muted hover:text-navy">Pengumuman</a>
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+            <Link to="/" className="text-text-muted hover:text-navy">Beranda</Link>
+            <Link to="/jadwal-event" className="text-text-muted hover:text-navy">Jadwal & Event</Link>
+            <Link to="/pendaftaran" className="text-text-muted hover:text-navy">Pendaftaran</Link>
+            <Link to="/layanan" className="text-text-muted hover:text-navy">Layanan</Link>
+            <Link to="/warta" className="text-text-muted hover:text-navy">Warta Digital</Link>
           </div>
 
           {/* Mobile Toggle */}
@@ -46,9 +48,11 @@ export default function PublicLayout() {
         {/* Mobile Nav */}
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-t p-4 flex flex-col gap-4 font-medium text-slate-600">
-            <Link to="/warta" onClick={() => setMobileMenuOpen(false)}>Warta Jemaat</Link>
-            <a href="/#jadwal" onClick={() => setMobileMenuOpen(false)}>Jadwal</a>
-            <a href="/#pengumuman" onClick={() => setMobileMenuOpen(false)}>Pengumuman</a>
+            <Link to="/" onClick={() => setMobileMenuOpen(false)}>Beranda</Link>
+            <Link to="/jadwal-event" onClick={() => setMobileMenuOpen(false)}>Jadwal & Event</Link>
+            <Link to="/pendaftaran" onClick={() => setMobileMenuOpen(false)}>Pendaftaran</Link>
+            <Link to="/layanan" onClick={() => setMobileMenuOpen(false)}>Layanan</Link>
+            <Link to="/warta" onClick={() => setMobileMenuOpen(false)}>Warta Digital</Link>
           </div>
         )}
       </nav>
@@ -79,9 +83,19 @@ export default function PublicLayout() {
           <div>
             <h4 className="font-semibold text-white mb-4">Layanan Digital</h4>
             <ul className="text-sm space-y-2">
-              <li><Link to="/" className="hover:text-gold text-text-light">Pendaftaran Jemaat Baru</Link></li>
-              <li><Link to="/" className="hover:text-gold text-text-light">Permohonan Doa</Link></li>
+              <li><Link to="/" className="hover:text-gold text-text-light">Beranda</Link></li>
+              <li><Link to="/jadwal-event" className="hover:text-gold text-text-light">Jadwal & Event</Link></li>
+              <li><Link to="/pendaftaran" className="hover:text-gold text-text-light">Pendaftaran</Link></li>
+              <li><Link to="/layanan" className="hover:text-gold text-text-light">Layanan</Link></li>
               <li><Link to="/warta" className="hover:text-gold text-text-light">Warta Digital</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold text-white mb-4">Social Media</h4>
+            <ul className="text-sm space-y-2">
+              <li><a href="#" className="hover:text-gold text-text-light flex items-center gap-2"><Facebook size={16} /> Facebook</a></li>
+              <li><a href="#" className="hover:text-gold text-text-light flex items-center gap-2"><Instagram size={16} /> Instagram</a></li>
+              <li><a href="#" className="hover:text-gold text-text-light flex items-center gap-2"><Youtube size={16} /> YouTube</a></li>
             </ul>
           </div>
           <div>

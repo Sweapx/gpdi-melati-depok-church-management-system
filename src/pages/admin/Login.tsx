@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User, ShieldCheck } from 'lucide-react';
+import { Lock, User, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 import clsx from 'clsx';
 
@@ -100,6 +100,14 @@ export default function Login() {
             className="w-full bg-navy text-gold font-bold uppercase tracking-wider text-xs rounded-full py-4 flex items-center justify-center gap-2 hover:bg-navy-light transition-colors disabled:opacity-70 mt-4 shadow-sm"
           >
             {isLoading ? <div className="w-5 h-5 border-2 border-gold/30 border-t-gold rounded-full animate-spin" /> : 'Masuk ke Dashboard'}
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="w-full bg-sand-dark text-navy font-bold uppercase tracking-wider text-xs rounded-full py-4 flex items-center justify-center gap-2 hover:bg-sand-darker transition-colors mt-2"
+          >
+            <ArrowLeft size={16} /> Kembali ke Halaman Public
           </button>
         </form>
       </motion.div>
