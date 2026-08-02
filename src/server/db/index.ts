@@ -1,6 +1,7 @@
 import { InMemoryStore } from './types.ts';
 import bcrypt from 'bcrypt';
 import dotenv from "dotenv";
+import { Pool } from 'pg';
 import { 
   AdminUser, AnnouncementItem, CertificateDoc, HeroSlide, 
   Jemaat, KnowledgeBaseQA, PrayerRequest, RegistrationItem, 
