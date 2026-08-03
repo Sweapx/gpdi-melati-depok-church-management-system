@@ -81,6 +81,7 @@ export default function Jemaat() {
   };
 
   const handleAddSave = async (e: React.FormEvent) => {
+    console.log('=== handleAddSave called ===');
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
@@ -97,14 +98,21 @@ export default function Jemaat() {
       nik: formData.get('nik') as string,
     };
 
+    console.log('Form data:', newJemaat);
+    console.log('Token:', localStorage.getItem('token'));
+
     try {
+      console.log('Sending POST request to /api/jemaat');
       const res = await fetch('/api/jemaat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify(newJemaat)
       });
+      console.log('Response status:', res.status);
+      console.log('Response ok:', res.ok);
       if (res.ok) {
         const json = await res.json();
+        console.log('Response data:', json);
         setData([...data, json.data]);
         setIsAdding(false);
       } else {
@@ -113,7 +121,7 @@ export default function Jemaat() {
         alert('Gagal menambah jemaat: ' + (error.message || 'Unknown error'));
       }
     } catch (e) {
-      console.error(e);
+      console.error('Network error:', e);
       alert('Gagal menambah jemaat: Network error');
     }
   };

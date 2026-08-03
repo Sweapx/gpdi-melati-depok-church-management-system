@@ -61,6 +61,9 @@ export default function Cms() {
   };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
+    console.log('=== handleAddSubmit called ===');
+    console.log('Active tab:', activeTab);
+    console.log('Form data:', formData);
     e.preventDefault();
     let payload = { ...formData };
 
@@ -117,14 +120,22 @@ export default function Cms() {
       };
     }
 
+    console.log('Payload to send:', payload);
+    console.log('Endpoint:', getEndpoint(activeTab));
+    console.log('Token:', localStorage.getItem('token'));
+
     try {
+      console.log('Sending POST request...');
       const res = await fetch(getEndpoint(activeTab), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify(payload)
       });
+      console.log('Response status:', res.status);
+      console.log('Response ok:', res.ok);
       if (res.ok) {
         const json = await res.json();
+        console.log('Response data:', json);
         setData([...data, json.data]);
         setIsAdding(false);
       } else {
@@ -133,7 +144,7 @@ export default function Cms() {
         alert('Gagal menambah item: ' + (error.message || 'Unknown error'));
       }
     } catch (e) {
-      console.error(e);
+      console.error('Network error:', e);
       alert('Gagal menambah item: Network error');
     }
   };
