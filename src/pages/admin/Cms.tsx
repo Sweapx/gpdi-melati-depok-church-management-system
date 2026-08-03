@@ -179,8 +179,8 @@ export default function Cms() {
                       <td className="px-6 py-4">{new Date(item.tanggal).toLocaleDateString('id-ID')}</td>
                     )}
                     <td className="px-6 py-4 flex justify-center gap-2">
-                      <button className="p-1.5 text-text-muted hover:text-navy hover:bg-sand-dark rounded-lg transition-colors" onClick={() => setEditingItem(item)}><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(item.id)} className="p-1.5 text-text-muted hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                      <button className="p-1.5 text-text-muted hover:text-navy hover:bg-sand-dark rounded-lg transition-colors" onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}><Edit2 size={16} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="p-1.5 text-text-muted hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))
