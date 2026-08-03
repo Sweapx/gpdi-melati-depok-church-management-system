@@ -41,17 +41,42 @@ export default function Jemaat() {
     e.preventDefault();
     if (!editingJemaat) return;
     try {
+      // Convert camelCase to snake_case for backend
+      const backendData = {
+        nama: editingJemaat.nama,
+        nik: editingJemaat.nik,
+        gender: editingJemaat.gender,
+        tempat_lahir: editingJemaat.tempatLahir,
+        tanggal_lahir: editingJemaat.tanggalLahir,
+        alamat: editingJemaat.alamat,
+        no_hp: editingJemaat.noHp,
+        status_pernikahan: editingJemaat.statusPernikahan,
+        status_jemaat: editingJemaat.statusJemaat,
+        kategori_kaum: editingJemaat.kategoriKaum,
+        sektor: editingJemaat.sektor,
+        wadah: editingJemaat.wadah,
+        rayon: editingJemaat.rayon,
+        no_telepon: editingJemaat.noTelepon,
+        anggota_keluarga: editingJemaat.anggotaKeluarga
+      };
+
       const res = await fetch(`/api/jemaat/${editingJemaat.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify(editingJemaat)
+        body: JSON.stringify(backendData)
       });
       if (res.ok) {
-        setData(data.map(j => j.id === editingJemaat.id ? editingJemaat : j));
+        const json = await res.json();
+        setData(data.map(j => j.id === editingJemaat.id ? json.data : j));
         setEditingJemaat(null);
+      } else {
+        const error = await res.json();
+        console.error('Error updating jemaat:', error);
+        alert('Gagal mengupdate jemaat: ' + (error.message || 'Unknown error'));
       }
     } catch (err) {
       console.error(err);
+      alert('Gagal mengupdate jemaat: Network error');
     }
   };
 
@@ -61,13 +86,13 @@ export default function Jemaat() {
     const formData = new FormData(form);
     const newJemaat = {
       nama: formData.get('nama') as string,
-      statusJemaat: formData.get('statusJemaat') as string,
-      tempatLahir: formData.get('tempatLahir') as string,
-      tanggalLahir: formData.get('tanggalLahir') as string,
+      status_jemaat: formData.get('statusJemaat') as string,
+      tempat_lahir: formData.get('tempatLahir') as string,
+      tanggal_lahir: formData.get('tanggalLahir') as string,
       gender: formData.get('gender') as string,
       rayon: formData.get('rayon') as string,
-      noTelepon: formData.get('noTelepon') as string,
-      noHp: formData.get('noHp') as string,
+      no_telepon: formData.get('noTelepon') as string,
+      no_hp: formData.get('noHp') as string,
       alamat: formData.get('alamat') as string,
       nik: formData.get('nik') as string,
     };
@@ -82,9 +107,14 @@ export default function Jemaat() {
         const json = await res.json();
         setData([...data, json.data]);
         setIsAdding(false);
+      } else {
+        const error = await res.json();
+        console.error('Error adding jemaat:', error);
+        alert('Gagal menambah jemaat: ' + (error.message || 'Unknown error'));
       }
     } catch (e) {
       console.error(e);
+      alert('Gagal menambah jemaat: Network error');
     }
   };
 
@@ -93,11 +123,11 @@ export default function Jemaat() {
     alert('Export to XLS feature - implement with library like xlsx');
   };
 
-  const filteredData = data.filter(j => 
+  const filteredData = data.filter(j =>
     j.statusJemaat === 'Aktif' &&
     (filterWadah === 'Semua Wadah' || j.wadah === filterWadah) &&
     (filterRayon === 'Semua Rayon' || j.rayon === filterRayon) &&
-    (j.nama.toLowerCase().includes(search.toLowerCase()) || j.nik.includes(search))
+    (j.nama.toLowerCase().includes(search.toLowerCase()) || (j.nik && j.nik.includes(search)))
   );
 
   const wadahOptions = ['Semua Wadah', ...Array.from(new Set(data.map(j => j.wadah).filter(Boolean)))];

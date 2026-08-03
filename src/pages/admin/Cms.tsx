@@ -63,16 +63,58 @@ export default function Cms() {
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let payload = { ...formData };
-    
-    // Add default values if missing
+
+    // Convert camelCase to snake_case for backend
     if (activeTab === 'announcements') {
-      payload = { ...payload, tanggal: new Date().toLocaleDateString(), ringkasan: payload.ringkasan || '', isi: payload.isi || '', penting: false };
+      payload = {
+        judul: payload.judul,
+        konten: payload.konten,
+        tanggal: payload.tanggal || new Date().toLocaleDateString(),
+        is_active: payload.is_active !== undefined ? payload.is_active : true,
+        ringkasan: payload.ringkasan || '',
+        isi: payload.isi || '',
+        penting: payload.penting || false,
+        gambar_url: payload.gambar_url
+      };
     } else if (activeTab === 'ibadah' || activeTab === 'event') {
-      payload = { ...payload, kategori: activeTab === 'ibadah' ? 'Ibadah Raya' : 'Event', isRegistrationRequired: payload.isRegistrationRequired === 'true', kuota: payload.isRegistrationRequired === 'true' ? Number(payload.kuota) : 0, terdaftar: 0 };
+      payload = {
+        judul: payload.judul,
+        tanggal: payload.tanggal,
+        waktu: payload.waktu,
+        lokasi: payload.lokasi,
+        deskripsi: payload.deskripsi,
+        kategori: activeTab === 'ibadah' ? 'Ibadah Raya' : 'Event',
+        is_registration_required: payload.is_registration_required === 'true' || payload.is_registration_required === true,
+        hari_jam: payload.hari_jam,
+        kuota: payload.is_registration_required === 'true' || payload.is_registration_required === true ? Number(payload.kuota) : 0,
+        terdaftar: 0,
+        registration_fee: payload.registration_fee,
+        need_payment_proof: payload.need_payment_proof
+      };
     } else if (activeTab === 'hero') {
-      payload = { ...payload, isActive: true, orderIndex: data.length };
+      payload = {
+        title: payload.title,
+        image_url: payload.image_url,
+        link_url: payload.link_url,
+        is_active: payload.is_active !== undefined ? payload.is_active : true,
+        order_index: data.length,
+        subtitle: payload.subtitle,
+        badge: payload.badge,
+        cta_text: payload.cta_text,
+        cta_type: payload.cta_type,
+        event_name: payload.event_name
+      };
     } else if (activeTab === 'warta') {
-      payload = { ...payload, tanggal: new Date().toISOString(), petugasList: [] };
+      payload = {
+        judul: payload.judul,
+        tanggal: payload.tanggal || new Date().toISOString(),
+        pdf_url: payload.pdf_url,
+        petugas_list: [],
+        edisi: payload.edisi,
+        tema_minggu: payload.tema_minggu,
+        ayat_minggu: payload.ayat_minggu,
+        pengumuman: payload.pengumuman
+      };
     }
 
     try {
@@ -85,9 +127,14 @@ export default function Cms() {
         const json = await res.json();
         setData([...data, json.data]);
         setIsAdding(false);
+      } else {
+        const error = await res.json();
+        console.error('Error adding item:', error);
+        alert('Gagal menambah item: ' + (error.message || 'Unknown error'));
       }
     } catch (e) {
       console.error(e);
+      alert('Gagal menambah item: Network error');
     }
   };
 
@@ -95,17 +142,78 @@ export default function Cms() {
     e.preventDefault();
     if (!editingItem) return;
     try {
+      let payload = { ...editingItem };
+
+      // Convert camelCase to snake_case for backend
+      if (activeTab === 'announcements') {
+        payload = {
+          judul: editingItem.judul,
+          konten: editingItem.konten,
+          tanggal: editingItem.tanggal,
+          is_active: editingItem.is_active,
+          ringkasan: editingItem.ringkasan,
+          isi: editingItem.isi,
+          penting: editingItem.penting,
+          gambar_url: editingItem.gambar_url
+        };
+      } else if (activeTab === 'ibadah' || activeTab === 'event') {
+        payload = {
+          judul: editingItem.judul,
+          tanggal: editingItem.tanggal,
+          waktu: editingItem.waktu,
+          lokasi: editingItem.lokasi,
+          deskripsi: editingItem.deskripsi,
+          kategori: editingItem.kategori,
+          is_registration_required: editingItem.is_registration_required,
+          hari_jam: editingItem.hari_jam,
+          kuota: editingItem.kuota,
+          terdaftar: editingItem.terdaftar,
+          registration_fee: editingItem.registration_fee,
+          need_payment_proof: editingItem.need_payment_proof
+        };
+      } else if (activeTab === 'hero') {
+        payload = {
+          title: editingItem.title,
+          image_url: editingItem.image_url,
+          link_url: editingItem.link_url,
+          is_active: editingItem.is_active,
+          order_index: editingItem.order_index,
+          subtitle: editingItem.subtitle,
+          badge: editingItem.badge,
+          cta_text: editingItem.cta_text,
+          cta_type: editingItem.cta_type,
+          event_name: editingItem.event_name
+        };
+      } else if (activeTab === 'warta') {
+        payload = {
+          judul: editingItem.judul,
+          tanggal: editingItem.tanggal,
+          pdf_url: editingItem.pdf_url,
+          petugas_list: editingItem.petugas_list,
+          edisi: editingItem.edisi,
+          tema_minggu: editingItem.tema_minggu,
+          ayat_minggu: editingItem.ayat_minggu,
+          pengumuman: editingItem.pengumuman
+        };
+      }
+
       const res = await fetch(`${getEndpoint(activeTab)}/${editingItem.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify(editingItem)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
-        setData(data.map(j => j.id === editingItem.id ? editingItem : j));
+        const json = await res.json();
+        setData(data.map(j => j.id === editingItem.id ? json.data : j));
         setEditingItem(null);
+      } else {
+        const error = await res.json();
+        console.error('Error updating item:', error);
+        alert('Gagal mengupdate item: ' + (error.message || 'Unknown error'));
       }
     } catch (err) {
       console.error(err);
+      alert('Gagal mengupdate item: Network error');
     }
   };
 

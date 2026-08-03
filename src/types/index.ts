@@ -21,9 +21,14 @@ export interface Jemaat {
   tanggalLahir: string;
   alamat: string;
   noHp: string;
+  noTelepon?: string;
   statusJemaat: 'Aktif' | 'Keluar' | 'Meninggal';
+  statusPernikahan?: string;
+  kategoriKaum?: string;
+  sektor?: string;
   wadah?: string;
   rayon?: string;
+  anggotaKeluarga?: JemaatFamilyMember[];
   createdAt: string;
 }
 
