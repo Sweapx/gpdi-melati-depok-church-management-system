@@ -110,9 +110,15 @@ export default function JadwalEvent() {
                   
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-text-muted">
-                      <Clock size={16} className="text-gold" />
+                      <Calendar size={16} className="text-gold" />
                       <span>{schedule.hariJam}</span>
                     </div>
+                    {schedule.waktu && (
+                      <div className="flex items-center gap-2 text-sm text-text-muted">
+                        <Clock size={16} className="text-gold" />
+                        <span>{schedule.waktu}</span>
+                      </div>
+                    )}
                     {schedule.lokasi && (
                       <div className="flex items-center gap-2 text-sm text-text-muted">
                         <MapPin size={16} className="text-gold" />
@@ -133,7 +139,7 @@ export default function JadwalEvent() {
                       )}
                       <Link 
                         to="/pendaftaran"
-                        state={{ eventConfig: schedule }}
+                        state={{ eventConfig: schedule, defaultTab: 'event' }}
                         className="w-full py-2.5 bg-navy text-white rounded-full text-xs font-bold tracking-widest uppercase hover:bg-navy-light transition-colors flex items-center justify-center gap-2"
                       >
                         Daftar Sekarang <ChevronRight size={16} />

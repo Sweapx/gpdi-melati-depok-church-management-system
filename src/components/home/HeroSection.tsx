@@ -104,11 +104,13 @@ export default function HeroSection() {
                   if (slides[currentIndex].ctaType === 'schedule') {
                     document.getElementById('jadwal')?.scrollIntoView({ behavior: 'smooth' });
                   } else if (slides[currentIndex].ctaType === 'event') {
-                    document.getElementById('pengumuman')?.scrollIntoView({ behavior: 'smooth' });
+                    navigate('/jadwal-event');
                   } else if (slides[currentIndex].ctaType === 'warta') {
                     navigate('/warta');
                   } else if (slides[currentIndex].ctaType === 'prayer') {
-                    document.getElementById('warta')?.scrollIntoView({ behavior: 'smooth' });
+                    navigate('/layanan');
+                  } else {
+                    document.getElementById('jadwal')?.scrollIntoView({ behavior: 'smooth' });
                   }
                 }}
                 className="group flex items-center gap-2 bg-white text-navy px-8 py-3.5 rounded-full font-bold hover:shadow-md transition-all shadow-sm uppercase tracking-wider text-xs"

@@ -7,6 +7,7 @@ export default function Approvals() {
   const [data, setData] = useState<RegistrationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'jemaat' | 'event'>('jemaat');
 
   useEffect(() => {
     fetch('/api/registrations')
@@ -17,6 +18,14 @@ export default function Approvals() {
       })
       .catch(() => setIsLoading(false));
   }, []);
+
+  const filteredData = data.filter(item => {
+    if (activeTab === 'jemaat') {
+      return item.type === 'jemaat_baru';
+    } else {
+      return item.type === 'event';
+    }
+  });
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     try {
@@ -57,6 +66,32 @@ export default function Approvals() {
         <h1 className="text-2xl font-bold text-navy">Sistem Approval & Pendaftaran</h1>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setActiveTab('jemaat')}
+          className={clsx(
+            "px-6 py-3 rounded-xl font-bold text-sm transition-all",
+            activeTab === 'jemaat'
+              ? "bg-navy text-white shadow-md"
+              : "bg-sand-dark text-text-muted hover:text-navy"
+          )}
+        >
+          Pendaftaran Jemaat Baru
+        </button>
+        <button
+          onClick={() => setActiveTab('event')}
+          className={clsx(
+            "px-6 py-3 rounded-xl font-bold text-sm transition-all",
+            activeTab === 'event'
+              ? "bg-navy text-white shadow-md"
+              : "bg-sand-dark text-text-muted hover:text-navy"
+          )}
+        >
+          Pendaftaran Event
+        </button>
+      </div>
+
       <div className="bg-white rounded-2xl border border-border-subtle shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-navy">
@@ -75,12 +110,12 @@ export default function Approvals() {
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-text-muted">Memuat data...</td>
                 </tr>
-              ) : data.length === 0 ? (
+              ) : filteredData.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-text-muted">Tidak ada pendaftaran.</td>
                 </tr>
               ) : (
-                data.map(item => (
+                filteredData.map(item => (
                   <React.Fragment key={item.id}>
                     <tr className="hover:bg-sand-darker/50 transition-colors cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
                       <td className="px-6 py-4">
@@ -140,45 +175,49 @@ export default function Approvals() {
                       <tr className="bg-sand-dark/30 border-b border-border-subtle">
                         <td colSpan={6} className="px-14 py-6">
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-sm">
-                            <div>
-                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">NIK</p>
-                              <p className="font-medium text-navy">{item.nik || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Tempat/Tanggal Lahir</p>
-                              <p className="font-medium text-navy">{item.tempatLahir}, {item.tanggalLahir}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Gender</p>
-                              <p className="font-medium text-navy">{item.gender || '-'}</p>
-                            </div>
-                            <div className="col-span-2 md:col-span-3">
-                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Alamat Lengkap</p>
-                              <p className="font-medium text-navy">{item.alamat || '-'} {item.kecamatan && `, Kec. ${item.kecamatan}`} {item.kabupatenKota && `, ${item.kabupatenKota}`} {item.provinsi}</p>
-                            </div>
-                            
-                            {(item.lampiranKTP || item.lampiranBuktiBayar) && (
-                              <div className="col-span-2 md:col-span-3 mt-4 pt-4 border-t border-border-subtle">
-                                <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Lampiran Berkas</p>
-                                <div className="flex gap-4">
-                                  {item.lampiranKTP && (
-                                    <div>
-                                      <p className="text-xs font-bold text-navy mb-2">KTP / Identitas</p>
-                                      <div className="w-32 h-24 bg-white border border-border-subtle rounded-xl overflow-hidden shadow-sm">
-                                        <img src={item.lampiranKTP} alt="KTP" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.open(item.lampiranKTP, '_blank')} />
-                                      </div>
-                                    </div>
-                                  )}
-                                  {item.lampiranBuktiBayar && (
-                                    <div>
-                                      <p className="text-xs font-bold text-navy mb-2">Bukti Pembayaran</p>
-                                      <div className="w-32 h-24 bg-white border border-border-subtle rounded-xl overflow-hidden shadow-sm">
-                                        <img src={item.lampiranBuktiBayar} alt="Bukti Bayar" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.open(item.lampiranBuktiBayar, '_blank')} />
-                                      </div>
-                                    </div>
-                                  )}
+                            {activeTab === 'jemaat' && (
+                              <>
+                                <div>
+                                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Jenis Kelamin</p>
+                                  <p className="font-medium text-navy">{item.gender || '-'}</p>
                                 </div>
-                              </div>
+                                <div>
+                                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Tempat Lahir</p>
+                                  <p className="font-medium text-navy">{item.tempatLahir || '-'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Tanggal Lahir</p>
+                                  <p className="font-medium text-navy">{item.tanggalLahir || '-'}</p>
+                                </div>
+                                <div className="col-span-2 md:col-span-3">
+                                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Alamat Lengkap</p>
+                                  <p className="font-medium text-navy">{item.alamat || '-'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Rayon</p>
+                                  <p className="font-medium text-navy">{item.rayon || '-'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Tanggal Daftar</p>
+                                  <p className="font-medium text-navy">{new Date(item.tanggalDaftar).toLocaleDateString('id-ID')}</p>
+                                </div>
+                              </>
+                            )}
+                            {activeTab === 'event' && (
+                              <>
+                                <div>
+                                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Jenis Kegiatan</p>
+                                  <p className="font-medium text-navy">{item.jenisKegiatan || '-'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Event Name</p>
+                                  <p className="font-medium text-navy">{item.eventName || '-'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Tanggal Daftar</p>
+                                  <p className="font-medium text-navy">{new Date(item.tanggalDaftar).toLocaleDateString('id-ID')}</p>
+                                </div>
+                              </>
                             )}
 
                             {item.customResponses && Object.keys(item.customResponses).length > 0 && (
@@ -191,25 +230,6 @@ export default function Approvals() {
                                       <p className="text-sm font-medium text-navy">
                                         {typeof val === 'boolean' ? (val ? 'Ya / Setuju' : 'Tidak') : (val as string)}
                                       </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {item.anggotaKeluarga && item.anggotaKeluarga.length > 0 && (
-                              <div className="col-span-2 md:col-span-3 mt-4 pt-4 border-t border-border-subtle">
-                                <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Anggota Keluarga ({item.anggotaKeluarga.length})</p>
-                                <div className="grid gap-3">
-                                  {item.anggotaKeluarga.map((ak, idx) => (
-                                    <div key={idx} className="bg-white p-3 rounded-xl border border-border-subtle flex justify-between items-center">
-                                      <div>
-                                        <p className="font-bold text-navy">{ak.nama}</p>
-                                        <p className="text-xs text-text-muted mt-0.5">{ak.nik} • {ak.gender}</p>
-                                      </div>
-                                      <span className="bg-sand-dark px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-navy">
-                                        {ak.statusKeluarga}
-                                      </span>
                                     </div>
                                   ))}
                                 </div>

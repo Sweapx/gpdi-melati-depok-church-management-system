@@ -71,25 +71,17 @@ CREATE TABLE admin_users (
 CREATE TABLE jemaat (
     id VARCHAR(50) PRIMARY KEY,
     nama VARCHAR(255) NOT NULL,
-    nik VARCHAR(20) UNIQUE,
     gender VARCHAR(10),
     tempat_lahir VARCHAR(100),
     tanggal_lahir DATE,
     alamat TEXT,
     no_hp VARCHAR(20),
-    status_pernikahan VARCHAR(50),
+    rayon VARCHAR(100),
+    wadah VARCHAR(100),
     status_jemaat VARCHAR(50) DEFAULT 'Aktif',
-    kategori_kaum VARCHAR(50),
-    sektor VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    anggota_keluarga JSONB
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
-
-**⚠️ NOTE**: Field tambahan untuk fitur baru (belum ada di production):
-- `wadah` VARCHAR(100) - Wadah jemaat
-- `rayon` VARCHAR(100) - Rayon jemaat
-- `no_telepon` VARCHAR(20) - Nomor telepon rumah
 
 #### Field Details
 | Field | Type | Required | Description | Used By |

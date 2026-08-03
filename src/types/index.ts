@@ -29,6 +29,8 @@ export interface Jemaat {
   statusJemaat: 'Aktif' | 'Inaktif' | 'Keluar' | 'Meninggal';
   kategoriKaum: KategoriKaum;
   sektor: string;
+  wadah?: string;
+  rayon?: string;
   tanggalBaptis?: string;
   namaAyah?: string;
   namaIbu?: string;
@@ -36,43 +38,24 @@ export interface Jemaat {
   anggotaKeluarga?: JemaatFamilyMember[];
 }
 
-export type RegistrationType = 'jemaat_baru' | 'pendataan_terdaftar' | 'pemutakhiran_data' | 'baptisan' | 'event';
+export type RegistrationType = 'jemaat_baru' | 'event';
 export type RegistrationStatus = 'Pending' | 'Disetujui' | 'Ditolak';
 
 export interface RegistrationItem {
   id: string;
   type: RegistrationType;
   eventName?: string;
+  jenisKegiatan?: string;
   namaPendaftar: string;
-  nik: string;
-  gender: 'Pria' | 'Wanita';
-  tempatLahir: string;
-  tanggalLahir: string;
+  gender?: 'Pria' | 'Wanita';
+  tempatLahir?: string;
+  tanggalLahir?: string;
   noHp: string;
-  email?: string;
-  provinsi?: string;
-  kabupatenKota?: string;
-  kecamatan?: string;
-  alamat: string;
-  namaAyah?: string;
-  namaIbu?: string;
-  gerejaAsal?: string;
-  pasfotoBaptis?: string;
-  ukuranKaos?: string;
-  paketKamar?: string;
-  catatanMedis?: string;
-  jumlahPeserta?: number;
-  lampiranBuktiBayar?: string;
-  customResponses?: Record<string, any>;
-  isAgreedToTerms?: boolean;
-  anggotaKeluarga?: JemaatFamilyMember[];
+  alamat?: string;
+  rayon?: string;
   status: RegistrationStatus;
-  lampiranKTP?: string;
-  lampiranKK?: string;
-  catatan?: string;
   tanggalDaftar: string;
-  statusNote?: string;
-  verifiedBy?: string;
+  customResponses?: Record<string, any>;
 }
 
 export interface CustomEventField {
@@ -88,6 +71,7 @@ export interface ScheduleItem {
   kategori: string;
   judul: string;
   hariJam: string;
+  waktu?: string;
   pembicara?: string;
   lokasi?: string;
   deskripsi?: string;

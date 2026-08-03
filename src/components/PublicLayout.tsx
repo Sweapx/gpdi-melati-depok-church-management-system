@@ -12,10 +12,9 @@ export default function PublicLayout() {
       <div className="bg-navy text-sand text-sm py-2 border-b border-navy-light">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1"><Phone size={14} className="text-gold" /> 0812-9900-1122</span>
-            <span className="flex items-center gap-1"><Mail size={14} className="text-gold" /> info@gpdimelatidepok.org</span>
+            <span className="flex items-center gap-1"><Phone size={14} className="text-gold" /> (021) 7521216</span>
           </div>
-          <span className="flex items-center gap-1"><MapPin size={14} className="text-gold" /> Jl. Melati Raya No. 1, Depok</span>
+          <span className="flex items-center gap-1"><MapPin size={14} className="text-gold" /> Jl. Melati No. 8, Depok</span>
         </div>
       </div>
 
@@ -75,9 +74,8 @@ export default function PublicLayout() {
           <div>
             <h4 className="font-semibold text-white mb-4">Kontak & Lokasi</h4>
             <ul className="text-sm space-y-2 text-text-light">
-              <li>Jl. Melati Raya No. 1, Pancoran Mas, Depok</li>
-              <li>Telp: 0812-9900-1122</li>
-              <li>Email: info@gpdimelatidepok.org</li>
+              <li>Jl. Melati No. 8, Depok</li>
+              <li>Telp: (021) 7521216</li>
             </ul>
           </div>
           <div>
@@ -93,9 +91,9 @@ export default function PublicLayout() {
           <div>
             <h4 className="font-semibold text-white mb-4">Social Media</h4>
             <ul className="text-sm space-y-2">
-              <li><a href="#" className="hover:text-gold text-text-light flex items-center gap-2"><Facebook size={16} /> Facebook</a></li>
-              <li><a href="#" className="hover:text-gold text-text-light flex items-center gap-2"><Instagram size={16} /> Instagram</a></li>
-              <li><a href="#" className="hover:text-gold text-text-light flex items-center gap-2"><Youtube size={16} /> YouTube</a></li>
+              <li><a href="https://www.facebook.com/groups/131852930377/about" target="_blank" rel="noopener noreferrer" className="hover:text-gold text-text-light flex items-center gap-2"><Facebook size={16} /> Facebook</a></li>
+              <li><a href="https://www.instagram.com/gpdimelatidepok/" target="_blank" rel="noopener noreferrer" className="hover:text-gold text-text-light flex items-center gap-2"><Instagram size={16} /> Instagram</a></li>
+              <li><a href="https://www.youtube.com/c/gpdimelatidepok" target="_blank" rel="noopener noreferrer" className="hover:text-gold text-text-light flex items-center gap-2"><Youtube size={16} /> YouTube</a></li>
             </ul>
           </div>
           <div>

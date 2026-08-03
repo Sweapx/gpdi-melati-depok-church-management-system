@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Calendar, Clock, ArrowRight } from 'lucide-react';
+import { Calendar, Clock, ArrowRight, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScheduleItem } from '../../types/index.ts';
 
@@ -69,12 +69,20 @@ export default function SimpleScheduleSection() {
               
               <div className="space-y-2 mb-4">
                 <div className="flex items-center gap-2 text-sm text-text-muted">
-                  <Clock size={16} className="text-gold" />
+                  <Calendar size={16} className="text-gold" />
                   <span>{schedule.hariJam}</span>
                 </div>
+                <div className="flex items-center gap-2 text-sm text-text-muted">
+                  <Clock size={16} className="text-gold" />
+                  <span>{schedule.waktu}</span>
+                </div>
+                {schedule.lokasi && (
+                  <div className="flex items-center gap-2 text-sm text-text-muted">
+                    <MapPin size={16} className="text-gold" />
+                    <span>{schedule.lokasi}</span>
+                  </div>
+                )}
               </div>
-
-              <p className="text-text-muted text-sm mb-4 flex-grow leading-relaxed line-clamp-2">{schedule.deskripsi}</p>
 
               <Link 
                 to="/jadwal-event"

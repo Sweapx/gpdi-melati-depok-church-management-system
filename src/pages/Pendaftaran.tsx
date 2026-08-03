@@ -18,13 +18,30 @@ export default function Pendaftaran() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSubmitting(true);
     try {
+      const payload = {
+        type: activeTab === 'jemaat' ? 'jemaat_baru' : 'event',
+        namaPendaftar: formData.namaPendaftar,
+        noHp: formData.noHp,
+        status: 'Pending',
+        tanggalDaftar: new Date().toISOString(),
+        ...(activeTab === 'jemaat' ? {
+          gender: formData.gender,
+          tempatLahir: formData.tempatLahir,
+          tanggalLahir: formData.tanggalLahir,
+          alamat: formData.alamat,
+          rayon: formData.rayon
+        } : {
+          jenisKegiatan: formData.jenisKegiatan
+        })
+      };
       const res = await fetch('/api/registrations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, status: 'Pending', tanggalDaftar: new Date().toISOString() })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
@@ -124,142 +141,77 @@ export default function Pendaftaran() {
                 >
                   {step === 1 && (
                     <div className="space-y-5">
-                      <h3 className="text-lg font-bold text-navy mb-4 border-b border-border-subtle pb-2">Data Pribadi / Kepala Keluarga</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-navy">Nama Lengkap</label>
-                          <input name="namaPendaftar" onChange={handleChange} value={formData.namaPendaftar || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold focus:border-gold outline-none transition-all bg-sand-dark/50" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-navy">NIK (Sesuai KTP)</label>
-                          <input name="nik" onChange={handleChange} value={formData.nik || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-navy">Jenis Kelamin</label>
-                          <select name="gender" onChange={handleChange} value={formData.gender || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50">
-                            <option value="">Pilih...</option>
-                            <option value="Pria">Pria</option>
-                            <option value="Wanita">Wanita</option>
-                          </select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-navy">No. WhatsApp</label>
-                          <input name="noHp" onChange={handleChange} value={formData.noHp || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" />
-                        </div>
-                        <div className="space-y-1.5 sm:col-span-2">
-                          <label className="text-sm font-bold text-navy">Alamat Lengkap</label>
-                          <textarea name="alamat" onChange={handleChange} value={formData.alamat || ''} rows={2} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all resize-none bg-sand-dark/50" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-navy">Provinsi</label>
-                          <input name="provinsi" onChange={handleChange} value={formData.provinsi || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-navy">Kota / Kabupaten</label>
-                          <input name="kabupatenKota" onChange={handleChange} value={formData.kabupatenKota || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-navy">Kecamatan</label>
-                          <input name="kecamatan" onChange={handleChange} value={formData.kecamatan || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-navy">Kelurahan / Desa</label>
-                          <input name="kelurahan" onChange={handleChange} value={formData.kelurahan || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" />
-                        </div>
-                      </div>
-
-                      {activeTab === 'jemaat' && (
-                        <div className="mt-8 pt-6 border-t border-border-subtle">
-                          <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-navy">Anggota Keluarga (Opsional)</h3>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const existing = formData.anggotaKeluarga || [];
-                                setFormData({ ...formData, anggotaKeluarga: [...existing, { nama: '', nik: '', gender: '', statusKeluarga: '', noHp: '', tanggalLahir: '', kategoriKaum: '' }] });
-                              }}
-                              className="text-xs font-bold bg-navy text-gold px-3 py-1.5 rounded-full hover:bg-navy-light transition-colors"
-                            >
-                              + Tambah Anggota
-                            </button>
-                          </div>
-                          
-                          {(formData.anggotaKeluarga || []).map((anggota: any, idx: number) => (
-                            <div key={idx} className="bg-sand-dark rounded-xl p-4 mb-4 relative border border-border-subtle">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newArr = [...formData.anggotaKeluarga];
-                                  newArr.splice(idx, 1);
-                                  setFormData({ ...formData, anggotaKeluarga: newArr });
-                                }}
-                                className="absolute top-3 right-3 text-rose-500 hover:text-rose-700"
-                              >
-                                ×
-                              </button>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                                <div>
-                                  <label className="text-xs font-bold text-navy">Nama Lengkap</label>
-                                  <input
-                                    value={anggota.nama}
-                                    onChange={(e) => {
-                                      const newArr = [...formData.anggotaKeluarga];
-                                      newArr[idx].nama = e.target.value;
-                                      setFormData({ ...formData, anggotaKeluarga: newArr });
-                                    }}
-                                    className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs font-bold text-navy">NIK</label>
-                                  <input
-                                    value={anggota.nik}
-                                    onChange={(e) => {
-                                      const newArr = [...formData.anggotaKeluarga];
-                                      newArr[idx].nik = e.target.value;
-                                      setFormData({ ...formData, anggotaKeluarga: newArr });
-                                    }}
-                                    className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs font-bold text-navy">Jenis Kelamin</label>
-                                  <select
-                                    value={anggota.gender}
-                                    onChange={(e) => {
-                                      const newArr = [...formData.anggotaKeluarga];
-                                      newArr[idx].gender = e.target.value;
-                                      setFormData({ ...formData, anggotaKeluarga: newArr });
-                                    }}
-                                    className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none"
-                                  >
-                                    <option value="">Pilih...</option>
-                                    <option value="Pria">Pria</option>
-                                    <option value="Wanita">Wanita</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="text-xs font-bold text-navy">Status Keluarga</label>
-                                  <select
-                                    value={anggota.statusKeluarga}
-                                    onChange={(e) => {
-                                      const newArr = [...formData.anggotaKeluarga];
-                                      newArr[idx].statusKeluarga = e.target.value;
-                                      setFormData({ ...formData, anggotaKeluarga: newArr });
-                                    }}
-                                    className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none"
-                                  >
-                                    <option value="">Pilih...</option>
-                                    <option value="Suami">Suami</option>
-                                    <option value="Istri">Istri</option>
-                                    <option value="Anak">Anak</option>
-                                    <option value="Lainnya">Lainnya</option>
-                                  </select>
-                                </div>
-                              </div>
+                      {activeTab === 'jemaat' ? (
+                        <>
+                          <h3 className="text-lg font-bold text-navy mb-4 border-b border-border-subtle pb-2">Data Pendaftaran Jemaat Baru</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div className="space-y-1.5 sm:col-span-2">
+                              <label className="text-sm font-bold text-navy">Nama Lengkap</label>
+                              <input name="namaPendaftar" onChange={handleChange} value={formData.namaPendaftar || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold focus:border-gold outline-none transition-all bg-sand-dark/50" />
                             </div>
-                          ))}
-                        </div>
+                            <div className="space-y-1.5">
+                              <label className="text-sm font-bold text-navy">Jenis Kelamin</label>
+                              <select name="gender" onChange={handleChange} value={formData.gender || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50">
+                                <option value="">Pilih...</option>
+                                <option value="Pria">Pria</option>
+                                <option value="Wanita">Wanita</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-sm font-bold text-navy">Tempat Lahir</label>
+                              <input name="tempatLahir" onChange={handleChange} value={formData.tempatLahir || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-sm font-bold text-navy">Tanggal Lahir</label>
+                              <input type="date" name="tanggalLahir" onChange={handleChange} value={formData.tanggalLahir || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-sm font-bold text-navy">No. WhatsApp</label>
+                              <input name="noHp" onChange={handleChange} value={formData.noHp || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" />
+                            </div>
+                            <div className="space-y-1.5 sm:col-span-2">
+                              <label className="text-sm font-bold text-navy">Alamat Lengkap</label>
+                              <textarea name="alamat" onChange={handleChange} value={formData.alamat || ''} rows={2} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all resize-none bg-sand-dark/50" />
+                            </div>
+                            <div className="space-y-1.5 sm:col-span-2">
+                              <label className="text-sm font-bold text-navy">Rayon</label>
+                              <select name="rayon" onChange={handleChange} value={formData.rayon || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50">
+                                <option value="">Pilih Rayon...</option>
+                                <option value="Rayon 1">Rayon 1</option>
+                                <option value="Rayon 2">Rayon 2</option>
+                                <option value="Rayon 3">Rayon 3</option>
+                                <option value="Rayon 4">Rayon 4</option>
+                                <option value="Rayon 5">Rayon 5</option>
+                              </select>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className="text-lg font-bold text-navy mb-4 border-b border-border-subtle pb-2">Data Pendaftaran Event</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div className="space-y-1.5 sm:col-span-2">
+                              <label className="text-sm font-bold text-navy">Jenis Kegiatan</label>
+                              <select name="jenisKegiatan" onChange={handleChange} value={formData.jenisKegiatan || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50">
+                                <option value="">Pilih Kegiatan...</option>
+                                <option value="Ibadah Padang Sekolah Minggu">Ibadah Padang Sekolah Minggu</option>
+                                <option value="Retreat Pemudia">Retreat Pemudia</option>
+                                <option value="Retreat Pemudi">Retreat Pemudi</option>
+                                <option value="Natal Bersama">Natal Bersama</option>
+                                <option value="Paskah Bersama">Paskah Bersama</option>
+                                <option value="Lainnya">Lainnya</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1.5 sm:col-span-2">
+                              <label className="text-sm font-bold text-navy">Nama Lengkap</label>
+                              <input name="namaPendaftar" onChange={handleChange} value={formData.namaPendaftar || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold focus:border-gold outline-none transition-all bg-sand-dark/50" />
+                            </div>
+                            <div className="space-y-1.5 sm:col-span-2">
+                              <label className="text-sm font-bold text-navy">No. WhatsApp</label>
+                              <input name="noHp" onChange={handleChange} value={formData.noHp || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" />
+                            </div>
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
@@ -268,22 +220,53 @@ export default function Pendaftaran() {
                     <div className="space-y-5">
                       <h3 className="text-lg font-bold text-navy mb-4 border-b border-border-subtle pb-2">Konfirmasi Data</h3>
                       <div className="bg-sand-dark rounded-xl p-5 border border-border-subtle space-y-3">
-                        <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
-                          <span className="text-text-muted">Nama</span>
-                          <span className="col-span-2 font-bold text-navy">{formData.namaPendaftar || '-'}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
-                          <span className="text-text-muted">NIK</span>
-                          <span className="col-span-2 font-bold text-navy">{formData.nik || '-'}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
-                          <span className="text-text-muted">No WA</span>
-                          <span className="col-span-2 font-bold text-navy">{formData.noHp || '-'}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-sm pb-1">
-                          <span className="text-text-muted">Alamat</span>
-                          <span className="col-span-2 font-bold text-navy">{formData.alamat || '-'}</span>
-                        </div>
+                        {activeTab === 'jemaat' ? (
+                          <>
+                            <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
+                              <span className="text-text-muted">Nama Lengkap</span>
+                              <span className="col-span-2 font-bold text-navy">{formData.namaPendaftar || '-'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
+                              <span className="text-text-muted">Jenis Kelamin</span>
+                              <span className="col-span-2 font-bold text-navy">{formData.gender || '-'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
+                              <span className="text-text-muted">Tempat Lahir</span>
+                              <span className="col-span-2 font-bold text-navy">{formData.tempatLahir || '-'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
+                              <span className="text-text-muted">Tanggal Lahir</span>
+                              <span className="col-span-2 font-bold text-navy">{formData.tanggalLahir || '-'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
+                              <span className="text-text-muted">No WA</span>
+                              <span className="col-span-2 font-bold text-navy">{formData.noHp || '-'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
+                              <span className="text-text-muted">Alamat</span>
+                              <span className="col-span-2 font-bold text-navy">{formData.alamat || '-'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-sm pb-1">
+                              <span className="text-text-muted">Rayon</span>
+                              <span className="col-span-2 font-bold text-navy">{formData.rayon || '-'}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
+                              <span className="text-text-muted">Jenis Kegiatan</span>
+                              <span className="col-span-2 font-bold text-navy">{formData.jenisKegiatan || '-'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-sm border-b border-border-subtle pb-2">
+                              <span className="text-text-muted">Nama Lengkap</span>
+                              <span className="col-span-2 font-bold text-navy">{formData.namaPendaftar || '-'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-sm pb-1">
+                              <span className="text-text-muted">No WA</span>
+                              <span className="col-span-2 font-bold text-navy">{formData.noHp || '-'}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                       <div className="flex items-start gap-3 mt-6">
                         <input type="checkbox" id="terms" checked={formData.isAgreedToTerms || false} onChange={e => setFormData({...formData, isAgreedToTerms: e.target.checked})} className="mt-1 w-4 h-4 text-gold rounded border-border-subtle focus:ring-gold accent-gold" />

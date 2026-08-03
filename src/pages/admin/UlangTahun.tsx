@@ -124,10 +124,10 @@ export default function UlangTahun() {
           <table className="w-full text-left text-sm text-navy">
             <thead className="bg-sand-dark text-text-muted text-xs uppercase font-bold tracking-wider border-b border-border-subtle">
               <tr>
-                <th className="px-6 py-4">NAMA</th>
-                <th className="px-6 py-4">TGL LAHIR</th>
-                <th className="px-6 py-4">USIA</th>
-                <th className="px-6 py-4">NO. WHATSAPP</th>
+                <th className="px-6 py-4">NAMA JEMAAT</th>
+                <th className="px-6 py-4">TANGGAL ULANG TAHUN</th>
+                <th className="px-6 py-4">USIA (TAHUN INI)</th>
+                <th className="px-6 py-4">WADAH</th>
                 <th className="px-6 py-4 text-center">AKSI</th>
               </tr>
             </thead>
@@ -144,13 +144,14 @@ export default function UlangTahun() {
                 filteredData.map(jemaat => {
                   const birthDate = jemaat.tanggalLahir ? new Date(jemaat.tanggalLahir) : null;
                   const age = birthDate ? new Date().getFullYear() - birthDate.getFullYear() : '-';
+                  const birthday = birthDate ? birthDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' }) : '-';
                   
                   return (
                     <tr key={jemaat.id} className="hover:bg-sand-darker/50 transition-colors">
                       <td className="px-6 py-4 font-medium">{jemaat.nama}</td>
-                      <td className="px-6 py-4">{jemaat.tanggalLahir || '-'}</td>
+                      <td className="px-6 py-4">{birthday}</td>
                       <td className="px-6 py-4">{age}</td>
-                      <td className="px-6 py-4">{jemaat.noHp || '-'}</td>
+                      <td className="px-6 py-4">{jemaat.wadah || '-'}</td>
                       <td className="px-6 py-4 flex justify-center gap-2">
                         <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => setEditingJemaat(jemaat)}><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete(jemaat.id)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16} /></button>

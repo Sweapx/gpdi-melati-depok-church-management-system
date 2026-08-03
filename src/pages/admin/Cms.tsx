@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, X, Save } from 'lucide-react';
 import FileUpload from '../../components/ui/FileUpload';
 
 export default function Cms() {
-  const [activeTab, setActiveTab] = useState<'announcements' | 'schedules' | 'hero' | 'warta'>('announcements');
+  const [activeTab, setActiveTab] = useState<'announcements' | 'ibadah' | 'event' | 'hero' | 'warta'>('announcements');
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -11,7 +11,8 @@ export default function Cms() {
   const getEndpoint = (tab: string) => {
     switch (tab) {
       case 'announcements': return '/api/announcements';
-      case 'schedules': return '/api/schedules';
+      case 'ibadah': return '/api/schedules';
+      case 'event': return '/api/schedules';
       case 'hero': return '/api/hero-slides';
       case 'warta': return '/api/warta-jemaat';
       default: return '/api/announcements';
@@ -23,7 +24,16 @@ export default function Cms() {
     fetch(getEndpoint(activeTab))
       .then(res => res.json())
       .then(res => {
-        if (res.success) setData(res.data);
+        if (res.success) {
+          // Filter schedules based on tab
+          if (activeTab === 'ibadah') {
+            setData(res.data.filter((item: any) => item.kategori === 'Ibadah Raya' || item.kategori === 'Ibadah'));
+          } else if (activeTab === 'event') {
+            setData(res.data.filter((item: any) => item.kategori !== 'Ibadah Raya' && item.kategori !== 'Ibadah'));
+          } else {
+            setData(res.data);
+          }
+        }
         setIsLoading(false);
       })
       .catch(() => setIsLoading(false));
@@ -57,8 +67,8 @@ export default function Cms() {
     // Add default values if missing
     if (activeTab === 'announcements') {
       payload = { ...payload, tanggal: new Date().toLocaleDateString(), ringkasan: payload.ringkasan || '', isi: payload.isi || '', penting: false };
-    } else if (activeTab === 'schedules') {
-      payload = { ...payload, isRegistrationRequired: payload.isRegistrationRequired === 'true', kuota: payload.isRegistrationRequired === 'true' ? Number(payload.kuota) : 0, terdaftar: 0 };
+    } else if (activeTab === 'ibadah' || activeTab === 'event') {
+      payload = { ...payload, kategori: activeTab === 'ibadah' ? 'Ibadah Raya' : 'Event', isRegistrationRequired: payload.isRegistrationRequired === 'true', kuota: payload.isRegistrationRequired === 'true' ? Number(payload.kuota) : 0, terdaftar: 0 };
     } else if (activeTab === 'hero') {
       payload = { ...payload, isActive: true, orderIndex: data.length };
     } else if (activeTab === 'warta') {
@@ -110,14 +120,15 @@ export default function Cms() {
 
       <div className="bg-white rounded-2xl border border-border-subtle shadow-sm overflow-hidden">
         <div className="flex border-b border-border-subtle overflow-x-auto">
-          {['announcements', 'schedules', 'hero', 'warta'].map((tab) => (
+          {['announcements', 'ibadah', 'event', 'hero', 'warta'].map((tab) => (
             <button 
               key={tab}
               onClick={() => setActiveTab(tab as any)}
               className={`px-6 py-4 font-bold text-sm transition-colors whitespace-nowrap ${activeTab === tab ? 'text-navy border-b-2 border-navy' : 'text-text-muted hover:bg-sand-dark'}`}
             >
               {tab === 'announcements' ? 'Pengumuman' : 
-               tab === 'schedules' ? 'Jadwal Ibadah' : 
+               tab === 'ibadah' ? 'Jadwal Ibadah' : 
+               tab === 'event' ? 'Jadwal Event' : 
                tab === 'hero' ? 'Banner Slide' : 'Warta Jemaat'}
             </button>
           ))}
@@ -146,12 +157,12 @@ export default function Cms() {
                 data.map(item => (
                   <tr key={item.id} className="hover:bg-sand-darker/50 transition-colors">
                     <td className="px-6 py-4 font-medium">
-                      {activeTab === 'announcements' || activeTab === 'schedules' ? item.judul : 
+                      {activeTab === 'announcements' || activeTab === 'ibadah' || activeTab === 'event' ? item.judul : 
                        activeTab === 'hero' ? item.title : item.edisi}
                     </td>
                     <td className="px-6 py-4">
                       {activeTab === 'announcements' ? (item.ringkasan || item.isi?.substring(0, 50) + '...') : 
-                       activeTab === 'schedules' ? item.hariJam : 
+                       activeTab === 'ibadah' || activeTab === 'event' ? item.hariJam : 
                        activeTab === 'hero' ? item.subtitle : new Date(item.tanggal).toLocaleDateString('id-ID')}
                     </td>
                     <td className="px-6 py-4">
@@ -187,7 +198,7 @@ export default function Cms() {
             <div className="p-6 overflow-y-auto">
               <form id="edit-cms-form" onSubmit={handleEditSave} className="space-y-4">
                 
-                {(activeTab === 'announcements' || activeTab === 'schedules') && (
+                {(activeTab === 'announcements' || activeTab === 'ibadah' || activeTab === 'event') && (
                   <>
                     <div>
                       <label className="text-xs font-bold text-navy">Judul</label>
@@ -209,7 +220,7 @@ export default function Cms() {
                   </>
                 )}
 
-                {activeTab === 'schedules' && (
+                {(activeTab === 'ibadah' || activeTab === 'event') && (
                   <>
                     <div>
                       <label className="text-xs font-bold text-navy">Hari & Jam (contoh: Minggu, 09:00 WIB)</label>
@@ -388,7 +399,7 @@ export default function Cms() {
             <div className="p-6 overflow-y-auto">
               <form id="add-cms-form" onSubmit={handleAddSubmit} className="space-y-4">
                 
-                {(activeTab === 'announcements' || activeTab === 'schedules') && (
+                {(activeTab === 'announcements' || activeTab === 'ibadah' || activeTab === 'event') && (
                   <>
                     <div>
                       <label className="text-xs font-bold text-navy">Judul</label>
@@ -397,7 +408,7 @@ export default function Cms() {
                   </>
                 )}
 
-                {activeTab === 'schedules' && (
+                {(activeTab === 'ibadah' || activeTab === 'event') && (
                   <>
                     <div>
                       <label className="text-xs font-bold text-navy">Hari & Jam (contoh: Minggu, 09:00 WIB)</label>
