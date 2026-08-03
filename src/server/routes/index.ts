@@ -1,6 +1,6 @@
 import { Router } from "express";
 import authRouter from "./auth.ts";
-import apiRouter from "./api.ts";
+import apiRouter from "./api-postgres.ts";
 
 const router = Router();
 
