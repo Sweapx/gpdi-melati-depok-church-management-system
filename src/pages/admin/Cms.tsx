@@ -139,19 +139,22 @@ export default function Cms() {
             <thead className="bg-sand-dark text-text-muted text-xs uppercase font-bold tracking-wider border-b border-border-subtle">
               <tr>
                 <th className="px-6 py-4">Judul / Utama</th>
-                <th className="px-6 py-4">Detail / Tanggal</th>
-                <th className="px-6 py-4">Status</th>
+                {activeTab === 'announcements' && <th className="px-6 py-4">Ringkasan</th>}
+                {(activeTab === 'ibadah' || activeTab === 'event') && <th className="px-6 py-4">Tanggal</th>}
+                {(activeTab === 'ibadah' || activeTab === 'event') && <th className="px-6 py-4">Lokasi</th>}
+                {activeTab === 'hero' && <th className="px-6 py-4">Deskripsi</th>}
+                {activeTab === 'warta' && <th className="px-6 py-4">Tanggal</th>}
                 <th className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {isLoading ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-text-muted">Memuat data...</td>
+                  <td colSpan={activeTab === 'announcements' ? 3 : activeTab === 'ibadah' || activeTab === 'event' ? 4 : activeTab === 'hero' ? 3 : 3} className="text-center py-12 text-text-muted">Memuat data...</td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-text-muted">Tidak ada data.</td>
+                  <td colSpan={activeTab === 'announcements' ? 3 : activeTab === 'ibadah' || activeTab === 'event' ? 4 : activeTab === 'hero' ? 3 : 3} className="text-center py-12 text-text-muted">Tidak ada data.</td>
                 </tr>
               ) : (
                 data.map(item => (
@@ -160,20 +163,21 @@ export default function Cms() {
                       {activeTab === 'announcements' || activeTab === 'ibadah' || activeTab === 'event' ? item.judul : 
                        activeTab === 'hero' ? item.title : item.edisi}
                     </td>
-                    <td className="px-6 py-4">
-                      {activeTab === 'announcements' ? (item.ringkasan || item.isi?.substring(0, 50) + '...') : 
-                       activeTab === 'ibadah' || activeTab === 'event' ? item.hariJam : 
-                       activeTab === 'hero' ? item.subtitle : new Date(item.tanggal).toLocaleDateString('id-ID')}
-                    </td>
-                    <td className="px-6 py-4">
-                      {activeTab === 'hero' ? (
-                        <span className={item.isActive ? "text-emerald-600" : "text-text-muted"}>
-                          {item.isActive ? 'Aktif' : 'Nonaktif'}
-                        </span>
-                      ) : (
-                        <span className="text-text-muted">-</span>
-                      )}
-                    </td>
+                    {activeTab === 'announcements' && (
+                      <td className="px-6 py-4">{item.ringkasan || item.isi?.substring(0, 50) + '...'}</td>
+                    )}
+                    {(activeTab === 'ibadah' || activeTab === 'event') && (
+                      <td className="px-6 py-4">{item.hariJam}</td>
+                    )}
+                    {(activeTab === 'ibadah' || activeTab === 'event') && (
+                      <td className="px-6 py-4">{item.lokasi || '-'}</td>
+                    )}
+                    {activeTab === 'hero' && (
+                      <td className="px-6 py-4">{item.subtitle || '-'}</td>
+                    )}
+                    {activeTab === 'warta' && (
+                      <td className="px-6 py-4">{new Date(item.tanggal).toLocaleDateString('id-ID')}</td>
+                    )}
                     <td className="px-6 py-4 flex justify-center gap-2">
                       <button className="p-1.5 text-text-muted hover:text-navy hover:bg-sand-dark rounded-lg transition-colors" onClick={() => setEditingItem(item)}><Edit2 size={16} /></button>
                       <button onClick={() => handleDelete(item.id)} className="p-1.5 text-text-muted hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
@@ -347,13 +351,6 @@ export default function Cms() {
                         <option value="registration">Pendaftaran</option>
                         <option value="layanan">Layanan</option>
                         <option value="warta">Warta Digital</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-navy">Status</label>
-                      <select value={editingItem.isActive ? 'true' : 'false'} onChange={e => setEditingItem({...editingItem, isActive: e.target.value === 'true'})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1">
-                        <option value="true">Aktif (Muncul di Halaman)</option>
-                        <option value="false">Nonaktif (Tidak Muncul)</option>
                       </select>
                     </div>
                   </>
@@ -536,20 +533,12 @@ export default function Cms() {
                     </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Call to Action Type</label>
-                      <select value={formData.ctaType || 'event'} onChange={e => setFormData({...formData, ctaType: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none">
-                        <option value="event">Pendaftaran Event</option>
-                        <option value="jemaat_baru">Pendaftaran Jemaat Baru</option>
-                        <option value="baptisan">Pendaftaran Baptisan</option>
-                        <option value="schedule">Jadwal</option>
-                        <option value="warta">Warta Jemaat</option>
-                        <option value="prayer">Doa</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-navy">Status</label>
-                      <select value={formData.isActive !== undefined ? (formData.isActive ? 'true' : 'false') : 'true'} onChange={e => setFormData({...formData, isActive: e.target.value === 'true'})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none">
-                        <option value="true">Aktif (Muncul di Halaman)</option>
-                        <option value="false">Nonaktif (Tidak Muncul)</option>
+                      <select value={formData.ctaType || 'home'} onChange={e => setFormData({...formData, ctaType: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none">
+                        <option value="home">Beranda</option>
+                        <option value="schedule">Jadwal & Event</option>
+                        <option value="registration">Pendaftaran</option>
+                        <option value="layanan">Layanan</option>
+                        <option value="warta">Warta Digital</option>
                       </select>
                     </div>
                   </>
