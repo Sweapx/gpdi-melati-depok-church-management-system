@@ -1,10 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserPlus, Calendar, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function Pendaftaran() {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'jemaat' | 'event'>('jemaat');
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'event') {
+      setActiveTab('event');
+    }
+  }, [searchParams]);
   const [step, setStep] = useState(1);
   const [totalSteps] = useState(2);
   const [formData, setFormData] = useState<any>({ type: activeTab === 'jemaat' ? 'jemaat_baru' : 'event' });

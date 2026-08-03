@@ -96,21 +96,23 @@ export default function HeroSection() {
               >
                 {slides[currentIndex].subtitle}
               </motion.p>
-              <motion.button 
+              <motion.button
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
                 onClick={() => {
-                  if (slides[currentIndex].ctaType === 'schedule') {
-                    document.getElementById('jadwal')?.scrollIntoView({ behavior: 'smooth' });
-                  } else if (slides[currentIndex].ctaType === 'event') {
+                  if (slides[currentIndex].ctaType === 'home') {
+                    navigate('/');
+                  } else if (slides[currentIndex].ctaType === 'schedule') {
                     navigate('/jadwal-event');
+                  } else if (slides[currentIndex].ctaType === 'registration') {
+                    navigate('/pendaftaran');
+                  } else if (slides[currentIndex].ctaType === 'layanan') {
+                    navigate('/layanan');
                   } else if (slides[currentIndex].ctaType === 'warta') {
                     navigate('/warta');
-                  } else if (slides[currentIndex].ctaType === 'prayer') {
-                    navigate('/layanan');
                   } else {
-                    document.getElementById('jadwal')?.scrollIntoView({ behavior: 'smooth' });
+                    navigate('/jadwal-event');
                   }
                 }}
                 className="group flex items-center gap-2 bg-white text-navy px-8 py-3.5 rounded-full font-bold hover:shadow-md transition-all shadow-sm uppercase tracking-wider text-xs"

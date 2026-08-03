@@ -88,24 +88,21 @@ CREATE TABLE jemaat (
 |-------|------|----------|-------------|---------|
 | `id` | VARCHAR(50) | Yes | Primary key (format: JEM-XXX) | System |
 | `nama` | VARCHAR(255) | Yes | Nama lengkap jemaat | Jemaat list, Search |
-| `nik` | VARCHAR(20) | No | Nomor Induk Kependudukan (UNIQUE) | Jemaat detail, Search |
 | `gender` | VARCHAR(10) | No | Jenis kelamin (Pria/Wanita) | Jemaat detail, Filter |
 | `tempat_lahir` | VARCHAR(100) | No | Tempat lahir | Jemaat detail |
 | `tanggal_lahir` | DATE | No | Tanggal lahir | Jemaat detail, Ulang Tahun |
 | `alamat` | TEXT | No | Alamat lengkap | Jemaat detail |
 | `no_hp` | VARCHAR(20) | No | Nomor HP/WhatsApp | Jemaat detail, Contact |
-| `status_pernikahan` | No | Status pernikahan | Jemaat detail, Filter |
+| `rayon` | VARCHAR(100) | No | Rayon jemaat | Jemaat detail, Filter |
+| `wadah` | VARCHAR(100) | No | Wadah pelayanan | Jemaat detail, Ulang Tahun |
 | `status_jemaat` | VARCHAR(50) | No | Status (Aktif/Keluar/Meninggal) | Jemaat list, Filter |
-| `kategori_kaum` | VARCHAR(50) | No | Kategori kaum | Jemaat detail, Filter |
-| `sektor` | VARCHAR(100) | No | Sektor jemaat | Jemaat detail, Filter |
 | `created_at` | TIMESTAMP | No | Timestamp pembuatan | System |
-| `anggota_keluarga` | JSONB | No | Data keluarga dalam JSON | Jemaat detail |
 
 #### UI Components & Flow
 - **Jemaat Page**: `/admin/jemaat`
   - Table: Shows all jemaat with `status_jemaat = 'Aktif'`
-  - Search: Filters by `nama` or `nik`
-  - Filter: `kategori_kaum`, `sektor`
+  - Search: Filters by `nama`
+  - Filter: `rayon`, `wadah`
   - Button: "Tambah Jemaat" → Opens add form
   - Button: "Edit" → Opens edit form
   - Button: "Hapus" → DELETE request
@@ -141,18 +138,15 @@ CREATE TABLE registrations (
     id VARCHAR(50) PRIMARY KEY,
     type VARCHAR(50),
     nama_pendaftar VARCHAR(255),
-    nik VARCHAR(20),
+    no_hp VARCHAR(20),
     gender VARCHAR(10),
     tempat_lahir VARCHAR(100),
     tanggal_lahir DATE,
     alamat TEXT,
-    no_hp VARCHAR(20),
-    lampiran_ktp TEXT,
-    lampiran_bukti_bayar TEXT,
+    rayon VARCHAR(100),
+    jenis_kegiatan VARCHAR(255),
     status VARCHAR(50) DEFAULT 'Pending',
-    status_note TEXT,
-    anggota_keluarga JSONB,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    tanggal_daftar TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
@@ -162,33 +156,38 @@ CREATE TABLE registrations (
 | `id` | VARCHAR(50) | Yes | Primary key (format: REG-XXX) | System |
 | `type` | VARCHAR(50) | No | Tipe (jemaat_baru/event) | Approvals page |
 | `nama_pendaftar` | VARCHAR(255) | No | Nama pendaftar | Approvals list |
-| `nik` | VARCHAR(20) | No | NIK pendaftar | Approvals detail |
-| `gender` | VARCHAR(10) | No | Jenis kelamin | Approvals detail |
-| `tempat_lahir` | VARCHAR(100) | No | Tempat lahir | Approvals detail |
-| `tanggal_lahir` | DATE | No | Tanggal lahir | Approvals detail |
-| `alamat` | TEXT | No | Alamat | Approvals detail |
-| `no_hp` | VARCHAR(20) | No | Nomor HP | Approvals detail |
-| `lampiran_ktp` | TEXT | No | Path file KTP | Approvals detail |
-| `lampiran_bukti_bayar` | TEXT | No | Path bukti pembayaran | Approvals detail |
+| `no_hp` | VARCHAR(20) | No | Nomor HP/WhatsApp | Approvals detail |
+| `gender` | VARCHAR(10) | No | Jenis kelamin (untuk jemaat_baru) | Approvals detail |
+| `tempat_lahir` | VARCHAR(100) | No | Tempat lahir (untuk jemaat_baru) | Approvals detail |
+| `tanggal_lahir` | DATE | No | Tanggal lahir (untuk jemaat_baru) | Approvals detail |
+| `alamat` | TEXT | No | Alamat (untuk jemaat_baru) | Approvals detail |
+| `rayon` | VARCHAR(100) | No | Rayon (untuk jemaat_baru) | Approvals detail |
+| `jenis_kegiatan` | VARCHAR(255) | No | Jenis kegiatan (untuk event) | Approvals detail |
 | `status` | VARCHAR(50) | No | Status (Pending/Disetujui/Ditolak) | Approvals filter |
-| `status_note` | TEXT | No | Catatan status | Approvals detail |
-| `anggota_keluarga` | JSONB | No | Data keluarga | Approvals detail |
-| `created_at` | TIMESTAMP | No | Timestamp pembuatan | System |
+| `tanggal_daftar` | TIMESTAMP | No | Timestamp pendaftaran | Approvals detail |
 
 #### UI Components & Flow
 - **Pendaftaran Page (Public)**: `/pendaftaran`
   - Form: Input fields → POST `/api/registrations`
   - Type: `jemaat_baru` or `event`
-  - File upload: KTP, Bukti bayar → Saved to `/uploads/`
+  - For jemaat_baru: Nama, Gender, Tempat Lahir, Tanggal Lahir, Alamat, Rayon, No WhatsApp
+  - For event: Jenis Kegiatan, Nama, No WhatsApp
   - Button: "Kirim Pendaftaran" → Submit form
 
 - **Approvals Page (Admin)**: `/admin/approvals`
-  - Table: Shows all registrations with `status = 'Pending'`
+  - Table: Shows jemaat_baru registrations with `status = 'Pending'`
   - Filter: `status` (Pending/Disetujui/Ditolak)
   - Button: "Setujui" → PUT `/api/registrations/:id/status` (status: Disetujui)
   - Button: "Tolak" → PUT `/api/registrations/:id/status` (status: Ditolak)
   - Button: "Hapus" → DELETE `/api/registrations/:id` (after approve/reject)
   - Badge: Shows count of pending registrations in sidebar
+
+- **Approvals Event Page (Admin)**: `/admin/approvals/event`
+  - Table: Shows event registrations with `status = 'Pending'`
+  - Filter: `status` (Pending/Disetujui/Ditolak)
+  - Button: "Setujui" → PUT `/api/registrations/:id/status` (status: Disetujui)
+  - Button: "Tolak" → PUT `/api/registrations/:id/status` (status: Ditolak)
+  - Button: "Hapus" → DELETE `/api/registrations/:id` (after approve/reject)
 
 #### API Endpoints
 - `GET /api/registrations` - Get all registrations
@@ -209,47 +208,43 @@ CREATE TABLE registrations (
 CREATE TABLE schedules (
     id VARCHAR(50) PRIMARY KEY,
     judul VARCHAR(255) NOT NULL,
-    tanggal DATE NOT NULL,
-    waktu TIME,
+    hari_jam VARCHAR(255),
+    kategori VARCHAR(50),
     lokasi VARCHAR(255),
     deskripsi TEXT,
     is_registration_required BOOLEAN DEFAULT false,
+    kuota INTEGER DEFAULT 0,
+    terdaftar INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
-
-**⚠️ NOTE**: Field tambahan untuk fitur baru (belum ada di production):
-- `title` VARCHAR(255) - Judul (alias judul)
-- `time` TIME - Waktu (alias waktu)
-- `speaker` VARCHAR(255) - Pembicara
-- `location` VARCHAR(255) - Lokasi (alias lokasi)
-- `category` VARCHAR(50) - Kategori (ibadah/event)
-- `description` TEXT - Deskripsi (alias deskripsi)
-- `requiresRegistration` BOOLEAN - Butuh registrasi (alias is_registration_required)
 
 #### Field Details
 | Field | Type | Required | Description | Used By |
 |-------|------|----------|-------------|---------|
 | `id` | VARCHAR(50) | Yes | Primary key (format: SCH-XXX) | System |
 | `judul` | VARCHAR(255) | Yes | Judul jadwal | Schedule list |
-| `tanggal` | DATE | Yes | Tanggal pelaksanaan | Schedule list, Calendar |
-| `waktu` | TIME | No | Waktu pelaksanaan | Schedule list |
+| `hari_jam` | VARCHAR(255) | No | Hari dan jam (contoh: Minggu, 09:00 WIB) | Schedule list |
+| `kategori` | VARCHAR(50) | No | Kategori (Ibadah/Event) | Schedule filter |
 | `lokasi` | VARCHAR(255) | No | Lokasi pelaksanaan | Schedule detail |
 | `deskripsi` | TEXT | No | Deskripsi jadwal | Schedule detail |
 | `is_registration_required` | BOOLEAN | No | Apakah butuh registrasi | Schedule detail |
+| `kuota` | INTEGER | No | Kuota pendaftaran | Schedule detail |
+| `terdaftar` | INTEGER | No | Jumlah terdaftar | Schedule detail |
 | `created_at` | TIMESTAMP | No | Timestamp pembuatan | System |
 
 #### UI Components & Flow
 - **Jadwal Event Page (Public)**: `/jadwal-event`
   - List: Shows all schedules
-  - Filter: `category` (ibadah/event)
-  - Card: Shows `judul`, `tanggal`, `waktu`, `lokasi`, `deskripsi`
-  - Button: "Daftar" → If `is_registration_required = true`
+  - Filter: Tab (Jadwal Ibadah/Event & Kegiatan)
+  - Card: Shows `judul`, `hari_jam`, `lokasi`, `deskripsi`
+  - Button: "Daftar Sekarang" → If `is_registration_required = true`
 
 - **CMS Page (Admin)**: `/admin/cms`
-  - Tab: "Jadwal"
-  - Table: Shows all schedules
-  - Button: "Tambah Jadwal" → Opens add form
+  - Tab: "Jadwal Ibadah" - Shows ibadah schedules
+  - Tab: "Jadwal Event" - Shows event schedules
+  - Table: Shows all schedules for active tab
+  - Button: "Tambah Konten" → Opens add form
   - Button: "Edit" → Opens edit form
   - Button: "Hapus" → DELETE request
 
@@ -607,8 +602,6 @@ CREATE TABLE certificates (
 - `certificates.jemaat_id` → `jemaat.id` (Certificate belongs to Jemaat)
 
 ### JSONB Fields
-- `jemaat.anggota_keluarga` - Family members data
-- `registrations.anggota_keluarga` - Family members data
 - `warta_jemaat.petugas_list` - Service team members
 
 ---

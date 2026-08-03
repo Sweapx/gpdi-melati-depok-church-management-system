@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, CheckCircle, XCircle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { RegistrationItem } from '../../types';
 import clsx from 'clsx';
 
-export default function Approvals() {
+export default function ApprovalsEvent() {
   const [data, setData] = useState<RegistrationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -18,7 +18,7 @@ export default function Approvals() {
       .catch(() => setIsLoading(false));
   }, []);
 
-  const filteredData = data.filter(item => item.type === 'jemaat_baru');
+  const filteredData = data.filter(item => item.type === 'event');
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     try {
@@ -56,7 +56,7 @@ export default function Approvals() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-navy">Pendaftaran Jemaat Baru</h1>
+        <h1 className="text-2xl font-bold text-navy">Pendaftaran Event</h1>
       </div>
 
       <div className="bg-white rounded-2xl border border-border-subtle shadow-sm overflow-hidden">
@@ -66,6 +66,7 @@ export default function Approvals() {
               <tr>
                 <th className="px-6 py-4 w-10"></th>
                 <th className="px-6 py-4">Nama Lengkap</th>
+                <th className="px-6 py-4">Jenis Kegiatan</th>
                 <th className="px-6 py-4">No WA</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-center">Aksi</th>
@@ -74,11 +75,11 @@ export default function Approvals() {
             <tbody className="divide-y divide-border-subtle">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-text-muted">Memuat data...</td>
+                  <td colSpan={6} className="text-center py-12 text-text-muted">Memuat data...</td>
                 </tr>
               ) : filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-text-muted">Tidak ada pendaftaran jemaat baru.</td>
+                  <td colSpan={6} className="text-center py-12 text-text-muted">Tidak ada pendaftaran event.</td>
                 </tr>
               ) : (
                 filteredData.map(item => (
@@ -90,6 +91,7 @@ export default function Approvals() {
                         </button>
                       </td>
                       <td className="px-6 py-4 font-medium">{item.namaPendaftar}</td>
+                      <td className="px-6 py-4">{item.jenisKegiatan || '-'}</td>
                       <td className="px-6 py-4">{item.noHp}</td>
                       <td className="px-6 py-4">
                         <span className={clsx(
@@ -134,27 +136,19 @@ export default function Approvals() {
                     </tr>
                     {expandedId === item.id && (
                       <tr className="bg-sand-dark/30 border-b border-border-subtle">
-                        <td colSpan={5} className="px-14 py-6">
+                        <td colSpan={6} className="px-14 py-6">
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-sm">
                             <div>
-                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Jenis Kelamin</p>
-                              <p className="font-medium text-navy">{item.gender || '-'}</p>
+                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Jenis Kegiatan</p>
+                              <p className="font-medium text-navy">{item.jenisKegiatan || '-'}</p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Tempat Lahir</p>
-                              <p className="font-medium text-navy">{item.tempatLahir || '-'}</p>
+                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Nama Lengkap</p>
+                              <p className="font-medium text-navy">{item.namaPendaftar || '-'}</p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Tanggal Lahir</p>
-                              <p className="font-medium text-navy">{item.tanggalLahir || '-'}</p>
-                            </div>
-                            <div className="col-span-2 md:col-span-3">
-                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Alamat Lengkap</p>
-                              <p className="font-medium text-navy">{item.alamat || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Rayon</p>
-                              <p className="font-medium text-navy">{item.rayon || '-'}</p>
+                              <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">No WhatsApp</p>
+                              <p className="font-medium text-navy">{item.noHp || '-'}</p>
                             </div>
                             <div>
                               <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Tanggal Daftar</p>

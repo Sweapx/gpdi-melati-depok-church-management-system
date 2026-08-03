@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 const navItems = [
   { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/admin/jemaat', label: 'Data Jemaat', icon: Users, hasSubmenu: true },
-  { path: '/admin/approvals', label: 'Approvals', icon: CheckSquare },
+  { path: '/admin/approvals', label: 'Approvals', icon: CheckSquare, hasSubmenu: true },
   { path: '/admin/cms', label: 'CMS', icon: Settings },
   { path: '/admin/kb', label: 'AI Knowledge', icon: MessageSquare },
   { path: '/admin/prayers', label: 'Prayers', icon: Heart },
@@ -20,12 +20,18 @@ const jemaatSubmenu = [
   { path: '/admin/ulang-tahun', label: 'Ulang Tahun' },
 ];
 
+const approvalsSubmenu = [
+  { path: '/admin/approvals', label: 'Pendaftaran Jemaat Baru' },
+  { path: '/admin/approvals/event', label: 'Pendaftaran Event' },
+];
+
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [jemaatDropdownOpen, setJemaatDropdownOpen] = useState(false);
+  const [approvalsDropdownOpen, setApprovalsDropdownOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/registrations')
@@ -48,6 +54,8 @@ export default function AdminLayout() {
 
   // Check if current path is in jemaat submenu
   const isJemaatSubmenuActive = jemaatSubmenu.some(item => location.pathname === item.path);
+  // Check if current path is in approvals submenu
+  const isApprovalsSubmenuActive = approvalsSubmenu.some(item => location.pathname === item.path);
 
   return (
     <div className="flex h-screen bg-sand text-navy font-sans overflow-hidden">
@@ -76,42 +84,85 @@ export default function AdminLayout() {
             <div key={item.path}>
               {item.hasSubmenu ? (
                 <>
-                  <button
-                    onClick={() => setJemaatDropdownOpen(!jemaatDropdownOpen)}
-                    className={clsx(
-                      "w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-bold text-sm tracking-wide",
-                      isJemaatSubmenuActive || jemaatDropdownOpen
-                        ? "bg-gold text-navy shadow-md shadow-gold/20" 
-                        : "hover:bg-navy-light text-sand-dark hover:text-white"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <item.icon size={18} />
-                      {!isSidebarCollapsed && <span>{item.label}</span>}
-                    </div>
-                    {!isSidebarCollapsed && (
-                      jemaatDropdownOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />
-                    )}
-                  </button>
-                  
-                  {jemaatDropdownOpen && !isSidebarCollapsed && (
-                    <div className="ml-8 mt-1 space-y-1">
-                      {jemaatSubmenu.map((subItem) => (
-                        <NavLink
-                          key={subItem.path}
-                          to={subItem.path}
-                          className={({ isActive }) => clsx(
-                            "flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold tracking-wide",
-                            isActive 
-                              ? "bg-navy-light text-white" 
-                              : "text-sand-dark hover:bg-navy-light hover:text-white"
-                          )}
-                        >
-                          {subItem.label}
-                        </NavLink>
-                      ))}
-                    </div>
-                  )}
+                  {item.path === '/admin/jemaat' ? (
+                    <>
+                      <button
+                        onClick={() => setJemaatDropdownOpen(!jemaatDropdownOpen)}
+                        className={clsx(
+                          "w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-bold text-sm tracking-wide",
+                          isJemaatSubmenuActive || jemaatDropdownOpen
+                            ? "bg-gold text-navy shadow-md shadow-gold/20" 
+                            : "hover:bg-navy-light text-sand-dark hover:text-white"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <item.icon size={18} />
+                          {!isSidebarCollapsed && <span>{item.label}</span>}
+                        </div>
+                        {!isSidebarCollapsed && (
+                          jemaatDropdownOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />
+                        )}
+                      </button>
+                      
+                      {jemaatDropdownOpen && !isSidebarCollapsed && (
+                        <div className="ml-8 mt-1 space-y-1">
+                          {jemaatSubmenu.map((subItem) => (
+                            <NavLink
+                              key={subItem.path}
+                              to={subItem.path}
+                              className={({ isActive }) => clsx(
+                                "flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold tracking-wide",
+                                isActive 
+                                  ? "bg-navy-light text-white" 
+                                  : "text-sand-dark hover:bg-navy-light hover:text-white"
+                              )}
+                            >
+                              {subItem.label}
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : item.path === '/admin/approvals' ? (
+                    <>
+                      <button
+                        onClick={() => setApprovalsDropdownOpen(!approvalsDropdownOpen)}
+                        className={clsx(
+                          "w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-bold text-sm tracking-wide",
+                          isApprovalsSubmenuActive || approvalsDropdownOpen
+                            ? "bg-gold text-navy shadow-md shadow-gold/20" 
+                            : "hover:bg-navy-light text-sand-dark hover:text-white"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <item.icon size={18} />
+                          {!isSidebarCollapsed && <span>{item.label}</span>}
+                        </div>
+                        {!isSidebarCollapsed && (
+                          approvalsDropdownOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />
+                        )}
+                      </button>
+                      
+                      {approvalsDropdownOpen && !isSidebarCollapsed && (
+                        <div className="ml-8 mt-1 space-y-1">
+                          {approvalsSubmenu.map((subItem) => (
+                            <NavLink
+                              key={subItem.path}
+                              to={subItem.path}
+                              className={({ isActive }) => clsx(
+                                "flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold tracking-wide",
+                                isActive 
+                                  ? "bg-navy-light text-white" 
+                                  : "text-sand-dark hover:bg-navy-light hover:text-white"
+                              )}
+                            >
+                              {subItem.label}
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : null}
                 </>
               ) : (
                 <NavLink

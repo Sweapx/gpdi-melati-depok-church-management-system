@@ -124,22 +124,10 @@ export default function WartaJemaat() {
                     >
                       <div className="p-6 md:p-8">
                         {item.pdfUrl && (
-                          <div className="w-full h-[600px] border border-border-subtle rounded-xl overflow-hidden bg-white mb-6">
+                          <div className="w-full h-[600px] border border-border-subtle rounded-xl overflow-hidden bg-white">
                             <iframe src={item.pdfUrl} className="w-full h-full" title="Warta PDF" />
                           </div>
                         )}
-                        <h4 className="text-lg font-bold text-navy mb-4">Petugas Pelayanan</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                          {item.petugasList?.map((petugas, i) => (
-                            <div key={i} className="bg-white p-4 rounded-xl border border-border-subtle shadow-sm">
-                              <p className="text-xs font-bold text-gold uppercase tracking-wider mb-1">{petugas.tugas}</p>
-                              <p className="font-medium text-navy">{petugas.nama}</p>
-                            </div>
-                          ))}
-                          {(!item.petugasList || item.petugasList.length === 0) && (
-                            <p className="text-text-muted text-sm italic">Belum ada daftar petugas pelayanan.</p>
-                          )}
-                        </div>
                       </div>
                     </motion.div>
                   )}

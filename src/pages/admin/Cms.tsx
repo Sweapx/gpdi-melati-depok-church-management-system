@@ -227,84 +227,92 @@ export default function Cms() {
                       <input type="text" value={editingItem.hariJam || ''} onChange={e => setEditingItem({...editingItem, hariJam: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-navy">Perlu Pendaftaran?</label>
-                      <select value={editingItem.isRegistrationRequired?.toString() || 'false'} onChange={e => setEditingItem({...editingItem, isRegistrationRequired: e.target.value === 'true', kuota: e.target.value === 'true' ? (editingItem.kuota || 100) : undefined})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required>
-                        <option value="false">Tidak (Umum)</option>
-                        <option value="true">Ya (Perlu Daftar)</option>
-                      </select>
+                      <label className="text-xs font-bold text-navy">Lokasi</label>
+                      <input type="text" value={editingItem.lokasi || ''} onChange={e => setEditingItem({...editingItem, lokasi: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
                     </div>
-                    {editingItem.isRegistrationRequired && (
+                    {activeTab === 'event' && (
                       <>
                         <div>
-                          <label className="text-xs font-bold text-navy">Kuota Pendaftaran</label>
-                          <input type="number" min="1" value={editingItem.kuota || ''} onChange={e => setEditingItem({...editingItem, kuota: Number(e.target.value)})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
+                          <label className="text-xs font-bold text-navy">Perlu Pendaftaran?</label>
+                          <select value={editingItem.isRegistrationRequired?.toString() || 'false'} onChange={e => setEditingItem({...editingItem, isRegistrationRequired: e.target.value === 'true', kuota: e.target.value === 'true' ? (editingItem.kuota || 100) : undefined})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required>
+                            <option value="false">Tidak (Umum)</option>
+                            <option value="true">Ya (Perlu Daftar)</option>
+                          </select>
                         </div>
-                        <div>
-                          <label className="text-xs font-bold text-navy">Biaya Pendaftaran</label>
-                          <input type="text" placeholder="Kosongkan jika gratis" value={editingItem.registrationFee || ''} onChange={e => setEditingItem({...editingItem, registrationFee: e.target.value, needPaymentProof: !!e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" />
-                        </div>
-                        <div className="border border-border-subtle rounded-xl p-4 bg-sand-dark/30 space-y-3">
-                          <div className="flex justify-between items-center">
-                            <label className="text-xs font-bold text-navy">Custom Form Fields</label>
-                            <button type="button" onClick={() => setEditingItem({...editingItem, customFields: [...(editingItem.customFields || []), { id: Date.now().toString(), label: 'Field Baru', type: 'text' }]})} className="text-xs font-bold text-navy bg-white px-2 py-1 border border-border-subtle rounded-md hover:text-gold transition-colors">+ Tambah Field</button>
-                          </div>
-                          {(!editingItem.customFields || editingItem.customFields.length === 0) && (
-                            <p className="text-xs text-text-muted">Belum ada field tambahan.</p>
-                          )}
-                          {editingItem.customFields?.map((field: any, idx: number) => (
-                            <div key={idx} className="bg-white p-3 rounded-lg border border-border-subtle space-y-2 relative">
-                              <button type="button" onClick={() => {
-                                const newFields = [...editingItem.customFields];
-                                newFields.splice(idx, 1);
-                                setEditingItem({...editingItem, customFields: newFields});
-                              }} className="absolute top-2 right-2 p-1 text-text-muted hover:text-rose-500 bg-sand-dark rounded-md"><Trash2 size={14} /></button>
-                              
-                              <div>
-                                <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Nama Field (Label)</label>
-                                <input type="text" value={field.label} onChange={e => {
-                                  const newFields = [...editingItem.customFields];
-                                  newFields[idx].label = e.target.value;
-                                  setEditingItem({...editingItem, customFields: newFields});
-                                }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1" required />
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Tipe</label>
-                                  <select value={field.type} onChange={e => {
-                                    const newFields = [...editingItem.customFields];
-                                    newFields[idx].type = e.target.value;
-                                    setEditingItem({...editingItem, customFields: newFields});
-                                  }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1">
-                                    <option value="text">Teks Bebas</option>
-                                    <option value="select">Dropdown (Pilihan)</option>
-                                    <option value="checkbox">Persetujuan (Checkbox)</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Wajib Diisi?</label>
-                                  <select value={field.required ? 'true' : 'false'} onChange={e => {
-                                    const newFields = [...editingItem.customFields];
-                                    newFields[idx].required = e.target.value === 'true';
-                                    setEditingItem({...editingItem, customFields: newFields});
-                                  }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1">
-                                    <option value="true">Ya</option>
-                                    <option value="false">Tidak</option>
-                                  </select>
-                                </div>
-                              </div>
-                              {field.type === 'select' && (
-                                <div>
-                                  <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Pilihan (Pisahkan dengan koma)</label>
-                                  <input type="text" value={field.options?.join(',') || ''} onChange={e => {
-                                    const newFields = [...editingItem.customFields];
-                                    newFields[idx].options = e.target.value.split(',').map((s: string) => s.trim());
-                                    setEditingItem({...editingItem, customFields: newFields});
-                                  }} placeholder="Misal: Pagi, Siang, Malam" className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1" required />
-                                </div>
-                              )}
+                        {editingItem.isRegistrationRequired && (
+                          <>
+                            <div>
+                              <label className="text-xs font-bold text-navy">Kuota Pendaftaran</label>
+                              <input type="number" min="1" value={editingItem.kuota || ''} onChange={e => setEditingItem({...editingItem, kuota: Number(e.target.value)})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
                             </div>
-                          ))}
-                        </div>
+                            <div>
+                              <label className="text-xs font-bold text-navy">Biaya Pendaftaran</label>
+                              <input type="text" placeholder="Kosongkan jika gratis" value={editingItem.registrationFee || ''} onChange={e => setEditingItem({...editingItem, registrationFee: e.target.value, needPaymentProof: !!e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" />
+                            </div>
+                            <div className="border border-border-subtle rounded-xl p-4 bg-sand-dark/30 space-y-3">
+                              <div className="flex justify-between items-center">
+                                <label className="text-xs font-bold text-navy">Custom Form Fields</label>
+                                <button type="button" onClick={() => setEditingItem({...editingItem, customFields: [...(editingItem.customFields || []), { id: Date.now().toString(), label: 'Field Baru', type: 'text' }]})} className="text-xs font-bold text-navy bg-white px-2 py-1 border border-border-subtle rounded-md hover:text-gold transition-colors">+ Tambah Field</button>
+                              </div>
+                              {(!editingItem.customFields || editingItem.customFields.length === 0) && (
+                                <p className="text-xs text-text-muted">Belum ada field tambahan.</p>
+                              )}
+                              {editingItem.customFields?.map((field: any, idx: number) => (
+                                <div key={idx} className="bg-white p-3 rounded-lg border border-border-subtle space-y-2 relative">
+                                  <button type="button" onClick={() => {
+                                    const newFields = [...editingItem.customFields];
+                                    newFields.splice(idx, 1);
+                                    setEditingItem({...editingItem, customFields: newFields});
+                                  }} className="absolute top-2 right-2 p-1 text-text-muted hover:text-rose-500 bg-sand-dark rounded-md"><Trash2 size={14} /></button>
+                                  
+                                  <div>
+                                    <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Nama Field (Label)</label>
+                                    <input type="text" value={field.label} onChange={e => {
+                                      const newFields = [...editingItem.customFields];
+                                      newFields[idx].label = e.target.value;
+                                      setEditingItem({...editingItem, customFields: newFields});
+                                    }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1" required />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Tipe</label>
+                                      <select value={field.type} onChange={e => {
+                                        const newFields = [...editingItem.customFields];
+                                        newFields[idx].type = e.target.value;
+                                        setEditingItem({...editingItem, customFields: newFields});
+                                      }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1">
+                                        <option value="text">Teks Bebas</option>
+                                        <option value="select">Dropdown (Pilihan)</option>
+                                        <option value="checkbox">Persetujuan (Checkbox)</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Wajib Diisi?</label>
+                                      <select value={field.required ? 'true' : 'false'} onChange={e => {
+                                        const newFields = [...editingItem.customFields];
+                                        newFields[idx].required = e.target.value === 'true';
+                                        setEditingItem({...editingItem, customFields: newFields});
+                                      }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1">
+                                        <option value="true">Ya</option>
+                                        <option value="false">Tidak</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                  {field.type === 'select' && (
+                                    <div>
+                                      <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Pilihan (Pisahkan dengan koma)</label>
+                                      <input type="text" value={field.options?.join(',') || ''} onChange={e => {
+                                        const newFields = [...editingItem.customFields];
+                                        newFields[idx].options = e.target.value.split(',').map((s: string) => s.trim());
+                                        setEditingItem({...editingItem, customFields: newFields});
+                                      }} placeholder="Misal: Pagi, Siang, Malam" className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1" required />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </>
                     )}
                   </>
@@ -334,12 +342,11 @@ export default function Cms() {
                     <div>
                       <label className="text-xs font-bold text-navy">Call to Action Type</label>
                       <select value={editingItem.ctaType} onChange={e => setEditingItem({...editingItem, ctaType: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1">
-                        <option value="event">Pendaftaran Event</option>
-                        <option value="jemaat_baru">Pendaftaran Jemaat Baru</option>
-                        <option value="baptisan">Pendaftaran Baptisan</option>
-                        <option value="schedule">Jadwal</option>
-                        <option value="warta">Warta Jemaat</option>
-                        <option value="prayer">Doa</option>
+                        <option value="home">Beranda</option>
+                        <option value="schedule">Jadwal & Event</option>
+                        <option value="registration">Pendaftaran</option>
+                        <option value="layanan">Layanan</option>
+                        <option value="warta">Warta Digital</option>
                       </select>
                     </div>
                     <div>
@@ -415,84 +422,92 @@ export default function Cms() {
                       <input type="text" value={formData.hariJam || ''} onChange={e => setFormData({...formData, hariJam: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-navy">Perlu Pendaftaran?</label>
-                      <select value={formData.isRegistrationRequired || 'false'} onChange={e => setFormData({...formData, isRegistrationRequired: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required>
-                        <option value="false">Tidak (Umum)</option>
-                        <option value="true">Ya (Perlu Daftar)</option>
-                      </select>
+                      <label className="text-xs font-bold text-navy">Lokasi</label>
+                      <input type="text" value={formData.lokasi || ''} onChange={e => setFormData({...formData, lokasi: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
                     </div>
-                    {formData.isRegistrationRequired === 'true' && (
+                    {activeTab === 'event' && (
                       <>
                         <div>
-                          <label className="text-xs font-bold text-navy">Kuota Pendaftaran</label>
-                          <input type="number" min="1" value={formData.kuota || ''} onChange={e => setFormData({...formData, kuota: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
+                          <label className="text-xs font-bold text-navy">Perlu Pendaftaran?</label>
+                          <select value={formData.isRegistrationRequired || 'false'} onChange={e => setFormData({...formData, isRegistrationRequired: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required>
+                            <option value="false">Tidak (Umum)</option>
+                            <option value="true">Ya (Perlu Daftar)</option>
+                          </select>
                         </div>
-                        <div>
-                          <label className="text-xs font-bold text-navy">Biaya Pendaftaran</label>
-                          <input type="text" placeholder="Kosongkan jika gratis" value={formData.registrationFee || ''} onChange={e => setFormData({...formData, registrationFee: e.target.value, needPaymentProof: !!e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" />
-                        </div>
-                        <div className="border border-border-subtle rounded-xl p-4 bg-sand-dark/30 space-y-3">
-                          <div className="flex justify-between items-center">
-                            <label className="text-xs font-bold text-navy">Custom Form Fields</label>
-                            <button type="button" onClick={() => setFormData({...formData, customFields: [...(formData.customFields || []), { id: Date.now().toString(), label: 'Field Baru', type: 'text' }]})} className="text-xs font-bold text-navy bg-white px-2 py-1 border border-border-subtle rounded-md hover:text-gold transition-colors">+ Tambah Field</button>
-                          </div>
-                          {(!formData.customFields || formData.customFields.length === 0) && (
-                            <p className="text-xs text-text-muted">Belum ada field tambahan.</p>
-                          )}
-                          {formData.customFields?.map((field: any, idx: number) => (
-                            <div key={idx} className="bg-white p-3 rounded-lg border border-border-subtle space-y-2 relative">
-                              <button type="button" onClick={() => {
-                                const newFields = [...formData.customFields];
-                                newFields.splice(idx, 1);
-                                setFormData({...formData, customFields: newFields});
-                              }} className="absolute top-2 right-2 p-1 text-text-muted hover:text-rose-500 bg-sand-dark rounded-md"><Trash2 size={14} /></button>
-                              
-                              <div>
-                                <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Nama Field (Label)</label>
-                                <input type="text" value={field.label} onChange={e => {
-                                  const newFields = [...formData.customFields];
-                                  newFields[idx].label = e.target.value;
-                                  setFormData({...formData, customFields: newFields});
-                                }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1" required />
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Tipe</label>
-                                  <select value={field.type} onChange={e => {
-                                    const newFields = [...formData.customFields];
-                                    newFields[idx].type = e.target.value;
-                                    setFormData({...formData, customFields: newFields});
-                                  }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1">
-                                    <option value="text">Teks Bebas</option>
-                                    <option value="select">Dropdown (Pilihan)</option>
-                                    <option value="checkbox">Persetujuan (Checkbox)</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Wajib Diisi?</label>
-                                  <select value={field.required ? 'true' : 'false'} onChange={e => {
-                                    const newFields = [...formData.customFields];
-                                    newFields[idx].required = e.target.value === 'true';
-                                    setFormData({...formData, customFields: newFields});
-                                  }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1">
-                                    <option value="true">Ya</option>
-                                    <option value="false">Tidak</option>
-                                  </select>
-                                </div>
-                              </div>
-                              {field.type === 'select' && (
-                                <div>
-                                  <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Pilihan (Pisahkan dengan koma)</label>
-                                  <input type="text" value={field.options?.join(',') || ''} onChange={e => {
-                                    const newFields = [...formData.customFields];
-                                    newFields[idx].options = e.target.value.split(',').map((s: string) => s.trim());
-                                    setFormData({...formData, customFields: newFields});
-                                  }} placeholder="Misal: Pagi, Siang, Malam" className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1" required />
-                                </div>
-                              )}
+                        {formData.isRegistrationRequired === 'true' && (
+                          <>
+                            <div>
+                              <label className="text-xs font-bold text-navy">Kuota Pendaftaran</label>
+                              <input type="number" min="1" value={formData.kuota || ''} onChange={e => setFormData({...formData, kuota: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
                             </div>
-                          ))}
-                        </div>
+                            <div>
+                              <label className="text-xs font-bold text-navy">Biaya Pendaftaran</label>
+                              <input type="text" placeholder="Kosongkan jika gratis" value={formData.registrationFee || ''} onChange={e => setFormData({...formData, registrationFee: e.target.value, needPaymentProof: !!e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" />
+                            </div>
+                            <div className="border border-border-subtle rounded-xl p-4 bg-sand-dark/30 space-y-3">
+                              <div className="flex justify-between items-center">
+                                <label className="text-xs font-bold text-navy">Custom Form Fields</label>
+                                <button type="button" onClick={() => setFormData({...formData, customFields: [...(formData.customFields || []), { id: Date.now().toString(), label: 'Field Baru', type: 'text' }]})} className="text-xs font-bold text-navy bg-white px-2 py-1 border border-border-subtle rounded-md hover:text-gold transition-colors">+ Tambah Field</button>
+                              </div>
+                              {(!formData.customFields || formData.customFields.length === 0) && (
+                                <p className="text-xs text-text-muted">Belum ada field tambahan.</p>
+                              )}
+                              {formData.customFields?.map((field: any, idx: number) => (
+                                <div key={idx} className="bg-white p-3 rounded-lg border border-border-subtle space-y-2 relative">
+                                  <button type="button" onClick={() => {
+                                    const newFields = [...formData.customFields];
+                                    newFields.splice(idx, 1);
+                                    setFormData({...formData, customFields: newFields});
+                                  }} className="absolute top-2 right-2 p-1 text-text-muted hover:text-rose-500 bg-sand-dark rounded-md"><Trash2 size={14} /></button>
+                                  
+                                  <div>
+                                    <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Nama Field (Label)</label>
+                                    <input type="text" value={field.label} onChange={e => {
+                                      const newFields = [...formData.customFields];
+                                      newFields[idx].label = e.target.value;
+                                      setFormData({...formData, customFields: newFields});
+                                    }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1" required />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Tipe</label>
+                                      <select value={field.type} onChange={e => {
+                                        const newFields = [...formData.customFields];
+                                        newFields[idx].type = e.target.value;
+                                        setFormData({...formData, customFields: newFields});
+                                      }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1">
+                                        <option value="text">Teks Bebas</option>
+                                        <option value="select">Dropdown (Pilihan)</option>
+                                        <option value="checkbox">Persetujuan (Checkbox)</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Wajib Diisi?</label>
+                                      <select value={field.required ? 'true' : 'false'} onChange={e => {
+                                        const newFields = [...formData.customFields];
+                                        newFields[idx].required = e.target.value === 'true';
+                                        setFormData({...formData, customFields: newFields});
+                                      }} className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1">
+                                        <option value="true">Ya</option>
+                                        <option value="false">Tidak</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                  {field.type === 'select' && (
+                                    <div>
+                                      <label className="text-[10px] font-bold text-navy uppercase tracking-wider">Pilihan (Pisahkan dengan koma)</label>
+                                      <input type="text" value={field.options?.join(',') || ''} onChange={e => {
+                                        const newFields = [...formData.customFields];
+                                        newFields[idx].options = e.target.value.split(',').map((s: string) => s.trim());
+                                        setFormData({...formData, customFields: newFields});
+                                      }} placeholder="Misal: Pagi, Siang, Malam" className="w-full border border-border-subtle rounded-md px-2 py-1 text-xs mt-1" required />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </>
                     )}
                   </>

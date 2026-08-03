@@ -15,27 +15,16 @@ export interface JemaatFamilyMember {
 export interface Jemaat {
   id: string;
   nama: string;
-  nik: string;
+  nik?: string;
   gender: 'Pria' | 'Wanita';
   tempatLahir: string;
   tanggalLahir: string;
   alamat: string;
-  provinsi?: string;
-  kabupatenKota?: string;
-  kecamatan?: string;
-  kelurahan?: string;
   noHp: string;
-  statusPernikahan: 'Belum Menikah' | 'Menikah' | 'Janda/Duda';
-  statusJemaat: 'Aktif' | 'Inaktif' | 'Keluar' | 'Meninggal';
-  kategoriKaum: KategoriKaum;
-  sektor: string;
+  statusJemaat: 'Aktif' | 'Keluar' | 'Meninggal';
   wadah?: string;
   rayon?: string;
-  tanggalBaptis?: string;
-  namaAyah?: string;
-  namaIbu?: string;
   createdAt: string;
-  anggotaKeluarga?: JemaatFamilyMember[];
 }
 
 export type RegistrationType = 'jemaat_baru' | 'event';
@@ -44,7 +33,6 @@ export type RegistrationStatus = 'Pending' | 'Disetujui' | 'Ditolak';
 export interface RegistrationItem {
   id: string;
   type: RegistrationType;
-  eventName?: string;
   jenisKegiatan?: string;
   namaPendaftar: string;
   gender?: 'Pria' | 'Wanita';
@@ -55,7 +43,6 @@ export interface RegistrationItem {
   rayon?: string;
   status: RegistrationStatus;
   tanggalDaftar: string;
-  customResponses?: Record<string, any>;
 }
 
 export interface CustomEventField {
@@ -71,20 +58,11 @@ export interface ScheduleItem {
   kategori: string;
   judul: string;
   hariJam: string;
-  waktu?: string;
-  pembicara?: string;
   lokasi?: string;
   deskripsi?: string;
   isRegistrationRequired?: boolean;
-  kategoriEvent?: string;
-  customFields?: CustomEventField[];
-  needTshirtSize?: boolean;
-  needAccommodation?: boolean;
-  needMedicalNote?: boolean;
-  needMemberCount?: boolean;
   needPaymentProof?: boolean;
   registrationFee?: string;
-  termsAgreementText?: string;
   kuota?: number;
   terdaftar?: number;
 }
@@ -151,7 +129,7 @@ export interface HeroSlide {
   title: string;
   subtitle: string;
   ctaText: string;
-  ctaType: 'jemaat_baru' | 'pendataan_terdaftar' | 'baptisan' | 'event' | 'schedule' | 'warta' | 'prayer';
+  ctaType: 'home' | 'schedule' | 'registration' | 'layanan' | 'warta';
   eventName?: string;
   isActive: boolean;
   orderIndex: number;

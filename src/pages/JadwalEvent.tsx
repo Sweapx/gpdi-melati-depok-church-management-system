@@ -106,28 +106,22 @@ export default function JadwalEvent() {
                     )}
                   </div>
 
-                  <h3 className="text-xl font-bold text-navy mb-2">{schedule.judul}</h3>
+                  <h3 className="text-xl font-bold text-navy mb-4">{schedule.judul}</h3>
                   
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm text-text-muted">
+                  <div className="space-y-3 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-navy">
                       <Calendar size={16} className="text-gold" />
-                      <span>{schedule.hariJam}</span>
+                      <span className="font-medium">{schedule.hariJam}</span>
                     </div>
-                    {schedule.waktu && (
-                      <div className="flex items-center gap-2 text-sm text-text-muted">
-                        <Clock size={16} className="text-gold" />
-                        <span>{schedule.waktu}</span>
-                      </div>
-                    )}
                     {schedule.lokasi && (
-                      <div className="flex items-center gap-2 text-sm text-text-muted">
+                      <div className="flex items-center gap-2 text-sm text-navy">
                         <MapPin size={16} className="text-gold" />
-                        <span>{schedule.lokasi}</span>
+                        <span className="font-medium">{schedule.lokasi}</span>
                       </div>
                     )}
                   </div>
 
-                  <p className="text-text-muted text-sm mb-6 flex-grow leading-relaxed line-clamp-3">{schedule.deskripsi}</p>
+                  <p className="text-text-muted text-sm mb-6 flex-grow leading-relaxed line-clamp-2">{schedule.deskripsi}</p>
 
                   {schedule.isRegistrationRequired ? (
                     <div className="mt-auto pt-4 border-t border-border-subtle">
@@ -137,9 +131,8 @@ export default function JadwalEvent() {
                           <span className="font-bold text-navy">{schedule.terdaftar || 0} / {schedule.kuota}</span>
                         </div>
                       )}
-                      <Link 
-                        to="/pendaftaran"
-                        state={{ eventConfig: schedule, defaultTab: 'event' }}
+                      <Link
+                        to="/pendaftaran?tab=event"
                         className="w-full py-2.5 bg-navy text-white rounded-full text-xs font-bold tracking-widest uppercase hover:bg-navy-light transition-colors flex items-center justify-center gap-2"
                       >
                         Daftar Sekarang <ChevronRight size={16} />
