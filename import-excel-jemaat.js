@@ -98,7 +98,7 @@ async function runImport() {
     });
 
     try {
-      // 1. Create tables if not exist & drop constraint on NIK if present
+      // 1. Try CREATE TABLE / ALTER TABLE if permitted
       try {
         await pool.query(`
           CREATE TABLE IF NOT EXISTS jemaat (
@@ -116,6 +116,9 @@ async function runImport() {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );
         `);
+      } catch (e) {}
+
+      try {
         await pool.query(`
           CREATE TABLE IF NOT EXISTS wadah (
             id VARCHAR(50) PRIMARY KEY,
@@ -127,6 +130,9 @@ async function runImport() {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );
         `);
+      } catch (e) {}
+
+      try {
         await pool.query(`
           CREATE TABLE IF NOT EXISTS rayon (
             id VARCHAR(50) PRIMARY KEY,
@@ -136,17 +142,13 @@ async function runImport() {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );
         `);
-        await pool.query(`ALTER TABLE jemaat DROP CONSTRAINT IF EXISTS jemaat_nik_key;`);
-      } catch (tableErr) {
-        console.log('ℹ️ Skip CREATE/ALTER TABLE:', tableErr.message);
-      }
-
-      // 2. Clear old Wadah & Rayon data and insert exact Wadah & Rayon
-      try {
-        await pool.query(`DELETE FROM wadah;`);
-        await pool.query(`DELETE FROM rayon;`);
       } catch (e) {}
 
+      try {
+        await pool.query(`ALTER TABLE jemaat DROP CONSTRAINT IF EXISTS jemaat_nik_key;`);
+      } catch (e) {}
+
+      // 2. Safe upsert Wadah list
       const defaultWadahList = [
         { id: 'WAD-001', nama: 'Kaum Pria (Bapak)', ketua: 'Tim Kaum Pria', minAge: 32, maxAge: 91, count: 80 },
         { id: 'WAD-002', nama: 'Kaum Wanita (Ibu)', ketua: 'Tim Kaum Wanita', minAge: 28, maxAge: 96, count: 136 },
@@ -156,12 +158,21 @@ async function runImport() {
       ];
 
       for (const w of defaultWadahList) {
-        await pool.query(`
-          INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
-          VALUES ($1, $2, $3, $4, $5, $6);
-        `, [w.id, w.nama, w.ketua, w.minAge, w.maxAge, w.count]);
+        try {
+          await pool.query(`
+            INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (id) DO UPDATE SET 
+              nama_wadah = EXCLUDED.nama_wadah,
+              ketua_wadah = EXCLUDED.ketua_wadah,
+              umur_minimal = EXCLUDED.umur_minimal,
+              umur_maksimal = EXCLUDED.umur_maksimal,
+              jumlah_anggota = EXCLUDED.jumlah_anggota;
+          `, [w.id, w.nama, w.ketua, w.minAge, w.maxAge, w.count]);
+        } catch (wErr) {}
       }
 
+      // 3. Safe upsert Rayon list
       const defaultRayonList = [
         { id: 'RAY-001', nama: 'Rayon 1', ketua: 'Suci Br Kembaren', count: 78 },
         { id: 'RAY-002', nama: 'Rayon 2', ketua: 'Tarningsih', count: 83 },
@@ -170,13 +181,19 @@ async function runImport() {
       ];
 
       for (const r of defaultRayonList) {
-        await pool.query(`
-          INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
-          VALUES ($1, $2, $3, $4);
-        `, [r.id, r.nama, r.ketua, r.count]);
+        try {
+          await pool.query(`
+            INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (id) DO UPDATE SET 
+              nama_rayon = EXCLUDED.nama_rayon,
+              ketua_rayon = EXCLUDED.ketua_rayon,
+              jumlah_anggota = EXCLUDED.jumlah_anggota;
+          `, [r.id, r.nama, r.ketua, r.count]);
+        } catch (rErr) {}
       }
 
-      // 3. Insert / Update 371 Jemaat records
+      // 4. Insert / Update 371 Jemaat records
       let insertedCount = 0;
       let errorCount = 0;
 
