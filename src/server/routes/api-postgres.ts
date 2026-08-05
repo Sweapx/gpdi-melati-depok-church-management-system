@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { pool, inMemoryDB } from "../db/index.ts";
 import { GoogleGenAI } from "@google/genai";
+import xlsx from "xlsx";
+import fs from "fs";
+import path from "path";
 
 const router = Router();
 
@@ -296,6 +299,158 @@ router.delete("/jemaat/:id", async (req, res) => {
     }
   } catch (error: any) {
     console.error("Error deleting jemaat:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.post("/import-excel-jemaat", async (req, res) => {
+  try {
+    const excelPath = path.resolve(process.cwd(), './data jemaat/PI_Data Jemaat_Tugas Daniel (1).xlsx');
+    if (!fs.existsSync(excelPath)) {
+      return res.status(404).json({ success: false, message: "File Excel data jemaat tidak ditemukan di server" });
+    }
+
+    const workbook = xlsx.readFile(excelPath);
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rawData: any[] = xlsx.utils.sheet_to_json(sheet);
+
+    const wadahMap: Record<number, string> = {
+      1: 'Sekolah Minggu',
+      2: 'Remaja',
+      3: 'Pemuda',
+      4: 'Wadah Wanita (W/P)',
+      5: 'Wadah Pria (P/P)'
+    };
+
+    const rayonMap: Record<number, string> = {
+      1: 'Rayon 1',
+      2: 'Rayon 2',
+      3: 'Rayon 3',
+      4: 'Rayon 4'
+    };
+
+    const formatTanggal = (val: any) => {
+      if (!val) return '1990-01-01';
+      if (typeof val === 'number') {
+        const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+        if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+      }
+      const parsed = new Date(val);
+      if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+      return '1990-01-01';
+    };
+
+    const calculateAge = (birthDateStr: string) => {
+      const birthDate = new Date(birthDateStr);
+      if (isNaN(birthDate.getTime())) return 25;
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    };
+
+    let importedCount = 0;
+    const jemaatsToSave: any[] = [];
+
+    rawData.forEach((row: any, idx: number) => {
+      const nama = (row.nama || row.Nama || `Jemaat ${idx + 1}`).toString().trim();
+      const genderRaw = (row.jenis_kelamin || row.gender || 'Pria').toString().trim();
+      const gender = (genderRaw.toLowerCase() === 'wanita' || genderRaw.toLowerCase() === 'perempuan') ? 'Wanita' : 'Pria';
+      const tempat_lahir = (row.tempat_lahir || 'Depok').toString().trim();
+      const tanggal_lahir = formatTanggal(row.tanggal_lahir);
+      const alamat = (row.alamat || '-').toString().trim();
+      const no_wa = (row.no_wa || row.no_hp || row.no_telp || '-').toString().replace(/[^0-9+]/g, '');
+      const no_hp = no_wa.length > 5 ? no_wa : '-';
+
+      const age = calculateAge(tanggal_lahir);
+      let wadah = row.wadah_id && wadahMap[row.wadah_id] ? wadahMap[row.wadah_id] : '';
+      if (!wadah) {
+        if (age < 13) wadah = 'Sekolah Minggu';
+        else if (age <= 17) wadah = 'Remaja';
+        else if (age <= 25) wadah = 'Pemuda';
+        else if (gender === 'Wanita') wadah = 'Wadah Wanita (W/P)';
+        else wadah = 'Wadah Pria (P/P)';
+      }
+
+      const rayon = row.rayon_id && rayonMap[row.rayon_id] ? rayonMap[row.rayon_id] : 'Rayon 1';
+
+      jemaatsToSave.push({
+        id: `JEM-${String(idx + 1).padStart(4, '0')}`,
+        nama,
+        nik: `-`,
+        gender,
+        tempat_lahir,
+        tanggal_lahir,
+        alamat,
+        no_hp,
+        status_jemaat: 'Aktif',
+        wadah,
+        rayon
+      });
+    });
+
+    if (pool) {
+      try {
+        await queryWithAutoTable(`
+          CREATE TABLE IF NOT EXISTS jemaat (
+            id VARCHAR(50) PRIMARY KEY,
+            nama VARCHAR(255) NOT NULL,
+            nik VARCHAR(50),
+            gender VARCHAR(20),
+            tempat_lahir VARCHAR(100),
+            tanggal_lahir DATE,
+            alamat TEXT,
+            no_hp VARCHAR(50),
+            status_pernikahan VARCHAR(50),
+            status_jemaat VARCHAR(50) DEFAULT 'Aktif',
+            kategori_kaum VARCHAR(50),
+            sektor VARCHAR(50),
+            wadah VARCHAR(100),
+            rayon VARCHAR(100),
+            no_telepon VARCHAR(50),
+            anggota_keluarga JSONB,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+
+        for (const item of jemaatsToSave) {
+          const query = `
+            INSERT INTO jemaat (id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat, no_hp, status_jemaat, wadah, rayon)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ON CONFLICT (id) DO UPDATE SET
+              nama = EXCLUDED.nama,
+              gender = EXCLUDED.gender,
+              tempat_lahir = EXCLUDED.tempat_lahir,
+              tanggal_lahir = EXCLUDED.tanggal_lahir,
+              alamat = EXCLUDED.alamat,
+              no_hp = EXCLUDED.no_hp,
+              wadah = EXCLUDED.wadah,
+              rayon = EXCLUDED.rayon;
+          `;
+          await queryWithAutoTable(query, [
+            item.id, item.nama, item.nik, item.gender, item.tempat_lahir,
+            item.tanggal_lahir, item.alamat, item.no_hp, item.status_jemaat,
+            item.wadah, item.rayon
+          ]);
+          importedCount++;
+        }
+      } catch (dbErr) {
+        console.error("Database import excel error, fallbacking to memory:", dbErr);
+      }
+    }
+
+    if (importedCount === 0) {
+      (inMemoryDB as any).jemaat = jemaatsToSave;
+      importedCount = jemaatsToSave.length;
+    }
+
+    res.json({ success: true, count: importedCount, message: `Berhasil mengimpor ${importedCount} data jemaat dari file Excel.` });
+  } catch (error: any) {
+    console.error("Error importing excel jemaat:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -1765,7 +1920,6 @@ router.post("/chat", async (req, res) => {
 
 // ============ FILE UPLOAD ============
 import multer from "multer";
-import path from "path";
 const upload = multer({ dest: "uploads/" });
 
 router.post("/upload", upload.single("file"), (req, res) => {
