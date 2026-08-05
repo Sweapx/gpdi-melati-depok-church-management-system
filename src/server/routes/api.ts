@@ -7,7 +7,31 @@ const router = Router();
 // A simple generic CRUD generator for inMemoryDB fallback
 const createCrud = (route: string, arrayName: keyof typeof inMemoryDB) => {
   router.get(`/${route}`, (req, res) => {
-    res.json({ success: true, data: inMemoryDB[arrayName] });
+    let data = inMemoryDB[arrayName];
+    // Convert snake_case to camelCase for registrations
+    if (route === 'registrations') {
+      data = (data as any[]).map((row: any) => ({
+        id: row.id,
+        type: row.type,
+        namaPendaftar: row.nama_pendaftar || row.namaPendaftar,
+        nik: row.nik,
+        gender: row.gender,
+        tempatLahir: row.tempat_lahir || row.tempatLahir,
+        tanggalLahir: row.tanggal_lahir || row.tanggalLahir,
+        alamat: row.alamat,
+        noHp: row.no_hp || row.noHp,
+        lampiranKtp: row.lampiran_ktp || row.lampiranKtp,
+        lampiranBuktiBayar: row.lampiran_bukti_bayar || row.lampiranBuktiBayar,
+        status: row.status,
+        statusNote: row.status_note || row.statusNote,
+        anggotaKeluarga: row.anggota_keluarga || row.anggotaKeluarga,
+        rayon: row.rayon,
+        jenisKegiatan: row.jenis_kegiatan || row.jenisKegiatan,
+        tanggalDaftar: row.tanggal_daftar || row.tanggalDaftar,
+        createdAt: row.created_at || row.createdAt
+      }));
+    }
+    res.json({ success: true, data });
   });
 
   router.post(`/${route}`, (req, res) => {
