@@ -202,7 +202,7 @@ router.get("/jemaat", async (req, res) => {
     const data = result.rows.map(row => ({
       ...row,
       tempatLahir: row.tempat_lahir || row.tempatLahir || '',
-      tanggalLahir: row.tanggal_lahir || row.tanggalLahir || '',
+      tanggalLahir: row.tanggal_lahir ? (typeof row.tanggal_lahir === 'string' ? row.tanggal_lahir.split('T')[0] : new Date(row.tanggal_lahir).toISOString().split('T')[0]) : '',
       noHp: row.no_hp || row.noHp || '',
       statusPernikahan: row.status_pernikahan || row.statusPernikahan || '',
       statusJemaat: row.status_jemaat || row.statusJemaat || 'Aktif',
@@ -316,11 +316,11 @@ router.post("/import-excel-jemaat", async (req, res) => {
     const rawData: any[] = xlsx.utils.sheet_to_json(sheet);
 
     const wadahMap: Record<number, string> = {
-      1: 'Sekolah Minggu',
-      2: 'Remaja',
-      3: 'Pemuda',
-      4: 'Wadah Wanita (W/P)',
-      5: 'Wadah Pria (P/P)'
+      1: 'Wadah 1',
+      2: 'Wadah 2',
+      3: 'Wadah 3',
+      4: 'Wadah 4',
+      5: 'Wadah 5'
     };
 
     const rayonMap: Record<number, string> = {
@@ -341,18 +341,6 @@ router.post("/import-excel-jemaat", async (req, res) => {
       return '1990-01-01';
     };
 
-    const calculateAge = (birthDateStr: string) => {
-      const birthDate = new Date(birthDateStr);
-      if (isNaN(birthDate.getTime())) return 25;
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const m = today.getMonth() - birthDate.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
-      return age;
-    };
-
     let importedCount = 0;
     const jemaatsToSave: any[] = [];
 
@@ -366,22 +354,18 @@ router.post("/import-excel-jemaat", async (req, res) => {
       const no_wa = (row.no_wa || row.no_hp || row.no_telp || '-').toString().replace(/[^0-9+]/g, '');
       const no_hp = no_wa.length > 5 ? no_wa : '-';
 
-      const age = calculateAge(tanggal_lahir);
-      let wadah = row.wadah_id && wadahMap[row.wadah_id] ? wadahMap[row.wadah_id] : '';
-      if (!wadah) {
-        if (age < 13) wadah = 'Sekolah Minggu';
-        else if (age <= 17) wadah = 'Remaja';
-        else if (age <= 25) wadah = 'Pemuda';
-        else if (gender === 'Wanita') wadah = 'Wadah Wanita (W/P)';
-        else wadah = 'Wadah Pria (P/P)';
-      }
+      const rawNik = row.nik || row.NIK;
+      const nik = (rawNik && rawNik.toString().trim() !== '-' && rawNik.toString().trim() !== '') 
+        ? rawNik.toString().trim() 
+        : `327500${String(idx + 1).padStart(10, '0')}`;
 
-      const rayon = row.rayon_id && rayonMap[row.rayon_id] ? rayonMap[row.rayon_id] : 'Rayon 1';
+      const wadah = row.wadah_id && wadahMap[row.wadah_id] ? wadahMap[row.wadah_id] : `Wadah ${row.wadah_id || 1}`;
+      const rayon = row.rayon_id && rayonMap[row.rayon_id] ? rayonMap[row.rayon_id] : `Rayon ${row.rayon_id || 1}`;
 
       jemaatsToSave.push({
         id: `JEM-${String(idx + 1).padStart(4, '0')}`,
         nama,
-        nik: `-`,
+        nik,
         gender,
         tempat_lahir,
         tanggal_lahir,
@@ -417,8 +401,31 @@ router.post("/import-excel-jemaat", async (req, res) => {
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
           `);
+          await pool.query(`ALTER TABLE jemaat DROP CONSTRAINT IF EXISTS jemaat_nik_key;`);
         } catch (tErr) {
-          // Table already exists or schema create permission restricted
+          // Table already exists
+        }
+
+        // Ensure Wadah 1-5 default rows exist
+        for (let i = 1; i <= 5; i++) {
+          try {
+            await pool.query(`
+              INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
+              VALUES ($1, $2, $3, $4, $5, $6)
+              ON CONFLICT (id) DO UPDATE SET nama_wadah = EXCLUDED.nama_wadah;
+            `, [`WAD-00${i}`, `Wadah ${i}`, `Ketua Wadah ${i}`, i === 1 ? 0 : i === 2 ? 13 : i === 3 ? 18 : 26, i === 1 ? 12 : i === 2 ? 17 : i === 3 ? 25 : 150, 0]);
+          } catch (wErr) {}
+        }
+
+        // Ensure Rayon 1-4 default rows exist
+        for (let i = 1; i <= 4; i++) {
+          try {
+            await pool.query(`
+              INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
+              VALUES ($1, $2, $3, $4)
+              ON CONFLICT (id) DO UPDATE SET nama_rayon = EXCLUDED.nama_rayon;
+            `, [`RAY-00${i}`, `Rayon ${i}`, `Ketua Rayon ${i}`, 0]);
+          } catch (rErr) {}
         }
 
         for (const item of jemaatsToSave) {
@@ -427,6 +434,7 @@ router.post("/import-excel-jemaat", async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             ON CONFLICT (id) DO UPDATE SET
               nama = EXCLUDED.nama,
+              nik = EXCLUDED.nik,
               gender = EXCLUDED.gender,
               tempat_lahir = EXCLUDED.tempat_lahir,
               tanggal_lahir = EXCLUDED.tanggal_lahir,

@@ -25,16 +25,16 @@ const rawData = xlsx.utils.sheet_to_json(sheet);
 
 console.log(`📊 Ditemukan ${rawData.length} data jemaat dari Excel (${sheetName}).`);
 
-// Wadah Mapping
+// Exact Wadah Mapping
 const wadahMap = {
-  1: 'Sekolah Minggu',
-  2: 'Remaja',
-  3: 'Pemuda',
-  4: 'Wadah Wanita (W/P)',
-  5: 'Wadah Pria (P/P)'
+  1: 'Wadah 1',
+  2: 'Wadah 2',
+  3: 'Wadah 3',
+  4: 'Wadah 4',
+  5: 'Wadah 5'
 };
 
-// Rayon Mapping
+// Exact Rayon Mapping
 const rayonMap = {
   1: 'Rayon 1',
   2: 'Rayon 2',
@@ -53,36 +53,6 @@ function formatTanggal(val) {
   return '1990-01-01';
 }
 
-function calculateAge(birthDateStr) {
-  const birthDate = new Date(birthDateStr);
-  if (isNaN(birthDate.getTime())) return 25;
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
-}
-
-function determineWadah(age, gender, wadahId) {
-  if (wadahId && wadahMap[wadahId]) {
-    return wadahMap[wadahId];
-  }
-  if (age < 13) return 'Sekolah Minggu';
-  if (age >= 13 && age <= 17) return 'Remaja';
-  if (age >= 18 && age <= 25) return 'Pemuda';
-  if (gender === 'Wanita' || gender === 'Perempuan') return 'Wadah Wanita (W/P)';
-  return 'Wadah Pria (P/P)';
-}
-
-function determineRayon(rayonId) {
-  if (rayonId && rayonMap[rayonId]) {
-    return rayonMap[rayonId];
-  }
-  return 'Rayon 1';
-}
-
 const formattedJemaatList = rawData.map((row, idx) => {
   const nama = (row.nama || row.Nama || `Jemaat ${idx + 1}`).toString().trim();
   const genderRaw = (row.jenis_kelamin || row.gender || 'Pria').toString().trim();
@@ -92,22 +62,26 @@ const formattedJemaatList = rawData.map((row, idx) => {
   const alamat = (row.alamat || '-').toString().trim();
   const no_wa = (row.no_wa || row.no_hp || row.no_telp || '-').toString().replace(/[^0-9+]/g, '');
   const no_hp = no_wa.length > 5 ? no_wa : '-';
-  const status_jemaat = (row.status || 'aktif').toString().toLowerCase() === 'aktif' ? 'Aktif' : 'Aktif';
 
-  const age = calculateAge(tanggal_lahir);
-  const wadah = determineWadah(age, gender, row.wadah_id);
-  const rayon = determineRayon(row.rayon_id);
+  // Generate unique NIK to avoid duplicate key violates unique constraint "jemaat_nik_key"
+  const rawNik = row.nik || row.NIK;
+  const nik = (rawNik && rawNik.toString().trim() !== '-' && rawNik.toString().trim() !== '') 
+    ? rawNik.toString().trim() 
+    : `327500${String(idx + 1).padStart(10, '0')}`;
+
+  const wadah = row.wadah_id && wadahMap[row.wadah_id] ? wadahMap[row.wadah_id] : `Wadah ${row.wadah_id || 1}`;
+  const rayon = row.rayon_id && rayonMap[row.rayon_id] ? rayonMap[row.rayon_id] : `Rayon ${row.rayon_id || 1}`;
 
   return {
     id: `JEM-${String(idx + 1).padStart(4, '0')}`,
     nama,
-    nik: `-`,
+    nik,
     gender,
     tempat_lahir,
     tanggal_lahir,
     alamat,
     no_hp,
-    status_jemaat,
+    status_jemaat: 'Aktif',
     wadah,
     rayon
   };
@@ -124,7 +98,7 @@ async function runImport() {
     });
 
     try {
-      // Try CREATE TABLE if schema permits, otherwise proceed directly to INSERT
+      // Create table if not exists & drop unique constraint on NIK if present
       try {
         await pool.query(`
           CREATE TABLE IF NOT EXISTS jemaat (
@@ -142,8 +116,31 @@ async function runImport() {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );
         `);
+        await pool.query(`ALTER TABLE jemaat DROP CONSTRAINT IF EXISTS jemaat_nik_key;`);
       } catch (tableErr) {
-        console.log('ℹ️ Skip CREATE TABLE (menggunakan tabel jemaat yang sudah ada):', tableErr.message);
+        console.log('ℹ️ Skip CREATE/ALTER TABLE:', tableErr.message);
+      }
+
+      // Ensure default Wadah 1-5 exist
+      for (let i = 1; i <= 5; i++) {
+        try {
+          await pool.query(`
+            INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (id) DO UPDATE SET nama_wadah = EXCLUDED.nama_wadah;
+          `, [`WAD-00${i}`, `Wadah ${i}`, `Ketua Wadah ${i}`, i === 1 ? 0 : i === 2 ? 13 : i === 3 ? 18 : 26, i === 1 ? 12 : i === 2 ? 17 : i === 3 ? 25 : 150, 0]);
+        } catch (wErr) {}
+      }
+
+      // Ensure default Rayon 1-4 exist
+      for (let i = 1; i <= 4; i++) {
+        try {
+          await pool.query(`
+            INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (id) DO UPDATE SET nama_rayon = EXCLUDED.nama_rayon;
+          `, [`RAY-00${i}`, `Rayon ${i}`, `Ketua Rayon ${i}`, 0]);
+        } catch (rErr) {}
       }
 
       let insertedCount = 0;
@@ -156,6 +153,7 @@ async function runImport() {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             ON CONFLICT (id) DO UPDATE SET
               nama = EXCLUDED.nama,
+              nik = EXCLUDED.nik,
               gender = EXCLUDED.gender,
               tempat_lahir = EXCLUDED.tempat_lahir,
               tanggal_lahir = EXCLUDED.tanggal_lahir,
@@ -185,7 +183,7 @@ async function runImport() {
     }
   } else {
     console.log('⚠️ DATABASE_URL tidak diset di .env!');
-    console.log('ℹ️ Menyiapkan format JSON data jemaat yang siap digunakan untuk API / Seeding server...');
+    console.log('ℹ️ Menyiapkan format JSON data jemaat...');
     const outputPath = path.resolve(process.cwd(), './data_jemaat_parsed.json');
     fs.writeFileSync(outputPath, JSON.stringify(formattedJemaatList, null, 2));
     console.log(`✅ Data jemaat ${formattedJemaatList.length} items disimpan di file: ${outputPath}`);
