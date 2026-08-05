@@ -1029,7 +1029,9 @@ router.get("/rayon", async (req, res) => {
 router.post("/rayon", async (req, res) => {
   try {
     checkPostgres();
-    const { nama_rayon, ketua_rayon, jumlah_anggota } = req.body;
+    const nama_rayon = req.body.nama_rayon || req.body.namaRayon;
+    const ketua_rayon = req.body.ketua_rayon || req.body.ketuaRayon;
+    const jumlah_anggota = req.body.jumlah_anggota !== undefined ? req.body.jumlah_anggota : req.body.jumlahAnggota;
 
     const id = generateId("RAY");
     const query = `
@@ -1038,7 +1040,7 @@ router.post("/rayon", async (req, res) => {
       ) VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    const values = [id, nama_rayon, ketua_rayon, jumlah_anggota || 0];
+    const values = [id, nama_rayon, ketua_rayon, Number(jumlah_anggota) || 0];
 
     const result = await pool!.query(query, values);
     res.json({ success: true, data: result.rows[0] });

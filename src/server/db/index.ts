@@ -184,6 +184,22 @@ async function initDb() {
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
+      VALUES 
+        ('WAD-001', 'Wadah Muda Mudi', 'Budi Santoso', 18, 35, 0),
+        ('WAD-002', 'Wadah Remaja', 'Siti Rahayu', 13, 17, 0),
+        ('WAD-003', 'Wadah Dewasa', 'Agus Pratama', 36, 60, 0),
+        ('WAD-004', 'Wadah Lansia', 'Dewi Sartika', 61, 100, 0)
+      ON CONFLICT (id) DO NOTHING;
+
+      INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
+      VALUES 
+        ('RAY-001', 'Rayon Depok Timur', 'Hendro Wijaya', 0),
+        ('RAY-002', 'Rayon Depok Barat', 'Dewi Sartika', 0),
+        ('RAY-003', 'Rayon Depok Selatan', 'Rudi Hartono', 0),
+        ('RAY-004', 'Rayon Depok Utara', 'Sri Mulyani', 0)
+      ON CONFLICT (id) DO NOTHING;
     `);
     console.log("PostgreSQL Database Schema Check/Initialization Complete.");
   } catch (err) {

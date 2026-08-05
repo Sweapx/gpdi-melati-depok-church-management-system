@@ -127,8 +127,11 @@ export default function Rayon() {
     const formData = new FormData(form);
     const newRayon = {
       nama_rayon: formData.get('namaRayon') as string,
+      namaRayon: formData.get('namaRayon') as string,
       ketua_rayon: formData.get('ketuaRayon') as string,
+      ketuaRayon: formData.get('ketuaRayon') as string,
       jumlah_anggota: 0,
+      jumlahAnggota: 0,
     };
 
     try {
