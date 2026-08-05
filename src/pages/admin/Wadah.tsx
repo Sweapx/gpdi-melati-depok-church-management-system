@@ -13,6 +13,7 @@ interface Wadah {
 
 export default function Wadah() {
   const [data, setData] = useState<Wadah[]>([]);
+  const [jemaatList, setJemaatList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'nama-asc' | 'nama-desc'>('nama-asc');
@@ -20,25 +21,102 @@ export default function Wadah() {
   const [isAdding, setIsAdding] = useState(false);
   const [viewingWadah, setViewingWadah] = useState<Wadah | null>(null);
 
-  useEffect(() => {
-    fetch('/api/wadah')
-      .then(res => res.json())
-      .then(res => {
-        if (res.success) {
-          const convertedData = res.data.map((row: any) => ({
+  const calculateAge = (tanggalLahir: string): number => {
+    if (!tanggalLahir) return 0;
+    const cleanStr = tanggalLahir.split('T')[0];
+    const parts = cleanStr.split('-');
+    if (parts.length !== 3) return 0;
+    const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const fetchAllData = () => {
+    setIsLoading(true);
+    Promise.all([
+      fetch('/api/wadah').then(res => res.json()),
+      fetch('/api/jemaat').then(res => res.json())
+    ]).then(([wadahRes, jemaatRes]) => {
+      let jList: any[] = [];
+      if (jemaatRes.success) {
+        jList = jemaatRes.data || [];
+        setJemaatList(jList);
+      }
+      if (wadahRes.success) {
+        const convertedData = wadahRes.data.map((row: any) => {
+          const wName = (row.nama_wadah || row.namaWadah || '').trim().toLowerCase();
+          const minAge = Number(row.umur_minimal !== undefined ? row.umur_minimal : row.umurMinimal) || 0;
+          const maxAge = Number(row.umur_maksimal !== undefined ? row.umur_maksimal : row.umurMaksimal) || 150;
+
+          // Count matching active members
+          let count = 0;
+          if (jList.length > 0) {
+            count = jList.filter((j: any) => {
+              const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || j.status_jemaat === 'Aktif';
+              if (!isAktif) return false;
+              const jw = (j.wadah || '').trim().toLowerCase();
+              const tgl = j.tanggalLahir || j.tanggal_lahir;
+              const age = tgl ? calculateAge(tgl) : null;
+
+              if (jw !== '' && jw === wName) return true;
+              if (jw === '' && age !== null && age >= minAge && age <= maxAge) return true;
+              if (row.id === 'WAD-001' && (jw.includes('pria') || jw.includes('bapak'))) return true;
+              if (row.id === 'WAD-002' && (jw.includes('wanita') || jw.includes('ibu'))) return true;
+              if (row.id === 'WAD-003' && (jw.includes('anak') || jw.includes('remaja'))) return true;
+              if (row.id === 'WAD-004' && (jw.includes('pemuda') || jw.includes('youth'))) return true;
+              if (row.id === 'WAD-005' && (jw.includes('dewasa muda') || jw.includes('professional'))) return true;
+              return false;
+            }).length;
+          } else {
+            count = row.jumlah_anggota || row.jumlahAnggota || 0;
+          }
+
+          return {
             id: row.id,
-            namaWadah: row.nama_wadah,
-            ketuaWadah: row.ketua_wadah,
-            umurMinimal: row.umur_minimal,
-            umurMaksimal: row.umur_maksimal,
-            jumlahAnggota: row.jumlah_anggota,
-          }));
-          setData(convertedData);
-        }
-        setIsLoading(false);
-      })
-      .catch(() => setIsLoading(false));
+            namaWadah: row.nama_wadah || row.namaWadah,
+            ketuaWadah: row.ketua_wadah || row.ketuaWadah,
+            umurMinimal: minAge,
+            umurMaksimal: maxAge,
+            jumlahAnggota: count,
+          };
+        });
+        setData(convertedData);
+      }
+      setIsLoading(false);
+    }).catch(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchAllData();
   }, []);
+
+  const getWadahMembers = (wadah: Wadah) => {
+    const wName = (wadah.namaWadah || '').trim().toLowerCase();
+    return jemaatList.filter((j: any) => {
+      const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || j.status_jemaat === 'Aktif';
+      if (!isAktif) return false;
+
+      const jw = (j.wadah || '').trim().toLowerCase();
+      const tgl = j.tanggalLahir || j.tanggal_lahir;
+      const age = tgl ? calculateAge(tgl) : null;
+
+      if (jw !== '' && jw === wName) return true;
+      if (jw === '' && age !== null && age >= wadah.umurMinimal && age <= wadah.umurMaksimal) return true;
+
+      if (wadah.id === 'WAD-001' && (jw.includes('pria') || jw.includes('bapak'))) return true;
+      if (wadah.id === 'WAD-002' && (jw.includes('wanita') || jw.includes('ibu'))) return true;
+      if (wadah.id === 'WAD-003' && (jw.includes('anak') || jw.includes('remaja'))) return true;
+      if (wadah.id === 'WAD-004' && (jw.includes('pemuda') || jw.includes('youth'))) return true;
+      if (wadah.id === 'WAD-005' && (jw.includes('dewasa muda') || jw.includes('professional'))) return true;
+
+      return false;
+    });
+  };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Yakin ingin menghapus wadah ini?')) return;
@@ -75,17 +153,8 @@ export default function Wadah() {
         body: JSON.stringify(updatedWadah)
       });
       if (res.ok) {
-        const json = await res.json();
-        const converted = {
-          id: json.data.id,
-          namaWadah: json.data.nama_wadah,
-          ketuaWadah: json.data.ketua_wadah,
-          umurMinimal: json.data.umur_minimal,
-          umurMaksimal: json.data.umur_maksimal,
-          jumlahAnggota: json.data.jumlah_anggota,
-        };
-        setData(data.map(w => w.id === editingWadah.id ? converted : w));
         setEditingWadah(null);
+        fetchAllData();
       } else {
         const error = await res.json();
         alert('Gagal mengupdate wadah: ' + (error.message || 'Unknown error'));
@@ -120,17 +189,8 @@ export default function Wadah() {
         body: JSON.stringify(newWadah)
       });
       if (res.ok) {
-        const json = await res.json();
-        const convertedData = {
-          id: json.data.id,
-          namaWadah: json.data.nama_wadah,
-          ketuaWadah: json.data.ketua_wadah,
-          umurMinimal: json.data.umur_minimal,
-          umurMaksimal: json.data.umur_maksimal,
-          jumlahAnggota: json.data.jumlah_anggota,
-        };
-        setData([...data, convertedData]);
         setIsAdding(false);
+        fetchAllData();
       } else {
         const error = await res.json();
         alert('Gagal menambah wadah: ' + (error.message || 'Unknown error'));
@@ -200,6 +260,7 @@ export default function Wadah() {
               <tr>
                 <th className="px-6 py-4">NAMA WADAH</th>
                 <th className="px-6 py-4">KETUA WADAH</th>
+                <th className="px-6 py-4">RENTANG UMUR</th>
                 <th className="px-6 py-4">JUMLAH ANGGOTA</th>
                 <th className="px-6 py-4 text-center">AKSI</th>
               </tr>
@@ -207,22 +268,23 @@ export default function Wadah() {
             <tbody className="divide-y divide-border-subtle">
               {isLoading ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-text-muted">Memuat data...</td>
+                  <td colSpan={5} className="text-center py-12 text-text-muted">Memuat data...</td>
                 </tr>
               ) : filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-text-muted">Tidak ada data wadah.</td>
+                  <td colSpan={5} className="text-center py-12 text-text-muted">Tidak ada data wadah.</td>
                 </tr>
               ) : (
                 filteredData.map(wadah => (
                   <tr key={wadah.id} className="hover:bg-sand-darker/50 transition-colors">
                     <td className="px-6 py-4 font-medium">{wadah.namaWadah}</td>
                     <td className="px-6 py-4">{wadah.ketuaWadah}</td>
-                    <td className="px-6 py-4">{wadah.jumlahAnggota}</td>
+                    <td className="px-6 py-4">{wadah.umurMinimal} - {wadah.umurMaksimal} tahun</td>
+                    <td className="px-6 py-4 font-bold">{wadah.jumlahAnggota} orang</td>
                     <td className="px-6 py-4 flex justify-center gap-2">
-                      <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" onClick={() => setViewingWadah(wadah)}><Eye size={16} /></button>
-                      <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => setEditingWadah(wadah)}><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(wadah.id)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                      <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" onClick={() => setViewingWadah(wadah)} title="Lihat Anggota"><Eye size={16} /></button>
+                      <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => setEditingWadah(wadah)} title="Edit Wadah"><Edit2 size={16} /></button>
+                      <button onClick={() => handleDelete(wadah.id)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Hapus"><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))
@@ -234,109 +296,133 @@ export default function Wadah() {
 
       {/* Add/Edit Form Card */}
       {(isAdding || editingWadah) && (
-        <div className="bg-white rounded-2xl border border-border-subtle shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-border-subtle bg-sand-dark">
-            <h2 className="text-xl font-bold text-navy">
-              {isAdding ? 'Tambah Wadah Baru' : 'Edit Data Wadah'}
-            </h2>
-          </div>
-          <div className="p-6">
-            <form id="wadah-form" onSubmit={isAdding ? handleAddSave : handleEditSave} className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Nama Wadah</label>
-                <input
-                  type="text"
-                  name="namaWadah"
-                  defaultValue={editingWadah?.namaWadah}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Ketua Wadah</label>
-                <input
-                  type="text"
-                  name="ketuaWadah"
-                  defaultValue={editingWadah?.ketuaWadah}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-border-subtle shadow-xl w-full max-w-lg overflow-hidden my-auto">
+            <div className="p-6 border-b border-border-subtle bg-sand-dark flex justify-between items-center">
+              <h2 className="text-xl font-bold text-navy">
+                {isAdding ? 'Tambah Wadah Baru' : 'Edit Data Wadah'}
+              </h2>
+              <button onClick={() => { setIsAdding(false); setEditingWadah(null); }} className="text-text-muted hover:text-navy p-1 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <form id="wadah-form" key={editingWadah?.id || (isAdding ? 'add' : 'none')} onSubmit={isAdding ? handleAddSave : handleEditSave} className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-navy">Umur Minimal</label>
+                  <label className="text-sm font-bold text-navy">Nama Wadah</label>
                   <input
-                    type="number"
-                    name="umurMinimal"
-                    defaultValue={editingWadah?.umurMinimal}
+                    type="text"
+                    name="namaWadah"
+                    defaultValue={editingWadah?.namaWadah}
                     className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
                     required
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-navy">Umur Maksimal</label>
+                  <label className="text-sm font-bold text-navy">Ketua Wadah</label>
                   <input
-                    type="number"
-                    name="umurMaksimal"
-                    defaultValue={editingWadah?.umurMaksimal}
+                    type="text"
+                    name="ketuaWadah"
+                    defaultValue={editingWadah?.ketuaWadah}
                     className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
                     required
                   />
                 </div>
-              </div>
-            </form>
-          </div>
-          <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
-            <button
-              onClick={() => { setIsAdding(false); setEditingWadah(null); }}
-              className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              form="wadah-form"
-              className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
-            >
-              <Save size={16} /> {isAdding ? 'Simpan Data Wadah' : 'Simpan Perubahan'}
-            </button>
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-navy">Umur Minimal</label>
+                    <input
+                      type="number"
+                      name="umurMinimal"
+                      defaultValue={editingWadah?.umurMinimal}
+                      className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-navy">Umur Maksimal</label>
+                    <input
+                      type="number"
+                      name="umurMaksimal"
+                      defaultValue={editingWadah?.umurMaksimal}
+                      className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                      required
+                    />
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => { setIsAdding(false); setEditingWadah(null); }}
+                className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="wadah-form"
+                className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
+              >
+                <Save size={16} /> {isAdding ? 'Simpan Data Wadah' : 'Simpan Perubahan'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* View Detail Modal */}
+      {/* View Detail & Member List Modal */}
       {viewingWadah && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-border-subtle">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl border border-border-subtle my-auto max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center p-6 border-b border-border-subtle bg-sand-dark">
-              <h2 className="text-xl font-bold text-navy">Detail Wadah</h2>
+              <div>
+                <h2 className="text-xl font-bold text-navy">{viewingWadah.namaWadah}</h2>
+                <p className="text-xs text-text-muted font-medium">Ketua: {viewingWadah.ketuaWadah} • Rentang Usia: {viewingWadah.umurMinimal} - {viewingWadah.umurMaksimal} tahun</p>
+              </div>
               <button onClick={() => setViewingWadah(null)} className="p-2 hover:bg-sand-darker rounded-full transition-colors text-text-muted hover:text-navy">
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Nama Wadah</p>
-                <p className="font-medium text-navy">{viewingWadah.namaWadah}</p>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              <div className="flex justify-between items-center border-b border-border-subtle pb-3">
+                <h3 className="font-bold text-navy">Daftar Anggota ({getWadahMembers(viewingWadah).length} orang)</h3>
               </div>
-              <div>
-                <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Ketua Wadah</p>
-                <p className="font-medium text-navy">{viewingWadah.ketuaWadah}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Umur Minimal</p>
-                  <p className="font-medium text-navy">{viewingWadah.umurMinimal} tahun</p>
+
+              {getWadahMembers(viewingWadah).length === 0 ? (
+                <div className="text-center py-8 text-text-muted text-sm">Belum ada anggota terdaftar pada wadah ini.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-navy">
+                    <thead className="bg-sand-dark text-text-muted text-xs uppercase font-bold tracking-wider">
+                      <tr>
+                        <th className="px-4 py-3">Nama</th>
+                        <th className="px-4 py-3">Tgl Lahir</th>
+                        <th className="px-4 py-3">Usia</th>
+                        <th className="px-4 py-3">Rayon</th>
+                        <th className="px-4 py-3">No. WhatsApp</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-subtle">
+                      {getWadahMembers(viewingWadah).map((j: any) => {
+                        const tgl = j.tanggalLahir || j.tanggal_lahir || '';
+                        const age = tgl ? calculateAge(tgl) : '-';
+                        return (
+                          <tr key={j.id} className="hover:bg-sand-darker/30">
+                            <td className="px-4 py-3 font-medium">{j.nama}</td>
+                            <td className="px-4 py-3">{tgl.split('T')[0] || '-'}</td>
+                            <td className="px-4 py-3">{age !== '-' ? `${age} thn` : '-'}</td>
+                            <td className="px-4 py-3">{j.rayon || '-'}</td>
+                            <td className="px-4 py-3">{j.noHp || j.no_hp || '-'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Umur Maksimal</p>
-                  <p className="font-medium text-navy">{viewingWadah.umurMaksimal} tahun</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Jumlah Anggota</p>
-                <p className="font-medium text-navy">{viewingWadah.jumlahAnggota} orang</p>
-              </div>
+              )}
             </div>
           </div>
         </div>

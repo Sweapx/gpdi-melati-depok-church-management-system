@@ -99,7 +99,8 @@ export default function SimpleScheduleSection() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {schedules.map((schedule, idx) => {
-            const isEvent = (schedule.kategori || '').toLowerCase().includes('event') || (schedule.kategori || '').toLowerCase().includes('pelatihan');
+            const kat = (schedule.kategori || '').toLowerCase();
+            const isEvent = kat.includes('event') || kat.includes('pelatihan') || kat.includes('acara') || kat.includes('seminar') || kat.includes('kegiatan') || kat.includes('retreat');
             const targetTab = isEvent ? 'event' : 'jadwal';
             return (
               <motion.div
@@ -215,12 +216,19 @@ export default function SimpleScheduleSection() {
                     <Users size={16} /> Daftar Event
                   </Link>
                 )}
-                <Link
-                  to={`/jadwal-event?tab=${(selectedSchedule.kategori || '').toLowerCase().includes('event') ? 'event' : 'jadwal'}&id=${selectedSchedule.id}`}
-                  className="flex-1 bg-navy text-white text-center py-3 rounded-full font-bold text-sm hover:bg-navy-light transition-colors flex items-center justify-center gap-2"
-                >
-                  Buka Halaman Jadwal <ArrowRight size={16} />
-                </Link>
+                {(() => {
+                  const mKat = (selectedSchedule.kategori || '').toLowerCase();
+                  const mIsEvent = mKat.includes('event') || mKat.includes('pelatihan') || mKat.includes('acara') || mKat.includes('seminar') || mKat.includes('kegiatan') || mKat.includes('retreat');
+                  const mTargetTab = mIsEvent ? 'event' : 'jadwal';
+                  return (
+                    <Link
+                      to={`/jadwal-event?tab=${mTargetTab}&id=${selectedSchedule.id}`}
+                      className="flex-1 bg-navy text-white text-center py-3 rounded-full font-bold text-sm hover:bg-navy-light transition-colors flex items-center justify-center gap-2"
+                    >
+                      Buka Halaman Jadwal <ArrowRight size={16} />
+                    </Link>
+                  );
+                })()}
               </div>
             </motion.div>
           </div>
@@ -229,7 +237,7 @@ export default function SimpleScheduleSection() {
 
       <div className="mt-8 text-center md:hidden">
         <Link 
-          to="/jadwal-event" 
+          to="/jadwal-event?tab=jadwal" 
           className="inline-flex items-center gap-2 bg-navy text-white px-6 py-3 rounded-full font-bold hover:bg-navy-light transition-colors text-sm"
         >
           Lihat Semua Jadwal <ArrowRight size={16} />

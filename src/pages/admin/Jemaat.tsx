@@ -105,7 +105,8 @@ export default function Jemaat() {
       ? formatDateForInput(formTanggalLahir)
       : cleanExistingDate;
 
-    const assignedWadah = assignWadahByAge(tanggalLahir);
+    const selectedWadah = (formData.get('wadah') as string) || '';
+    const assignedWadah = selectedWadah || assignWadahByAge(tanggalLahir);
 
     const nama = (formData.get('nama') as string) || editingJemaat.nama;
     const gender = (formData.get('gender') as string) || editingJemaat.gender;
@@ -113,8 +114,8 @@ export default function Jemaat() {
     const alamat = (formData.get('alamat') as string) || editingJemaat.alamat;
     const no_hp = (formData.get('noHp') as string) || editingJemaat.noHp;
     const status_jemaat = (formData.get('statusJemaat') as string) || editingJemaat.statusJemaat;
-    const rayon = (formData.get('rayon') as string) || editingJemaat.rayon;
-    const no_telepon = (formData.get('noTelepon') as string) || editingJemaat.noTelepon;
+    const rayon = (formData.get('rayon') as string) ?? editingJemaat.rayon ?? '';
+    const no_telepon = (formData.get('noTelepon') as string) ?? editingJemaat.noTelepon ?? '';
 
     try {
       const backendData = {
@@ -128,7 +129,7 @@ export default function Jemaat() {
         status_jemaat,
         kategori_kaum: editingJemaat.kategoriKaum || '',
         sektor: editingJemaat.sektor || '',
-        wadah: assignedWadah || editingJemaat.wadah || '',
+        wadah: assignedWadah,
         rayon,
         no_telepon,
         anggota_keluarga: editingJemaat.anggotaKeluarga || []
@@ -154,8 +155,8 @@ export default function Jemaat() {
           alamat: json.data?.alamat || backendData.alamat,
           noHp: json.data?.no_hp || json.data?.noHp || backendData.no_hp,
           statusJemaat: (json.data?.status_jemaat || json.data?.statusJemaat || backendData.status_jemaat) as 'Aktif' | 'Keluar' | 'Meninggal',
-          wadah: json.data?.wadah || backendData.wadah,
-          rayon: json.data?.rayon || backendData.rayon,
+          wadah: json.data?.wadah !== undefined ? json.data.wadah : backendData.wadah,
+          rayon: json.data?.rayon !== undefined ? json.data.rayon : backendData.rayon,
           noTelepon: json.data?.no_telepon || json.data?.noTelepon || backendData.no_telepon,
           createdAt: json.data?.created_at || json.data?.createdAt || editingJemaat.createdAt || new Date().toISOString()
         };
@@ -178,13 +179,14 @@ export default function Jemaat() {
     const formData = new FormData(form);
     const formTanggalLahir = formData.get('tanggalLahir') as string;
     const tanggalLahir = formatDateForInput(formTanggalLahir);
-    const assignedWadah = assignWadahByAge(tanggalLahir);
+    const selectedWadah = (formData.get('wadah') as string) || '';
+    const assignedWadah = selectedWadah || assignWadahByAge(tanggalLahir);
 
     const nama = formData.get('nama') as string;
     const status_jemaat = (formData.get('statusJemaat') as string) || 'Aktif';
     const tempat_lahir = formData.get('tempatLahir') as string;
     const gender = formData.get('gender') as string;
-    const rayon = formData.get('rayon') as string;
+    const rayon = (formData.get('rayon') as string) || '';
     const no_telepon = formData.get('noTelepon') as string;
     const no_hp = formData.get('noHp') as string;
     const alamat = formData.get('alamat') as string;
@@ -222,8 +224,8 @@ export default function Jemaat() {
           alamat: json.data?.alamat || alamat,
           noHp: json.data?.no_hp || json.data?.noHp || no_hp,
           statusJemaat: (json.data?.status_jemaat || json.data?.statusJemaat || status_jemaat) as 'Aktif' | 'Keluar' | 'Meninggal',
-          wadah: json.data?.wadah || assignedWadah,
-          rayon: json.data?.rayon || rayon,
+          wadah: json.data?.wadah !== undefined ? json.data.wadah : assignedWadah,
+          rayon: json.data?.rayon !== undefined ? json.data.rayon : rayon,
           noTelepon: json.data?.no_telepon || json.data?.noTelepon || no_telepon,
           createdAt: json.data?.created_at || json.data?.createdAt || new Date().toISOString()
         };
@@ -427,6 +429,21 @@ export default function Jemaat() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Wadah</label>
+                  <select
+                    name="wadah"
+                    defaultValue={editingJemaat?.wadah || ''}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                  >
+                    <option value="">Otomatis (Berdasarkan Usia)</option>
+                    {wadahList.map(w => (
+                      <option key={w.id} value={w.nama_wadah || w.namaWadah}>
+                        {w.nama_wadah || w.namaWadah}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
                   <label className="text-sm font-bold text-navy">Rayon</label>
                   <select
                     name="rayon"
@@ -435,8 +452,8 @@ export default function Jemaat() {
                   >
                     <option value="">Pilih Rayon...</option>
                     {rayonList.map(rayon => (
-                      <option key={rayon.id} value={rayon.nama_rayon}>
-                        {rayon.nama_rayon}
+                      <option key={rayon.id} value={rayon.nama_rayon || rayon.namaRayon}>
+                        {rayon.nama_rayon || rayon.namaRayon}
                       </option>
                     ))}
                   </select>
