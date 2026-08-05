@@ -88,11 +88,11 @@ export default function Jemaat() {
   const getDisplayWadah = (jemaat: JemaatType): string => {
     const jw = (jemaat.wadah || (jemaat as any).wadah_id || '').toString().trim().toLowerCase();
 
-    if (jw === '5' || jw === 'wad-005' || jw.includes('sekolah minggu') || jw.includes('anak')) return 'Sekolah Minggu';
-    if (jw === '3' || jw === 'wad-003' || jw.includes('remaja')) return 'Kaum Remaja';
-    if (jw === '1' || jw === 'wad-001' || jw.includes('muda') || jw.includes('pemuda')) return 'Kaum Muda';
-    if (jw === '4' || jw === 'wad-004' || jw.includes('wanita') || jw.includes('ibu')) return 'Kaum Wanita';
-    if (jw === '2' || jw === 'wad-002' || jw.includes('pria') || jw.includes('bapak')) return 'Kaum Pria';
+    if (jw === '1' || jw === 'wad-002' || jw.includes('pria') || jw.includes('bapak')) return 'Kaum Pria';
+    if (jw === '2' || jw === 'wad-004' || jw.includes('wanita') || jw.includes('ibu')) return 'Kaum Wanita';
+    if (jw === '3' || jw === 'wad-005' || jw.includes('sekolah minggu') || jw.includes('anak')) return 'Sekolah Minggu';
+    if (jw === '4' || jw === 'wad-003' || jw.includes('remaja')) return 'Kaum Remaja';
+    if (jw === '5' || jw === 'wad-001' || jw.includes('muda') || jw.includes('pemuda')) return 'Kaum Muda';
 
     const tgl = jemaat.tanggalLahir || (jemaat as any).tanggal_lahir;
     const age = tgl ? calculateAge(tgl) : 0;

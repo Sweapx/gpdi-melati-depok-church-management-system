@@ -1487,11 +1487,11 @@ router.get("/wadah", async (req, res) => {
         // 1. Explicit Wadah set in DB/Excel (Direct match)
         if (jw && jw !== 'Otomatis' && jw !== '-') {
           const jwLower = jw.toLowerCase();
-          if (jwLower.includes('sekolah minggu') || jwLower.includes('anak') || jw === '5' || jw === 'wad-005') computedWadah = 'Sekolah Minggu';
-          else if (jwLower.includes('remaja') || jw === '3' || jw === 'wad-003') computedWadah = 'Kaum Remaja';
-          else if (jwLower.includes('muda') || jwLower.includes('pemuda') || jw === '1' || jw === 'wad-001') computedWadah = 'Kaum Muda';
-          else if (jwLower.includes('wanita') || jwLower.includes('ibu') || jw === '4' || jw === 'wad-004') computedWadah = 'Kaum Wanita';
-          else if (jwLower.includes('pria') || jwLower.includes('bapak') || jw === '2' || jw === 'wad-002') computedWadah = 'Kaum Pria';
+          if (jw === '1' || jw === 'wad-002' || jwLower.includes('pria') || jwLower.includes('bapak')) computedWadah = 'Kaum Pria';
+          else if (jw === '2' || jw === 'wad-004' || jwLower.includes('wanita') || jwLower.includes('ibu')) computedWadah = 'Kaum Wanita';
+          else if (jw === '3' || jw === 'wad-005' || jwLower.includes('sekolah minggu') || jwLower.includes('anak')) computedWadah = 'Sekolah Minggu';
+          else if (jw === '4' || jw === 'wad-003' || jwLower.includes('remaja')) computedWadah = 'Kaum Remaja';
+          else if (jw === '5' || jw === 'wad-001' || jwLower.includes('muda') || jwLower.includes('pemuda')) computedWadah = 'Kaum Muda';
           else computedWadah = jw;
         }
 
