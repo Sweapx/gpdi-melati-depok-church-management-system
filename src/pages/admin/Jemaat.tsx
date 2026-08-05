@@ -73,9 +73,24 @@ export default function Jemaat() {
   };
 
   const assignWadahByAge = (tanggalLahir: string): string => {
+    if (!tanggalLahir) return '';
     const age = calculateAge(tanggalLahir);
-    const matchingWadah = wadahList.find(w => age >= w.umur_minimal && age <= w.umur_maksimal);
-    return matchingWadah ? matchingWadah.nama_wadah : '';
+    const matchingWadah = wadahList.find(w => {
+      const minAge = Number(w.umur_minimal !== undefined ? w.umur_minimal : w.umurMinimal) || 0;
+      const maxAge = Number(w.umur_maksimal !== undefined ? w.umur_maksimal : w.umurMaksimal) || 150;
+      return age >= minAge && age <= maxAge;
+    });
+    return matchingWadah ? (matchingWadah.nama_wadah || matchingWadah.namaWadah || '') : '';
+  };
+
+  const getDisplayWadah = (jemaat: JemaatType): string => {
+    if (jemaat.wadah && jemaat.wadah !== 'Otomatis' && jemaat.wadah.trim() !== '') {
+      return jemaat.wadah;
+    }
+    if (jemaat.tanggalLahir) {
+      return assignWadahByAge(jemaat.tanggalLahir) || '-';
+    }
+    return '-';
   };
 
   const handleDelete = async (id: string) => {
@@ -330,7 +345,7 @@ export default function Jemaat() {
                     <td className="px-6 py-4 font-medium">{jemaat.nama}</td>
                     <td className="px-6 py-4">{jemaat.tempatLahir || '-'}</td>
                     <td className="px-6 py-4">{formatDateForInput(jemaat.tanggalLahir) || '-'}</td>
-                    <td className="px-6 py-4">{jemaat.wadah || (jemaat.tanggalLahir ? assignWadahByAge(jemaat.tanggalLahir) : '') || '-'}</td>
+                    <td className="px-6 py-4">{getDisplayWadah(jemaat)}</td>
                     <td className="px-6 py-4">{jemaat.rayon || '-'}</td>
                     <td className="px-6 py-4 flex justify-center gap-2">
                       <button 

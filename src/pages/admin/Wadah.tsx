@@ -63,8 +63,9 @@ export default function Wadah() {
               const tgl = j.tanggalLahir || j.tanggal_lahir;
               const age = tgl ? calculateAge(tgl) : null;
 
-              if (jw !== '' && jw === wName) return true;
-              if (jw === '' && age !== null && age >= minAge && age <= maxAge) return true;
+              const isAgeMatch = age !== null && age >= minAge && age <= maxAge;
+              const isExplicitMatch = jw !== '' && (jw === wName || jw.includes(wName) || wName.includes(jw));
+              if (isAgeMatch || isExplicitMatch) return true;
               if (row.id === 'WAD-001' && (jw.includes('pria') || jw.includes('bapak'))) return true;
               if (row.id === 'WAD-002' && (jw.includes('wanita') || jw.includes('ibu'))) return true;
               if (row.id === 'WAD-003' && (jw.includes('anak') || jw.includes('remaja'))) return true;
@@ -105,8 +106,9 @@ export default function Wadah() {
       const tgl = j.tanggalLahir || j.tanggal_lahir;
       const age = tgl ? calculateAge(tgl) : null;
 
-      if (jw !== '' && jw === wName) return true;
-      if (jw === '' && age !== null && age >= wadah.umurMinimal && age <= wadah.umurMaksimal) return true;
+      const isAgeMatch = age !== null && age >= wadah.umurMinimal && age <= wadah.umurMaksimal;
+      const isExplicitMatch = jw !== '' && (jw === wName || jw.includes(wName) || wName.includes(jw));
+      if (isAgeMatch || isExplicitMatch) return true;
 
       if (wadah.id === 'WAD-001' && (jw.includes('pria') || jw.includes('bapak'))) return true;
       if (wadah.id === 'WAD-002' && (jw.includes('wanita') || jw.includes('ibu'))) return true;

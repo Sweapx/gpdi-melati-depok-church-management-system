@@ -1417,10 +1417,33 @@ router.get("/wadah", async (req, res) => {
 
     const data = wadahRows.map(w => {
       const wName = (w.nama_wadah || w.namaWadah || '').trim().toLowerCase();
+      const minAge = Number(w.umur_minimal !== undefined ? w.umur_minimal : w.umurMinimal) || 0;
+      const maxAge = Number(w.umur_maksimal !== undefined ? w.umur_maksimal : w.umurMaksimal) || 150;
+
       let count = 0;
       for (const j of jemaats) {
         const jw = (j.wadah || '').trim().toLowerCase();
-        if (jw === wName) {
+        let age: number | null = null;
+        if (j.tanggal_lahir || j.tanggalLahir) {
+          const birthStr = (j.tanggal_lahir || j.tanggalLahir).toString();
+          const cleanStr = birthStr.split('T')[0];
+          const parts = cleanStr.split('-');
+          if (parts.length === 3) {
+            const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            const today = new Date();
+            let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+              calculatedAge--;
+            }
+            age = calculatedAge;
+          }
+        }
+
+        const isAgeMatch = age !== null && age >= minAge && age <= maxAge;
+        const isExplicitMatch = jw !== '' && (jw === wName || jw.includes(wName) || wName.includes(jw));
+
+        if (isAgeMatch || isExplicitMatch) {
           count++;
         } else if (w.id === 'WAD-001' && (jw.includes('pria') || jw.includes('bapak') || jw === 'wadah 1')) {
           count++;
