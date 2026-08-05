@@ -451,31 +451,6 @@ router.post("/import-excel-jemaat", async (req, res) => {
           } catch (rErr) {}
         }
 
-        // Auto-fix existing jemaat Wadah values in database
-        try {
-          await pool.query(`
-            UPDATE jemaat 
-            SET wadah = 'Sekolah Minggu' 
-            WHERE tanggal_lahir IS NOT NULL AND (EXTRACT(YEAR FROM AGE(CURRENT_DATE, tanggal_lahir)) <= 12);
-
-            UPDATE jemaat 
-            SET wadah = 'Kaum Remaja' 
-            WHERE tanggal_lahir IS NOT NULL AND (EXTRACT(YEAR FROM AGE(CURRENT_DATE, tanggal_lahir)) BETWEEN 13 AND 19);
-
-            UPDATE jemaat 
-            SET wadah = 'Kaum Muda' 
-            WHERE tanggal_lahir IS NOT NULL AND (EXTRACT(YEAR FROM AGE(CURRENT_DATE, tanggal_lahir)) BETWEEN 20 AND 30);
-
-            UPDATE jemaat 
-            SET wadah = 'Kaum Wanita' 
-            WHERE (LOWER(gender) = 'wanita' OR LOWER(gender) = 'perempuan') AND (tanggal_lahir IS NULL OR EXTRACT(YEAR FROM AGE(CURRENT_DATE, tanggal_lahir)) >= 31);
-
-            UPDATE jemaat 
-            SET wadah = 'Kaum Pria' 
-            WHERE (LOWER(gender) = 'pria' OR LOWER(gender) = 'laki-laki') AND (tanggal_lahir IS NULL OR EXTRACT(YEAR FROM AGE(CURRENT_DATE, tanggal_lahir)) >= 31);
-          `);
-        } catch (uErr) {}
-
         for (const item of jemaatsToSave) {
           const query = `
             INSERT INTO jemaat (id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat, no_hp, status_jemaat, wadah, rayon)
@@ -1507,21 +1482,24 @@ router.get("/wadah", async (req, res) => {
         }
 
         let computedWadah = '';
-        const jw = (j.wadah || '').trim();
+        const jw = (j.wadah || (j as any).wadah_id || '').toString().trim();
 
-        if (age !== null && age > 0 && age <= 12) computedWadah = 'Sekolah Minggu';
-        else if (age !== null && age >= 13 && age <= 19) computedWadah = 'Kaum Remaja';
-        else if (jw && jw !== 'Otomatis' && jw !== '-') {
+        // 1. Explicit Wadah set in DB/Excel (Direct match)
+        if (jw && jw !== 'Otomatis' && jw !== '-') {
           const jwLower = jw.toLowerCase();
-          if (jwLower.includes('sekolah minggu') || jwLower.includes('anak')) computedWadah = 'Sekolah Minggu';
-          else if (jwLower.includes('remaja')) computedWadah = 'Kaum Remaja';
-          else if (jwLower.includes('muda') || jwLower.includes('pemuda')) computedWadah = 'Kaum Muda';
-          else if (jwLower.includes('wanita') || jwLower.includes('ibu')) computedWadah = 'Kaum Wanita';
-          else if (jwLower.includes('pria') || jwLower.includes('bapak')) computedWadah = 'Kaum Pria';
+          if (jwLower.includes('sekolah minggu') || jwLower.includes('anak') || jw === '5' || jw === 'wad-005') computedWadah = 'Sekolah Minggu';
+          else if (jwLower.includes('remaja') || jw === '3' || jw === 'wad-003') computedWadah = 'Kaum Remaja';
+          else if (jwLower.includes('muda') || jwLower.includes('pemuda') || jw === '1' || jw === 'wad-001') computedWadah = 'Kaum Muda';
+          else if (jwLower.includes('wanita') || jwLower.includes('ibu') || jw === '4' || jw === 'wad-004') computedWadah = 'Kaum Wanita';
+          else if (jwLower.includes('pria') || jwLower.includes('bapak') || jw === '2' || jw === 'wad-002') computedWadah = 'Kaum Pria';
+          else computedWadah = jw;
         }
 
+        // 2. Fallback ONLY for new / unassigned jemaat:
         if (!computedWadah) {
-          if (age !== null && age >= 20 && age <= 30) computedWadah = 'Kaum Muda';
+          if (age !== null && age > 0 && age <= 13) computedWadah = 'Sekolah Minggu';
+          else if (age !== null && age >= 14 && age <= 20) computedWadah = 'Kaum Remaja';
+          else if (age !== null && age >= 21 && age <= 30) computedWadah = 'Kaum Muda';
           else {
             const g = (j.gender || '').trim().toLowerCase();
             if (g === 'wanita' || g === 'perempuan') computedWadah = 'Kaum Wanita';
