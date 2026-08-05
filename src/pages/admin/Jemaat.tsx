@@ -42,8 +42,27 @@ export default function Jemaat() {
       .catch(() => {});
   }, []);
 
+  const formatDateForInput = (dateStr?: string): string => {
+    if (!dateStr) return '';
+    const str = dateStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    if (str.includes('T')) return str.split('T')[0];
+    try {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    } catch (e) {}
+    return str;
+  };
+
   const calculateAge = (tanggalLahir: string): number => {
-    const birthDate = new Date(tanggalLahir);
+    const cleanDate = formatDateForInput(tanggalLahir);
+    if (!cleanDate) return 0;
+    const birthDate = new Date(cleanDate);
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -79,17 +98,23 @@ export default function Jemaat() {
     if (!editingJemaat) return;
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
-    const tanggalLahir = (formData.get('tanggalLahir') as string) || editingJemaat.tanggalLahir || '';
+    
+    const formTanggalLahir = (formData.get('tanggalLahir') as string) || '';
+    const cleanExistingDate = formatDateForInput(editingJemaat.tanggalLahir);
+    const tanggalLahir = (formTanggalLahir && formTanggalLahir.trim() !== '')
+      ? formatDateForInput(formTanggalLahir)
+      : cleanExistingDate;
+
     const assignedWadah = assignWadahByAge(tanggalLahir);
 
-    const nama = (formData.get('nama') as string) ?? editingJemaat.nama;
-    const gender = (formData.get('gender') as string) ?? editingJemaat.gender;
-    const tempat_lahir = (formData.get('tempatLahir') as string) ?? editingJemaat.tempatLahir;
-    const alamat = (formData.get('alamat') as string) ?? editingJemaat.alamat;
-    const no_hp = (formData.get('noHp') as string) ?? editingJemaat.noHp;
-    const status_jemaat = (formData.get('statusJemaat') as string) ?? editingJemaat.statusJemaat;
-    const rayon = (formData.get('rayon') as string) ?? editingJemaat.rayon;
-    const no_telepon = (formData.get('noTelepon') as string) ?? editingJemaat.noTelepon;
+    const nama = (formData.get('nama') as string) || editingJemaat.nama;
+    const gender = (formData.get('gender') as string) || editingJemaat.gender;
+    const tempat_lahir = (formData.get('tempatLahir') as string) || editingJemaat.tempatLahir;
+    const alamat = (formData.get('alamat') as string) || editingJemaat.alamat;
+    const no_hp = (formData.get('noHp') as string) || editingJemaat.noHp;
+    const status_jemaat = (formData.get('statusJemaat') as string) || editingJemaat.statusJemaat;
+    const rayon = (formData.get('rayon') as string) || editingJemaat.rayon;
+    const no_telepon = (formData.get('noTelepon') as string) || editingJemaat.noTelepon;
 
     try {
       const backendData = {
@@ -116,13 +141,16 @@ export default function Jemaat() {
       });
       if (res.ok) {
         const json = await res.json();
+        const returnedDate = json.data?.tanggal_lahir || json.data?.tanggalLahir;
+        const finalTanggalLahir = formatDateForInput(returnedDate) || tanggalLahir;
+
         const updated: JemaatType = {
           ...editingJemaat,
           id: editingJemaat.id,
           nama: json.data?.nama || backendData.nama,
-          gender: json.data?.gender || backendData.gender,
+          gender: (json.data?.gender || backendData.gender) as 'Pria' | 'Wanita',
           tempatLahir: json.data?.tempat_lahir || json.data?.tempatLahir || backendData.tempat_lahir,
-          tanggalLahir: json.data?.tanggal_lahir || json.data?.tanggalLahir || backendData.tanggal_lahir,
+          tanggalLahir: finalTanggalLahir,
           alamat: json.data?.alamat || backendData.alamat,
           noHp: json.data?.no_hp || json.data?.noHp || backendData.no_hp,
           statusJemaat: (json.data?.status_jemaat || json.data?.statusJemaat || backendData.status_jemaat) as 'Aktif' | 'Keluar' | 'Meninggal',
@@ -148,7 +176,8 @@ export default function Jemaat() {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
-    const tanggalLahir = formData.get('tanggalLahir') as string;
+    const formTanggalLahir = formData.get('tanggalLahir') as string;
+    const tanggalLahir = formatDateForInput(formTanggalLahir);
     const assignedWadah = assignWadahByAge(tanggalLahir);
 
     const nama = formData.get('nama') as string;
@@ -181,19 +210,22 @@ export default function Jemaat() {
       });
       if (res.ok) {
         const json = await res.json();
+        const returnedDate = json.data?.tanggal_lahir || json.data?.tanggalLahir;
+        const finalTanggalLahir = formatDateForInput(returnedDate) || tanggalLahir;
+
         const created: JemaatType = {
-          id: json.data.id || `jemaat-${Date.now()}`,
-          nama: json.data.nama || nama,
-          gender: (json.data.gender || gender) as 'Pria' | 'Wanita',
-          tempatLahir: json.data.tempat_lahir || json.data.tempatLahir || tempat_lahir,
-          tanggalLahir: json.data.tanggal_lahir || json.data.tanggalLahir || tanggalLahir,
-          alamat: json.data.alamat || alamat,
-          noHp: json.data.no_hp || json.data.noHp || no_hp,
-          statusJemaat: (json.data.status_jemaat || json.data.statusJemaat || status_jemaat) as 'Aktif' | 'Keluar' | 'Meninggal',
-          wadah: json.data.wadah || assignedWadah,
-          rayon: json.data.rayon || rayon,
-          noTelepon: json.data.no_telepon || json.data.noTelepon || no_telepon,
-          createdAt: json.data.created_at || json.data.createdAt || new Date().toISOString()
+          id: json.data?.id || `jemaat-${Date.now()}`,
+          nama: json.data?.nama || nama,
+          gender: (json.data?.gender || gender) as 'Pria' | 'Wanita',
+          tempatLahir: json.data?.tempat_lahir || json.data?.tempatLahir || tempat_lahir,
+          tanggalLahir: finalTanggalLahir,
+          alamat: json.data?.alamat || alamat,
+          noHp: json.data?.no_hp || json.data?.noHp || no_hp,
+          statusJemaat: (json.data?.status_jemaat || json.data?.statusJemaat || status_jemaat) as 'Aktif' | 'Keluar' | 'Meninggal',
+          wadah: json.data?.wadah || assignedWadah,
+          rayon: json.data?.rayon || rayon,
+          noTelepon: json.data?.no_telepon || json.data?.noTelepon || no_telepon,
+          createdAt: json.data?.created_at || json.data?.createdAt || new Date().toISOString()
         };
         setData(prev => [created, ...prev]);
         setIsAdding(false);
@@ -295,7 +327,7 @@ export default function Jemaat() {
                   <tr key={jemaat.id} className="hover:bg-sand-darker/50 transition-colors">
                     <td className="px-6 py-4 font-medium">{jemaat.nama}</td>
                     <td className="px-6 py-4">{jemaat.tempatLahir || '-'}</td>
-                    <td className="px-6 py-4">{jemaat.tanggalLahir || '-'}</td>
+                    <td className="px-6 py-4">{formatDateForInput(jemaat.tanggalLahir) || '-'}</td>
                     <td className="px-6 py-4">{jemaat.wadah || (jemaat.tanggalLahir ? assignWadahByAge(jemaat.tanggalLahir) : '') || '-'}</td>
                     <td className="px-6 py-4">{jemaat.rayon || '-'}</td>
                     <td className="px-6 py-4 flex justify-center gap-2">
@@ -376,7 +408,7 @@ export default function Jemaat() {
                   <input 
                     type="date" 
                     name="tanggalLahir"
-                    defaultValue={editingJemaat?.tanggalLahir || ''}
+                    defaultValue={formatDateForInput(editingJemaat?.tanggalLahir)}
                     className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
                     required
                   />
