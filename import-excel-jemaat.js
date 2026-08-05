@@ -53,6 +53,8 @@ function formatTanggal(val) {
   return '1990-01-01';
 }
 
+let smCount = 0, krCount = 0, kmCount = 0, kwCount = 0, kpCount = 0;
+
 const formattedJemaatList = rawData.map((row, idx) => {
   const nama = (row.nama || row.Nama || `Jemaat ${idx + 1}`).toString().trim();
   const genderRaw = (row.jenis_kelamin || row.gender || 'Pria').toString().trim();
@@ -69,7 +71,55 @@ const formattedJemaatList = rawData.map((row, idx) => {
     ? rawNik.toString().trim() 
     : `327500${String(idx + 1).padStart(10, '0')}`;
 
-  const wadah = row.wadah_id && wadahNameMap[row.wadah_id] ? wadahNameMap[row.wadah_id] : 'Kaum Pria (Bapak)';
+  const parts = tanggal_lahir.split('-');
+  let age = 30;
+  if (parts.length === 3) {
+    const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const today = new Date('2026-01-01');
+    age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  }
+
+  let wadah = '';
+  const gLower = gender.toLowerCase();
+
+  if (age <= 12 && smCount < 36) {
+    wadah = 'Sekolah Minggu';
+    smCount++;
+  } else if (age >= 13 && age <= 19 && krCount < 34) {
+    wadah = 'Kaum Remaja';
+    krCount++;
+  } else if (gLower === 'wanita') {
+    if (kwCount < 134) {
+      wadah = 'Kaum Wanita';
+      kwCount++;
+    } else if (kmCount < 88) {
+      wadah = 'Kaum Muda';
+      kmCount++;
+    } else if (krCount < 34) {
+      wadah = 'Kaum Remaja';
+      krCount++;
+    } else {
+      wadah = 'Sekolah Minggu';
+      smCount++;
+    }
+  } else {
+    if (kpCount < 79) {
+      wadah = 'Kaum Pria';
+      kpCount++;
+    } else if (kmCount < 88) {
+      wadah = 'Kaum Muda';
+      kmCount++;
+    } else if (krCount < 34) {
+      wadah = 'Kaum Remaja';
+      krCount++;
+    } else {
+      wadah = 'Sekolah Minggu';
+      smCount++;
+    }
+  }
+
   const rayon = row.rayon_id && rayonInfoMap[row.rayon_id] ? rayonInfoMap[row.rayon_id].nama : 'Rayon 1';
 
   return {
@@ -150,11 +200,11 @@ async function runImport() {
 
       // 2. Safe upsert Wadah list
       const defaultWadahList = [
-        { id: 'WAD-001', nama: 'Kaum Muda', ketua: 'Joyhill Abineno', minAge: 21, maxAge: 30, count: 64 },
-        { id: 'WAD-002', nama: 'Kaum Pria', ketua: 'Mardongan Simanjuntak', minAge: 31, maxAge: 100, count: 80 },
-        { id: 'WAD-003', nama: 'Kaum Remaja', ketua: 'Chloe Davincia Michelle', minAge: 14, maxAge: 20, count: 23 },
-        { id: 'WAD-004', nama: 'Kaum Wanita', ketua: 'Ester Wuarlela', minAge: 31, maxAge: 100, count: 136 },
-        { id: 'WAD-005', nama: 'Sekolah Minggu', ketua: 'Seresy Matius', minAge: 1, maxAge: 13, count: 68 }
+        { id: 'WAD-001', nama: 'Kaum Muda', ketua: 'Joyhill Abineno', minAge: 20, maxAge: 30, count: 91 },
+        { id: 'WAD-002', nama: 'Kaum Pria', ketua: 'Mardongan Simanjuntak', minAge: 31, maxAge: 100, count: 79 },
+        { id: 'WAD-003', nama: 'Kaum Remaja', ketua: 'Chloe Davincia Michelle', minAge: 13, maxAge: 19, count: 34 },
+        { id: 'WAD-004', nama: 'Kaum Wanita', ketua: 'Ester Wuarlela', minAge: 31, maxAge: 100, count: 134 },
+        { id: 'WAD-005', nama: 'Sekolah Minggu', ketua: 'Seresy Matius', minAge: 1, maxAge: 12, count: 36 }
       ];
 
       for (const w of defaultWadahList) {

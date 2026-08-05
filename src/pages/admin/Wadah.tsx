@@ -53,22 +53,22 @@ export default function Wadah() {
         if (wName.includes('wanita') && jGender === 'pria') return false;
         return true;
       }
-    }
-
-    if (wadahId === 'WAD-002' || wName === 'kaum pria') {
-      return jw.includes('pria') || jw.includes('bapak') || (jGender === 'pria' && (jw === '' || age === null || (age >= 31 && age <= 100)));
-    }
-    if (wadahId === 'WAD-004' || wName === 'kaum wanita') {
-      return jw.includes('wanita') || jw.includes('ibu') || (jGender === 'wanita' && (jw === '' || age === null || (age >= 31 && age <= 100)));
-    }
-    if (wadahId === 'WAD-001' || wName === 'kaum muda') {
-      return jw.includes('muda') || jw.includes('pemuda') || (age !== null && age >= 21 && age <= 30);
-    }
-    if (wadahId === 'WAD-003' || wName === 'kaum remaja') {
-      return jw.includes('remaja') || (age !== null && age >= 14 && age <= 20);
-    }
-    if (wadahId === 'WAD-005' || wName === 'sekolah minggu') {
-      return jw.includes('sekolah minggu') || jw.includes('anak') || (age !== null && age >= 1 && age <= 13);
+    } else {
+      if (wadahId === 'WAD-002' || wName.includes('pria')) {
+        return jGender === 'pria' && (age === null || age >= 31);
+      }
+      if (wadahId === 'WAD-004' || wName.includes('wanita')) {
+        return jGender === 'wanita' && (age === null || age >= 31);
+      }
+      if (wadahId === 'WAD-001' || wName.includes('muda')) {
+        return age !== null && age >= 20 && age <= 30;
+      }
+      if (wadahId === 'WAD-003' || wName.includes('remaja')) {
+        return age !== null && age >= 13 && age <= 19;
+      }
+      if (wadahId === 'WAD-005' || wName.includes('sekolah minggu')) {
+        return age !== null && age <= 12;
+      }
     }
 
     return false;

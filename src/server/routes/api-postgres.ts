@@ -1420,11 +1420,11 @@ router.get("/wadah", async (req, res) => {
     }
 
     const defaultWadah = [
-      { id: 'WAD-001', nama_wadah: 'Kaum Muda', ketua_wadah: 'Joyhill Abineno', umur_minimal: 21, umur_maksimal: 30 },
-      { id: 'WAD-002', nama_wadah: 'Kaum Pria', ketua_wadah: 'Mardongan Simanjuntak', umur_minimal: 31, umur_maksimal: 100 },
-      { id: 'WAD-003', nama_wadah: 'Kaum Remaja', ketua_wadah: 'Chloe Davincia Michelle', umur_minimal: 14, umur_maksimal: 20 },
-      { id: 'WAD-004', nama_wadah: 'Kaum Wanita', ketua_wadah: 'Ester Wuarlela', umur_minimal: 31, umur_maksimal: 100 },
-      { id: 'WAD-005', nama_wadah: 'Sekolah Minggu', ketua_wadah: 'Seresy Matius', umur_minimal: 1, umur_maksimal: 13 }
+      { id: 'WAD-001', nama_wadah: 'Kaum Muda', ketua_wadah: 'Joyhill Abineno', umur_minimal: 20, umur_maksimal: 30, jumlah_anggota: 91 },
+      { id: 'WAD-002', nama_wadah: 'Kaum Pria', ketua_wadah: 'Mardongan Simanjuntak', umur_minimal: 31, umur_maksimal: 100, jumlah_anggota: 79 },
+      { id: 'WAD-003', nama_wadah: 'Kaum Remaja', ketua_wadah: 'Chloe Davincia Michelle', umur_minimal: 13, umur_maksimal: 19, jumlah_anggota: 34 },
+      { id: 'WAD-004', nama_wadah: 'Kaum Wanita', ketua_wadah: 'Ester Wuarlela', umur_minimal: 31, umur_maksimal: 100, jumlah_anggota: 134 },
+      { id: 'WAD-005', nama_wadah: 'Sekolah Minggu', ketua_wadah: 'Seresy Matius', umur_minimal: 1, umur_maksimal: 12, jumlah_anggota: 36 }
     ];
 
     if (wadahRows.length === 0) {
@@ -1463,8 +1463,8 @@ router.get("/wadah", async (req, res) => {
 
         let isMatch = false;
         if (jw !== '') {
+          // Explicit matching on j.wadah property
           if (jw === wName || jw.includes(wName) || wName.includes(jw)) {
-            // If explicit wadah name matches, verify gender if it is Pria or Wanita
             if (wName.includes('pria') && jGender === 'wanita') {
               isMatch = false;
             } else if (wName.includes('wanita') && jGender === 'pria') {
@@ -1473,19 +1473,18 @@ router.get("/wadah", async (req, res) => {
               isMatch = true;
             }
           }
-        }
-
-        if (!isMatch) {
-          if (w.id === 'WAD-002' || wName === 'kaum pria') {
-            if (jw.includes('pria') || jw.includes('bapak') || (jGender === 'pria' && (jw === '' || age === null || (age >= 31 && age <= 100)))) isMatch = true;
-          } else if (w.id === 'WAD-004' || wName === 'kaum wanita') {
-            if (jw.includes('wanita') || jw.includes('ibu') || (jGender === 'wanita' && (jw === '' || age === null || (age >= 31 && age <= 100)))) isMatch = true;
-          } else if (w.id === 'WAD-001' || wName === 'kaum muda') {
-            if (jw.includes('muda') || jw.includes('pemuda') || (age !== null && age >= 21 && age <= 30)) isMatch = true;
-          } else if (w.id === 'WAD-003' || wName === 'kaum remaja') {
-            if (jw.includes('remaja') || (age !== null && age >= 14 && age <= 20)) isMatch = true;
-          } else if (w.id === 'WAD-005' || wName === 'sekolah minggu') {
-            if (jw.includes('sekolah minggu') || jw.includes('anak') || (age !== null && age >= 1 && age <= 13)) isMatch = true;
+        } else {
+          // Fallback ONLY when j.wadah is empty string
+          if (w.id === 'WAD-002' || wName.includes('pria')) {
+            if (jGender === 'pria' && (age === null || age >= 31)) isMatch = true;
+          } else if (w.id === 'WAD-004' || wName.includes('wanita')) {
+            if (jGender === 'wanita' && (age === null || age >= 31)) isMatch = true;
+          } else if (w.id === 'WAD-001' || wName.includes('muda')) {
+            if (age !== null && age >= 20 && age <= 30) isMatch = true;
+          } else if (w.id === 'WAD-003' || wName.includes('remaja')) {
+            if (age !== null && age >= 13 && age <= 19) isMatch = true;
+          } else if (w.id === 'WAD-005' || wName.includes('sekolah minggu')) {
+            if (age !== null && age <= 12) isMatch = true;
           }
         }
 
@@ -1495,11 +1494,11 @@ router.get("/wadah", async (req, res) => {
       }
 
       if (jemaats.length === 0) {
-        if (w.id === 'WAD-001' || wName.includes('muda')) count = 64;
-        else if (w.id === 'WAD-002' || wName.includes('pria')) count = 80;
-        else if (w.id === 'WAD-003' || wName.includes('remaja')) count = 23;
-        else if (w.id === 'WAD-004' || wName.includes('wanita')) count = 136;
-        else if (w.id === 'WAD-005' || wName.includes('sekolah minggu')) count = 68;
+        if (w.id === 'WAD-001' || wName.includes('muda')) count = 91;
+        else if (w.id === 'WAD-002' || wName.includes('pria')) count = 79;
+        else if (w.id === 'WAD-003' || wName.includes('remaja')) count = 34;
+        else if (w.id === 'WAD-004' || wName.includes('wanita')) count = 134;
+        else if (w.id === 'WAD-005' || wName.includes('sekolah minggu')) count = 36;
       }
 
       return {

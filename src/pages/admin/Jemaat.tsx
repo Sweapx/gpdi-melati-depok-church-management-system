@@ -75,24 +75,13 @@ export default function Jemaat() {
   const assignWadahByAgeAndGender = (tanggalLahir: string, gender?: string): string => {
     if (!tanggalLahir) return '';
     const age = calculateAge(tanggalLahir);
+    const gLower = (gender || '').toLowerCase();
 
-    const matchingWadah = wadahList.find(w => {
-      const minAge = Number(w.umur_minimal !== undefined ? w.umur_minimal : w.umurMinimal) || 0;
-      const maxAge = Number(w.umur_maksimal !== undefined ? w.umur_maksimal : w.umurMaksimal) || 150;
-      const wName = (w.nama_wadah || w.namaWadah || '').toLowerCase();
-
-      if (age < minAge || age > maxAge) return false;
-
-      const isPriaWadah = wName.includes('pria') || wName.includes('bapak');
-      const isWanitaWadah = wName.includes('wanita') || wName.includes('ibu');
-
-      if (isPriaWadah && gender && gender !== 'Pria') return false;
-      if (isWanitaWadah && gender && gender !== 'Wanita') return false;
-
-      return true;
-    });
-
-    return matchingWadah ? (matchingWadah.nama_wadah || matchingWadah.namaWadah || '') : '';
+    if (age <= 12) return 'Sekolah Minggu';
+    if (age >= 13 && age <= 19) return 'Kaum Remaja';
+    if (age >= 20 && age <= 30) return 'Kaum Muda';
+    if (gLower === 'wanita' || gLower === 'perempuan') return 'Kaum Wanita';
+    return 'Kaum Pria';
   };
 
   const getDisplayWadah = (jemaat: JemaatType): string => {
