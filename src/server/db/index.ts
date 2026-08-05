@@ -9,6 +9,54 @@ import {
 
 dotenv.config();
 
+import fs from 'fs';
+import path from 'path';
+
+const STORE_FILE = path.join(process.cwd(), 'data', 'local_db_store.json');
+
+export function saveInMemoryDBToDisk(store: any) {
+  try {
+    const dir = path.dirname(STORE_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const dataToSave = {
+      wadah: store.wadah || [],
+      rayon: store.rayon || [],
+      jemaat: store.jemaat || [],
+      adminUsers: store.adminUsers || [],
+      schedules: store.schedules || [],
+      announcements: store.announcements || [],
+      heroSlides: store.heroSlides || [],
+      prayerRequests: store.prayerRequests || [],
+      registrations: store.registrations || [],
+      wartaJemaat: store.wartaJemaat || []
+    };
+    fs.writeFileSync(STORE_FILE, JSON.stringify(dataToSave, null, 2), 'utf-8');
+  } catch (err) {
+    console.error("Error saving store to disk:", err);
+  }
+}
+
+export function loadInMemoryDBFromDisk(store: any) {
+  try {
+    if (fs.existsSync(STORE_FILE)) {
+      const raw = fs.readFileSync(STORE_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      if (data) {
+        if (Array.isArray(data.wadah) && data.wadah.length > 0) store.wadah = data.wadah;
+        if (Array.isArray(data.rayon) && data.rayon.length > 0) store.rayon = data.rayon;
+        if (Array.isArray(data.jemaat) && data.jemaat.length > 0) store.jemaat = data.jemaat;
+        if (Array.isArray(data.schedules) && data.schedules.length > 0) store.schedules = data.schedules;
+        if (Array.isArray(data.announcements) && data.announcements.length > 0) store.announcements = data.announcements;
+        if (Array.isArray(data.heroSlides) && data.heroSlides.length > 0) store.heroSlides = data.heroSlides;
+      }
+    }
+  } catch (err) {
+    console.error("Error loading store from disk:", err);
+  }
+}
+
 // In-Memory Storage Fallback
 class InMemoryStore {
   adminUsers: AdminUser[] = [];
@@ -22,14 +70,15 @@ class InMemoryStore {
   registrations: RegistrationItem[] = [];
   schedules: ScheduleItem[] = [];
   wartaJemaat: WartaItem[] = [];
+  wadah: any[] = [];
+  rayon: any[] = [];
 
   constructor() {
-    // Don't call async seed in constructor
     this.seedDefaultAdmin();
+    loadInMemoryDBFromDisk(this);
   }
 
   seedDefaultAdmin() {
-    // Seed admin user only - required for login functionality
     if (this.adminUsers.length === 0) {
       const passwordHash = bcrypt.hashSync('admin123', 10);
       this.adminUsers.push({

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { pool, inMemoryDB } from "../db/index.ts";
+import { pool, inMemoryDB, saveInMemoryDBToDisk } from "../db/index.ts";
 import { GoogleGenAI } from "@google/genai";
 import xlsx from "xlsx";
 import fs from "fs";
@@ -1541,7 +1541,9 @@ router.post("/wadah", async (req, res) => {
       jumlahAnggota: jumlah_anggota
     };
     (inMemoryDB as any).wadah = (inMemoryDB as any).wadah || [];
+    (inMemoryDB as any).wadah = (inMemoryDB as any).wadah.filter((w: any) => w.id !== id);
     (inMemoryDB as any).wadah.push(fallbackItem);
+    saveInMemoryDBToDisk(inMemoryDB);
     res.json({ success: true, data: fallbackItem });
   } catch (error: any) {
     console.error("Error creating wadah:", error);
@@ -1558,35 +1560,6 @@ router.put("/wadah/:id", async (req, res) => {
     const umur_maksimal = Number(req.body.umur_maksimal !== undefined ? req.body.umur_maksimal : req.body.umurMaksimal) || 150;
     const jumlah_anggota = Number(req.body.jumlah_anggota !== undefined ? req.body.jumlah_anggota : req.body.jumlahAnggota) || 0;
 
-    if (pool) {
-      try {
-        const query = `
-          UPDATE wadah SET
-            nama_wadah = $1, ketua_wadah = $2, umur_minimal = $3, umur_maksimal = $4, jumlah_anggota = $5
-          WHERE id = $6
-          RETURNING *
-        `;
-        const values = [nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota, id];
-        const result = await queryWithAutoTable(query, values);
-        if (result.rows.length > 0) {
-          const row = result.rows[0];
-          return res.json({
-            success: true,
-            data: {
-              ...row,
-              namaWadah: row.nama_wadah,
-              ketuaWadah: row.ketua_wadah,
-              umurMinimal: row.umur_minimal,
-              umurMaksimal: row.umur_maksimal,
-              jumlahAnggota: row.jumlah_anggota
-            }
-          });
-        }
-      } catch (dbErr) {
-        console.error("Database update wadah error, fallback:", dbErr);
-      }
-    }
-
     const updated = {
       id,
       nama_wadah,
@@ -1600,9 +1573,30 @@ router.put("/wadah/:id", async (req, res) => {
       jumlah_anggota,
       jumlahAnggota: jumlah_anggota
     };
-    if ((inMemoryDB as any).wadah) {
-      (inMemoryDB as any).wadah = (inMemoryDB as any).wadah.map((w: any) => w.id === id ? updated : w);
+
+    if (pool) {
+      try {
+        const query = `
+          UPDATE wadah SET
+            nama_wadah = $1, ketua_wadah = $2, umur_minimal = $3, umur_maksimal = $4, jumlah_anggota = $5
+          WHERE id = $6
+          RETURNING *
+        `;
+        const values = [nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota, id];
+        await queryWithAutoTable(query, values);
+      } catch (dbErr) {
+        console.error("Database update wadah error, fallback:", dbErr);
+      }
     }
+
+    (inMemoryDB as any).wadah = (inMemoryDB as any).wadah || [];
+    const idx = (inMemoryDB as any).wadah.findIndex((w: any) => w.id === id);
+    if (idx >= 0) {
+      (inMemoryDB as any).wadah[idx] = updated;
+    } else {
+      (inMemoryDB as any).wadah.push(updated);
+    }
+    saveInMemoryDBToDisk(inMemoryDB);
     res.json({ success: true, data: updated });
   } catch (error: any) {
     console.error("Error updating wadah:", error);
@@ -1623,6 +1617,7 @@ router.delete("/wadah/:id", async (req, res) => {
     if ((inMemoryDB as any).wadah) {
       (inMemoryDB as any).wadah = (inMemoryDB as any).wadah.filter((w: any) => w.id !== id);
     }
+    saveInMemoryDBToDisk(inMemoryDB);
     res.json({ success: true, message: "Deleted" });
   } catch (error: any) {
     console.error("Error deleting wadah:", error);
@@ -1750,7 +1745,9 @@ router.post("/rayon", async (req, res) => {
       jumlahAnggota: jumlah_anggota
     };
     (inMemoryDB as any).rayon = (inMemoryDB as any).rayon || [];
+    (inMemoryDB as any).rayon = (inMemoryDB as any).rayon.filter((r: any) => r.id !== id);
     (inMemoryDB as any).rayon.push(fallbackItem);
+    saveInMemoryDBToDisk(inMemoryDB);
     res.json({ success: true, data: fallbackItem });
   } catch (error: any) {
     console.error("Error creating rayon:", error);
@@ -1765,33 +1762,6 @@ router.put("/rayon/:id", async (req, res) => {
     const ketua_rayon = (req.body.ketua_rayon || req.body.ketuaRayon || "-").toString();
     const jumlah_anggota = Number(req.body.jumlah_anggota !== undefined ? req.body.jumlah_anggota : req.body.jumlahAnggota) || 0;
 
-    if (pool) {
-      try {
-        const query = `
-          UPDATE rayon SET
-            nama_rayon = $1, ketua_rayon = $2, jumlah_anggota = $3
-          WHERE id = $4
-          RETURNING *
-        `;
-        const values = [nama_rayon, ketua_rayon, jumlah_anggota, id];
-        const result = await queryWithAutoTable(query, values);
-        if (result.rows.length > 0) {
-          const row = result.rows[0];
-          return res.json({
-            success: true,
-            data: {
-              ...row,
-              namaRayon: row.nama_rayon,
-              ketuaRayon: row.ketua_rayon,
-              jumlahAnggota: row.jumlah_anggota
-            }
-          });
-        }
-      } catch (dbErr) {
-        console.error("Database update rayon error, fallback:", dbErr);
-      }
-    }
-
     const updated = {
       id,
       nama_rayon,
@@ -1801,9 +1771,30 @@ router.put("/rayon/:id", async (req, res) => {
       jumlah_anggota,
       jumlahAnggota: jumlah_anggota
     };
-    if ((inMemoryDB as any).rayon) {
-      (inMemoryDB as any).rayon = (inMemoryDB as any).rayon.map((r: any) => r.id === id ? updated : r);
+
+    if (pool) {
+      try {
+        const query = `
+          UPDATE rayon SET
+            nama_rayon = $1, ketua_rayon = $2, jumlah_anggota = $3
+          WHERE id = $4
+          RETURNING *
+        `;
+        const values = [nama_rayon, ketua_rayon, jumlah_anggota, id];
+        await queryWithAutoTable(query, values);
+      } catch (dbErr) {
+        console.error("Database update rayon error, fallback:", dbErr);
+      }
     }
+
+    (inMemoryDB as any).rayon = (inMemoryDB as any).rayon || [];
+    const idx = (inMemoryDB as any).rayon.findIndex((r: any) => r.id === id);
+    if (idx >= 0) {
+      (inMemoryDB as any).rayon[idx] = updated;
+    } else {
+      (inMemoryDB as any).rayon.push(updated);
+    }
+    saveInMemoryDBToDisk(inMemoryDB);
     res.json({ success: true, data: updated });
   } catch (error: any) {
     console.error("Error updating rayon:", error);
@@ -1824,6 +1815,7 @@ router.delete("/rayon/:id", async (req, res) => {
     if ((inMemoryDB as any).rayon) {
       (inMemoryDB as any).rayon = (inMemoryDB as any).rayon.filter((r: any) => r.id !== id);
     }
+    saveInMemoryDBToDisk(inMemoryDB);
     res.json({ success: true, message: "Deleted" });
   } catch (error: any) {
     console.error("Error deleting rayon:", error);

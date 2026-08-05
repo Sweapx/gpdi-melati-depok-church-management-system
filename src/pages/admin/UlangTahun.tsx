@@ -1,335 +1,311 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, X, Save, Download, Calendar } from 'lucide-react';
+import { Search, Download, Calendar, ArrowUpDown, Filter } from 'lucide-react';
 import { Jemaat as JemaatType } from '../../types';
 import clsx from 'clsx';
 
+interface WadahItem {
+  id: string;
+  namaWadah: string;
+  umurMinimal: number;
+  umurMaksimal: number;
+  [key: string]: any;
+}
+
+interface BirthdayRow {
+  id: string;
+  nama: string;
+  tanggalLahirRaw: string;
+  birthdayFormatted: string;
+  turningAge: number;
+  wadahDisplay: string;
+  birthdayThisYear: Date;
+}
+
 export default function UlangTahun() {
-  const [data, setData] = useState<JemaatType[]>([]);
+  const [jemaatList, setJemaatList] = useState<JemaatType[]>([]);
+  const [wadahList, setWadahList] = useState<WadahItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filter & Search states
   const [search, setSearch] = useState('');
-  const [filterMonth, setFilterMonth] = useState('');
-  const [filterWadah, setFilterWadah] = useState('Semua Wadah');
-  const [editingJemaat, setEditingJemaat] = useState<JemaatType | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [sortNearest, setSortNearest] = useState(true);
 
   useEffect(() => {
-    fetch('/api/jemaat')
-      .then(res => res.json())
-      .then(res => {
-        if (res.success) setData(res.data);
-        setIsLoading(false);
-      })
-      .catch(() => setIsLoading(false));
+    setIsLoading(true);
+    Promise.all([
+      fetch('/api/jemaat').then(res => res.json()),
+      fetch('/api/wadah').then(res => res.json())
+    ]).then(([jemaatRes, wadahRes]) => {
+      if (jemaatRes.success) setJemaatList(jemaatRes.data || []);
+      if (wadahRes.success) {
+        const convertedWadah = (wadahRes.data || []).map((w: any) => ({
+          id: w.id,
+          namaWadah: w.nama_wadah || w.namaWadah,
+          umurMinimal: Number(w.umur_minimal !== undefined ? w.umur_minimal : w.umurMinimal) || 0,
+          umurMaksimal: Number(w.umur_maksimal !== undefined ? w.umur_maksimal : w.umurMaksimal) || 150,
+        }));
+        setWadahList(convertedWadah);
+      }
+      setIsLoading(false);
+    }).catch(() => setIsLoading(false));
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Yakin ingin menghapus data ini?')) return;
-    try {
-      const res = await fetch(`/api/jemaat/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        setData(data.filter(j => j.id !== id));
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const calculateAgeThisYear = (birthDateStr: string): { turningAge: number; birthdayThisYear: Date; formatted: string } | null => {
+    if (!birthDateStr) return null;
+    const cleanStr = birthDateStr.toString().split('T')[0];
+    const parts = cleanStr.split('-');
+    if (parts.length !== 3) return null;
 
-  const handleEditSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingJemaat) return;
-    const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
-    const nama = (formData.get('nama') as string) || editingJemaat.nama;
-    const statusJemaat = (formData.get('statusJemaat') as string) || editingJemaat.statusJemaat;
-    const tempatLahir = (formData.get('tempatLahir') as string) || editingJemaat.tempatLahir;
-    const tanggalLahir = (formData.get('tanggalLahir') as string) || editingJemaat.tanggalLahir;
-    const gender = (formData.get('gender') as string) || editingJemaat.gender;
-    const noHp = (formData.get('noHp') as string) || editingJemaat.noHp;
-    const alamat = (formData.get('alamat') as string) || editingJemaat.alamat;
-    const nik = (formData.get('nik') as string) || editingJemaat.nik;
+    const birthYear = parseInt(parts[0], 10);
+    const birthMonth = parseInt(parts[1], 10) - 1;
+    const birthDay = parseInt(parts[2], 10);
 
-    const payload = {
-      ...editingJemaat,
-      nama,
-      status_jemaat: statusJemaat,
-      tempat_lahir: tempatLahir,
-      tanggal_lahir: tanggalLahir,
-      gender,
-      no_hp: noHp,
-      alamat,
-      nik
-    };
-
-    try {
-      const res = await fetch(`/api/jemaat/${editingJemaat.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const updated: JemaatType = {
-          ...editingJemaat,
-          nama,
-          statusJemaat: statusJemaat as any,
-          tempatLahir,
-          tanggalLahir,
-          gender: gender as 'Pria' | 'Wanita',
-          noHp,
-          alamat,
-          nik
-        };
-        setData(data.map(j => j.id === editingJemaat.id ? updated : j));
-        setEditingJemaat(null);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleExport = () => {
-    alert('Export Excel feature - implement with library like xlsx');
-  };
-
-  const calculateAge = (tanggalLahir: string): number => {
-    if (!tanggalLahir) return 0;
-    const birthDate = new Date(tanggalLahir);
     const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
+    const currentYear = today.getFullYear();
+
+    const birthdayThisYear = new Date(currentYear, birthMonth, birthDay);
+    const turningAge = currentYear - birthYear;
+
+    const monthNames = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    const formatted = `${birthDay} ${monthNames[birthMonth]}`;
+    return { turningAge, birthdayThisYear, formatted };
   };
 
-  const filteredData = data.filter(j => {
-    if (!j.tanggalLahir) return false;
-    const birthMonth = new Date(j.tanggalLahir).getMonth() + 1;
-    const isMonthMatch = filterMonth === 'Semua' || birthMonth.toString() === filterMonth;
-    const isWadahMatch = filterWadah === 'Semua Wadah' || j.wadah === filterWadah;
-    const isSearchMatch = !search || j.nama.toLowerCase().includes(search.toLowerCase());
-    return isMonthMatch && isWadahMatch && isSearchMatch;
+  const getDisplayWadah = (jemaat: JemaatType): string => {
+    if (jemaat.wadah && jemaat.wadah !== 'Otomatis' && jemaat.wadah.trim() !== '') {
+      const trimmedJ = jemaat.wadah.trim().toLowerCase();
+      const existingInList = wadahList.find(w => w.namaWadah.trim().toLowerCase() === trimmedJ);
+      if (existingInList) return existingInList.namaWadah;
+    }
+
+    if (jemaat.tanggalLahir) {
+      const cleanStr = jemaat.tanggalLahir.toString().split('T')[0];
+      const parts = cleanStr.split('-');
+      if (parts.length === 3) {
+        const birthYear = parseInt(parts[0], 10);
+        const age = new Date().getFullYear() - birthYear;
+        const matchingWadah = wadahList.find(w => {
+          const wName = w.namaWadah.toLowerCase();
+          if (age < w.umurMinimal || age > w.umurMaksimal) return false;
+          const isPriaWadah = wName.includes('pria') || wName.includes('bapak');
+          const isWanitaWadah = wName.includes('wanita') || wName.includes('ibu');
+          if (isPriaWadah && jemaat.gender && jemaat.gender !== 'Pria') return false;
+          if (isWanitaWadah && jemaat.gender && jemaat.gender !== 'Wanita') return false;
+          return true;
+        });
+        if (matchingWadah) return matchingWadah.namaWadah;
+      }
+    }
+
+    return jemaat.wadah && jemaat.wadah !== 'Otomatis' ? jemaat.wadah : '-';
+  };
+
+  // Build rows
+  const birthdayRows: BirthdayRow[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  jemaatList.forEach(j => {
+    const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || (j as any).status_jemaat === 'Aktif';
+    if (!isAktif || !j.tanggalLahir) return;
+
+    const bInfo = calculateAgeThisYear(j.tanggalLahir);
+    if (!bInfo) return;
+
+    birthdayRows.push({
+      id: j.id,
+      nama: j.nama,
+      tanggalLahirRaw: j.tanggalLahir,
+      birthdayFormatted: bInfo.formatted,
+      turningAge: bInfo.turningAge,
+      wadahDisplay: getDisplayWadah(j),
+      birthdayThisYear: bInfo.birthdayThisYear
+    });
   });
 
-  const wadahOptions = ['Semua Wadah', ...Array.from(new Set(data.map(j => j.wadah).filter(Boolean)))];
+  // Filter rows
+  const filteredRows = birthdayRows.filter(row => {
+    // Search filter
+    if (search && !row.nama.toLowerCase().includes(search.toLowerCase())) {
+      return false;
+    }
 
-  const monthNames = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-  ];
+    // Date range filter (Dari Tanggal s/d Sampai Tanggal)
+    if (startDate) {
+      const sParts = startDate.split('-');
+      if (sParts.length === 3) {
+        const startTarget = new Date(today.getFullYear(), parseInt(sParts[1], 10) - 1, parseInt(sParts[2], 10));
+        startTarget.setHours(0, 0, 0, 0);
+        if (row.birthdayThisYear < startTarget) return false;
+      }
+    }
+
+    if (endDate) {
+      const eParts = endDate.split('-');
+      if (eParts.length === 3) {
+        const endTarget = new Date(today.getFullYear(), parseInt(eParts[1], 10) - 1, parseInt(eParts[2], 10));
+        endTarget.setHours(23, 59, 59, 999);
+        if (row.birthdayThisYear > endTarget) return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Sort rows (nearest birthday first or chronological order)
+  filteredRows.sort((a, b) => {
+    if (sortNearest) {
+      const diffA = a.birthdayThisYear.getTime() - today.getTime();
+      const diffB = b.birthdayThisYear.getTime() - today.getTime();
+      const distA = diffA < 0 ? diffA + 365 * 86400000 : diffA;
+      const distB = diffB < 0 ? diffB + 365 * 86400000 : diffB;
+      return distA - distB;
+    } else {
+      return a.birthdayThisYear.getTime() - b.birthdayThisYear.getTime();
+    }
+  });
+
+  const handleExportXLS = () => {
+    const headers = ['Nama Jemaat', 'Tanggal Ulang Tahun', 'Usia (Tahun Ini)', 'Wadah'];
+    const csvRows = filteredRows.map(row => [
+      `"${row.nama.replace(/"/g, '""')}"`,
+      `"${row.birthdayFormatted}"`,
+      `"${row.turningAge} Tahun"`,
+      `"${row.wadahDisplay.replace(/"/g, '""')}"`
+    ]);
+
+    const csvString = '\uFEFF' + [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Laporan_Ulang_Tahun_Jemaat_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-navy mb-6">Ulang Tahun Jemaat</h1>
+      <h1 className="text-2xl font-bold text-navy mb-6">Manajemen Ulang Tahun Jemaat</h1>
+
+      {/* Filter Laporan Card */}
+      <div className="bg-white rounded-2xl border border-border-subtle shadow-sm p-6 mb-6">
+        <div className="flex items-center gap-2 mb-4 border-b border-border-subtle pb-3 text-navy font-bold text-lg">
+          <Filter size={20} className="text-gold" />
+          <span>Filter Laporan</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-navy uppercase tracking-wider">Cari Nama</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+              <input
+                type="text"
+                placeholder="Cari nama jemaat..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-border-subtle focus:ring-1 focus:ring-gold outline-none text-sm bg-sand-dark/30"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-navy uppercase tracking-wider">Dari Tanggal:</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              className="w-full border border-border-subtle rounded-xl px-3 py-2 text-sm focus:ring-1 focus:ring-gold outline-none bg-sand-dark/30"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-navy uppercase tracking-wider">Sampai Tanggal:</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+              className="w-full border border-border-subtle rounded-xl px-3 py-2 text-sm focus:ring-1 focus:ring-gold outline-none bg-sand-dark/30"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSortNearest(!sortNearest)}
+              className={clsx(
+                "flex-1 py-2 px-3 rounded-xl font-bold text-xs border transition-colors flex items-center justify-center gap-1.5",
+                sortNearest
+                  ? "bg-navy text-gold border-navy"
+                  : "bg-white text-navy border-border-subtle hover:bg-sand-dark"
+              )}
+              title="Urutkan tanggal terdekat dengan hari ini"
+            >
+              <ArrowUpDown size={14} />
+              <span>Urutkan Tanggal (Terdekat)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportXLS}
+              className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <Download size={14} /> Export XLS
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Table Card */}
       <div className="bg-white rounded-2xl border border-border-subtle shadow-sm overflow-hidden mb-6">
-        {/* Filter Bar */}
-        <div className="p-4 border-b border-border-subtle flex items-center gap-4 bg-sand-dark flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
-            <input 
-              type="text" 
-              placeholder="Cari nama..." 
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-border-subtle focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold text-sm bg-white"
-            />
-          </div>
-          <select 
-            value={filterMonth}
-            onChange={e => setFilterMonth(e.target.value)}
-            className="px-4 py-2 rounded-xl border border-border-subtle focus:outline-none focus:ring-1 focus:ring-gold text-sm bg-white"
-          >
-            <option value="Semua">Semua Bulan</option>
-            {monthNames.map((month, idx) => (
-              <option key={idx + 1} value={(idx + 1).toString()}>{month}</option>
-            ))}
-          </select>
-          <select 
-            value={filterWadah}
-            onChange={e => setFilterWadah(e.target.value)}
-            className="px-4 py-2 rounded-xl border border-border-subtle focus:outline-none focus:ring-1 focus:ring-gold text-sm bg-white"
-          >
-            {wadahOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-          <button 
-            onClick={handleExport}
-            className="border border-emerald-600 text-emerald-600 px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-50 transition-colors flex items-center gap-2"
-          >
-            <Download size={16} /> Export XLS
-          </button>
-        </div>
-
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-navy">
             <thead className="bg-sand-dark text-text-muted text-xs uppercase font-bold tracking-wider border-b border-border-subtle">
               <tr>
-                <th className="px-6 py-4">NAMA</th>
-                <th className="px-6 py-4">TGL LAHIR</th>
-                <th className="px-6 py-4">UMUR</th>
-                <th className="px-6 py-4">WADAH</th>
-                <th className="px-6 py-4 text-center">AKSI</th>
+                <th className="px-6 py-4">Nama Jemaat</th>
+                <th className="px-6 py-4">Tanggal Ulang Tahun</th>
+                <th className="px-6 py-4">Usia (Tahun Ini)</th>
+                <th className="px-6 py-4">Wadah</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-text-muted">Memuat data...</td>
+                  <td colSpan={4} className="text-center py-12 text-text-muted">Memuat data ulang tahun...</td>
                 </tr>
-              ) : filteredData.length === 0 ? (
+              ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-text-muted">Tidak ada data ulang tahun.</td>
+                  <td colSpan={4} className="text-center py-12 text-text-muted">Tidak ada data ulang tahun jemaat yang sesuai.</td>
                 </tr>
               ) : (
-                filteredData.map(jemaat => {
-                  const birthDate = jemaat.tanggalLahir ? new Date(jemaat.tanggalLahir) : null;
-                  const birthday = birthDate ? `${birthDate.getDate()} ${monthNames[birthDate.getMonth()]}` : '-';
-                  const age = jemaat.tanggalLahir ? calculateAge(jemaat.tanggalLahir) : '-';
-                  return (
-                    <tr key={jemaat.id} className="hover:bg-sand-darker/50 transition-colors">
-                      <td className="px-6 py-4 font-medium">{jemaat.nama}</td>
-                      <td className="px-6 py-4">{birthday}</td>
-                      <td className="px-6 py-4">{age}</td>
-                      <td className="px-6 py-4">{jemaat.wadah || '-'}</td>
-                      <td className="px-6 py-4 flex justify-center gap-2">
-                        <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => setEditingJemaat(jemaat)}><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete(jemaat.id)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                      </td>
-                    </tr>
-                  );
-                })
+                filteredRows.map(row => (
+                  <tr key={row.id} className="hover:bg-sand-darker/40 transition-colors">
+                    <td className="px-6 py-4 font-bold text-navy">{row.nama}</td>
+                    <td className="px-6 py-4 flex items-center gap-2">
+                      <Calendar size={15} className="text-gold" />
+                      <span className="font-medium">{row.birthdayFormatted}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-3 py-1 bg-gold/20 text-navy font-bold rounded-lg text-xs">
+                        {row.turningAge} Tahun
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-medium">{row.wadahDisplay}</td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Edit Form Modal */}
-      {editingJemaat && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl border border-border-subtle shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col my-auto">
-            <div className="p-6 border-b border-border-subtle bg-sand-dark flex justify-between items-center">
-              <h2 className="text-xl font-bold text-navy">Edit Data Jemaat</h2>
-              <button 
-                onClick={() => setEditingJemaat(null)}
-                className="text-text-muted hover:text-navy p-1 rounded-lg transition-colors"
-                type="button"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto flex-1">
-              <form id="ulang-tahun-form" key={editingJemaat.id} onSubmit={handleEditSave} className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-navy">Nama Lengkap</label>
-                  <input 
-                    type="text" 
-                    name="nama"
-                    defaultValue={editingJemaat.nama}
-                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-navy">Status</label>
-                  <select 
-                    name="statusJemaat"
-                    defaultValue={editingJemaat.statusJemaat}
-                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  >
-                    <option value="Aktif">Aktif</option>
-                    <option value="Inaktif">Inaktif</option>
-                    <option value="Keluar">Keluar</option>
-                    <option value="Meninggal">Meninggal</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-navy">Tempat Lahir</label>
-                  <input 
-                    type="text" 
-                    name="tempatLahir"
-                    defaultValue={editingJemaat.tempatLahir}
-                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-navy">Tanggal Lahir</label>
-                  <input 
-                    type="date" 
-                    name="tanggalLahir"
-                    defaultValue={editingJemaat.tanggalLahir}
-                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-navy">Jenis Kelamin</label>
-                  <select 
-                    name="gender"
-                    defaultValue={editingJemaat.gender}
-                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                    required
-                  >
-                    <option value="Pria">Pria</option>
-                    <option value="Wanita">Wanita</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-navy">No. WhatsApp</label>
-                  <input 
-                    type="text" 
-                    name="noHp"
-                    defaultValue={editingJemaat.noHp}
-                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-sm font-bold text-navy">Alamat</label>
-                  <textarea 
-                    name="alamat"
-                    defaultValue={editingJemaat.alamat}
-                    rows={3}
-                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none resize-none bg-sand-dark/50"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-navy">NIK</label>
-                  <input 
-                    type="text" 
-                    name="nik"
-                    defaultValue={editingJemaat.nik}
-                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                    required
-                  />
-                </div>
-              </form>
-            </div>
-            <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
-              <button 
-                type="button"
-                onClick={() => setEditingJemaat(null)}
-                className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
-              >
-                Batal
-              </button>
-              <button 
-                type="submit"
-                form="ulang-tahun-form"
-                className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
-              >
-                <Save size={16} /> Simpan Perubahan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
