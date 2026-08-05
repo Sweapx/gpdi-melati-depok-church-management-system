@@ -9,7 +9,7 @@ dotenv.config();
 const filePath = path.resolve(process.cwd(), './data jemaat/PI_Data Jemaat_Tugas Daniel (1).xlsx');
 
 console.log('----------------------------------------------------');
-console.log('🚀 IMPORT DATA JEMAAT DARI EXCEL');
+console.log('🚀 IMPORT DATA JEMAAT, WADAH & RAYON DARI EXCEL');
 console.log('File:', filePath);
 console.log('----------------------------------------------------');
 
@@ -26,20 +26,20 @@ const rawData = xlsx.utils.sheet_to_json(sheet);
 console.log(`📊 Ditemukan ${rawData.length} data jemaat dari Excel (${sheetName}).`);
 
 // Exact Wadah Mapping
-const wadahMap = {
-  1: 'Wadah 1',
-  2: 'Wadah 2',
-  3: 'Wadah 3',
-  4: 'Wadah 4',
-  5: 'Wadah 5'
+const wadahNameMap = {
+  1: 'Kaum Pria (Bapak)',
+  2: 'Kaum Wanita (Ibu)',
+  3: 'Anak & Remaja',
+  4: 'Pemuda (Youth)',
+  5: 'Dewasa Muda (Professional)'
 };
 
-// Exact Rayon Mapping
-const rayonMap = {
-  1: 'Rayon 1',
-  2: 'Rayon 2',
-  3: 'Rayon 3',
-  4: 'Rayon 4'
+// Exact Rayon Mapping & Ketua
+const rayonInfoMap = {
+  1: { nama: 'Rayon 1', ketua: 'Suci Br Kembaren' },
+  2: { nama: 'Rayon 2', ketua: 'Tarningsih' },
+  3: { nama: 'Rayon 3', ketua: 'Harliarso' },
+  4: { nama: 'Rayon 4', ketua: 'Mega Sihombing' }
 };
 
 function formatTanggal(val) {
@@ -69,8 +69,8 @@ const formattedJemaatList = rawData.map((row, idx) => {
     ? rawNik.toString().trim() 
     : `327500${String(idx + 1).padStart(10, '0')}`;
 
-  const wadah = row.wadah_id && wadahMap[row.wadah_id] ? wadahMap[row.wadah_id] : `Wadah ${row.wadah_id || 1}`;
-  const rayon = row.rayon_id && rayonMap[row.rayon_id] ? rayonMap[row.rayon_id] : `Rayon ${row.rayon_id || 1}`;
+  const wadah = row.wadah_id && wadahNameMap[row.wadah_id] ? wadahNameMap[row.wadah_id] : 'Kaum Pria (Bapak)';
+  const rayon = row.rayon_id && rayonInfoMap[row.rayon_id] ? rayonInfoMap[row.rayon_id].nama : 'Rayon 1';
 
   return {
     id: `JEM-${String(idx + 1).padStart(4, '0')}`,
@@ -98,7 +98,7 @@ async function runImport() {
     });
 
     try {
-      // Create table if not exists & drop unique constraint on NIK if present
+      // 1. Create tables if not exist & drop constraint on NIK if present
       try {
         await pool.query(`
           CREATE TABLE IF NOT EXISTS jemaat (
@@ -116,33 +116,67 @@ async function runImport() {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );
         `);
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS wadah (
+            id VARCHAR(50) PRIMARY KEY,
+            nama_wadah VARCHAR(255) NOT NULL,
+            ketua_wadah VARCHAR(255) NOT NULL,
+            umur_minimal INTEGER NOT NULL DEFAULT 0,
+            umur_maksimal INTEGER NOT NULL DEFAULT 0,
+            jumlah_anggota INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS rayon (
+            id VARCHAR(50) PRIMARY KEY,
+            nama_rayon VARCHAR(255) NOT NULL,
+            ketua_rayon VARCHAR(255) NOT NULL,
+            jumlah_anggota INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
         await pool.query(`ALTER TABLE jemaat DROP CONSTRAINT IF EXISTS jemaat_nik_key;`);
       } catch (tableErr) {
         console.log('ℹ️ Skip CREATE/ALTER TABLE:', tableErr.message);
       }
 
-      // Ensure default Wadah 1-5 exist
-      for (let i = 1; i <= 5; i++) {
-        try {
-          await pool.query(`
-            INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (id) DO UPDATE SET nama_wadah = EXCLUDED.nama_wadah;
-          `, [`WAD-00${i}`, `Wadah ${i}`, `Ketua Wadah ${i}`, i === 1 ? 0 : i === 2 ? 13 : i === 3 ? 18 : 26, i === 1 ? 12 : i === 2 ? 17 : i === 3 ? 25 : 150, 0]);
-        } catch (wErr) {}
+      // 2. Clear old Wadah & Rayon data and insert exact Wadah & Rayon
+      try {
+        await pool.query(`DELETE FROM wadah;`);
+        await pool.query(`DELETE FROM rayon;`);
+      } catch (e) {}
+
+      const defaultWadahList = [
+        { id: 'WAD-001', nama: 'Kaum Pria (Bapak)', ketua: 'Tim Kaum Pria', minAge: 32, maxAge: 91, count: 80 },
+        { id: 'WAD-002', nama: 'Kaum Wanita (Ibu)', ketua: 'Tim Kaum Wanita', minAge: 28, maxAge: 96, count: 136 },
+        { id: 'WAD-003', nama: 'Anak & Remaja', ketua: 'Tim Anak & Remaja', minAge: 2, maxAge: 26, count: 68 },
+        { id: 'WAD-004', nama: 'Pemuda (Youth)', ketua: 'Tim Pemuda', minAge: 16, maxAge: 32, count: 23 },
+        { id: 'WAD-005', nama: 'Dewasa Muda (Professional)', ketua: 'Tim Professional', minAge: 20, maxAge: 67, count: 64 }
+      ];
+
+      for (const w of defaultWadahList) {
+        await pool.query(`
+          INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
+          VALUES ($1, $2, $3, $4, $5, $6);
+        `, [w.id, w.nama, w.ketua, w.minAge, w.maxAge, w.count]);
       }
 
-      // Ensure default Rayon 1-4 exist
-      for (let i = 1; i <= 4; i++) {
-        try {
-          await pool.query(`
-            INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (id) DO UPDATE SET nama_rayon = EXCLUDED.nama_rayon;
-          `, [`RAY-00${i}`, `Rayon ${i}`, `Ketua Rayon ${i}`, 0]);
-        } catch (rErr) {}
+      const defaultRayonList = [
+        { id: 'RAY-001', nama: 'Rayon 1', ketua: 'Suci Br Kembaren', count: 78 },
+        { id: 'RAY-002', nama: 'Rayon 2', ketua: 'Tarningsih', count: 83 },
+        { id: 'RAY-003', nama: 'Rayon 3', ketua: 'Harliarso', count: 123 },
+        { id: 'RAY-004', nama: 'Rayon 4', ketua: 'Mega Sihombing', count: 87 }
+      ];
+
+      for (const r of defaultRayonList) {
+        await pool.query(`
+          INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
+          VALUES ($1, $2, $3, $4);
+        `, [r.id, r.nama, r.ketua, r.count]);
       }
 
+      // 3. Insert / Update 371 Jemaat records
       let insertedCount = 0;
       let errorCount = 0;
 
@@ -174,7 +208,7 @@ async function runImport() {
         }
       }
 
-      console.log(`✅ SELESAI! ${insertedCount} data jemaat telah diimpor ke database PostgreSQL (Gagal: ${errorCount}).`);
+      console.log(`✅ SELESAI! ${insertedCount} data jemaat, 5 Wadah, dan 4 Rayon telah diimpor ke database PostgreSQL (Gagal: ${errorCount}).`);
 
     } catch (err) {
       console.error('❌ Database error:', err.message);
