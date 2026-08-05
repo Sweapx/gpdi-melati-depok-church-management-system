@@ -117,7 +117,24 @@ router.get("/schedules", async (req, res) => {
   try {
     checkPostgres();
     const result = await pool!.query("SELECT * FROM schedules ORDER BY created_at DESC");
-    res.json({ success: true, data: result.rows });
+    // Convert snake_case to camelCase for frontend
+    const data = result.rows.map(row => ({
+      id: row.id,
+      judul: row.judul,
+      tanggal: row.tanggal,
+      waktu: row.waktu,
+      lokasi: row.lokasi,
+      deskripsi: row.deskripsi,
+      isRegistrationRequired: row.is_registration_required,
+      hariJam: row.hari_jam,
+      kategori: row.kategori,
+      kuota: row.kuota,
+      terdaftar: row.terdaftar,
+      registrationFee: row.registration_fee,
+      needPaymentProof: row.need_payment_proof,
+      createdAt: row.created_at
+    }));
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error fetching schedules:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -147,7 +164,25 @@ router.post("/schedules", async (req, res) => {
     ];
 
     const result = await pool!.query(query, values);
-    res.json({ success: true, data: result.rows[0] });
+    // Convert snake_case to camelCase for frontend
+    const row = result.rows[0];
+    const data = {
+      id: row.id,
+      judul: row.judul,
+      tanggal: row.tanggal,
+      waktu: row.waktu,
+      lokasi: row.lokasi,
+      deskripsi: row.deskripsi,
+      isRegistrationRequired: row.is_registration_required,
+      hariJam: row.hari_jam,
+      kategori: row.kategori,
+      kuota: row.kuota,
+      terdaftar: row.terdaftar,
+      registrationFee: row.registration_fee,
+      needPaymentProof: row.need_payment_proof,
+      createdAt: row.created_at
+    };
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error creating schedule:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -182,7 +217,25 @@ router.put("/schedules/:id", async (req, res) => {
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: "Schedule not found" });
     } else {
-      res.json({ success: true, data: result.rows[0] });
+      // Convert snake_case to camelCase for frontend
+      const row = result.rows[0];
+      const data = {
+        id: row.id,
+        judul: row.judul,
+        tanggal: row.tanggal,
+        waktu: row.waktu,
+        lokasi: row.lokasi,
+        deskripsi: row.deskripsi,
+        isRegistrationRequired: row.is_registration_required,
+        hariJam: row.hari_jam,
+        kategori: row.kategori,
+        kuota: row.kuota,
+        terdaftar: row.terdaftar,
+        registrationFee: row.registration_fee,
+        needPaymentProof: row.need_payment_proof,
+        createdAt: row.created_at
+      };
+      res.json({ success: true, data });
     }
   } catch (error: any) {
     console.error("Error updating schedule:", error);
@@ -463,7 +516,28 @@ router.get("/registrations", async (req, res) => {
   try {
     checkPostgres();
     const result = await pool!.query("SELECT * FROM registrations ORDER BY created_at DESC");
-    res.json({ success: true, data: result.rows });
+    // Convert snake_case to camelCase for frontend
+    const data = result.rows.map(row => ({
+      id: row.id,
+      type: row.type,
+      namaPendaftar: row.nama_pendaftar,
+      nik: row.nik,
+      gender: row.gender,
+      tempatLahir: row.tempat_lahir,
+      tanggalLahir: row.tanggal_lahir,
+      alamat: row.alamat,
+      noHp: row.no_hp,
+      lampiranKtp: row.lampiran_ktp,
+      lampiranBuktiBayar: row.lampiran_bukti_bayar,
+      status: row.status,
+      statusNote: row.status_note,
+      anggotaKeluarga: row.anggota_keluarga,
+      rayon: row.rayon,
+      jenisKegiatan: row.jenis_kegiatan,
+      tanggalDaftar: row.tanggal_daftar,
+      createdAt: row.created_at
+    }));
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error fetching registrations:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -497,7 +571,29 @@ router.post("/registrations", async (req, res) => {
     ];
 
     const result = await pool!.query(query, values);
-    res.json({ success: true, data: result.rows[0] });
+    // Convert snake_case to camelCase for frontend
+    const row = result.rows[0];
+    const data = {
+      id: row.id,
+      type: row.type,
+      namaPendaftar: row.nama_pendaftar,
+      nik: row.nik,
+      gender: row.gender,
+      tempatLahir: row.tempat_lahir,
+      tanggalLahir: row.tanggal_lahir,
+      alamat: row.alamat,
+      noHp: row.no_hp,
+      lampiranKtp: row.lampiran_ktp,
+      lampiranBuktiBayar: row.lampiran_bukti_bayar,
+      status: row.status,
+      statusNote: row.status_note,
+      anggotaKeluarga: row.anggota_keluarga,
+      rayon: row.rayon,
+      jenisKegiatan: row.jenis_kegiatan,
+      tanggalDaftar: row.tanggal_daftar,
+      createdAt: row.created_at
+    };
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error creating registration:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -680,26 +776,49 @@ router.post("/prayers", async (req, res) => {
   }
 });
 
-router.put("/prayers/:id/status", async (req, res) => {
+router.put("/registrations/:id/status", async (req, res) => {
   try {
     checkPostgres();
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, status_note } = req.body;
 
     const query = `
-      UPDATE prayer_requests SET status = $1
-      WHERE id = $2
+      UPDATE registrations SET status = $1, status_note = $2
+      WHERE id = $3
       RETURNING *
     `;
-    const result = await pool!.query(query, [status, id]);
+    const values = [status, status_note, id];
 
+    const result = await pool!.query(query, values);
     if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Prayer request not found" });
+      res.status(404).json({ success: false, message: "Registration not found" });
     } else {
-      res.json({ success: true, data: result.rows[0] });
+      // Convert snake_case to camelCase for frontend
+      const row = result.rows[0];
+      const data = {
+        id: row.id,
+        type: row.type,
+        namaPendaftar: row.nama_pendaftar,
+        nik: row.nik,
+        gender: row.gender,
+        tempatLahir: row.tempat_lahir,
+        tanggalLahir: row.tanggal_lahir,
+        alamat: row.alamat,
+        noHp: row.no_hp,
+        lampiranKtp: row.lampiran_ktp,
+        lampiranBuktiBayar: row.lampiran_bukti_bayar,
+        status: row.status,
+        statusNote: row.status_note,
+        anggotaKeluarga: row.anggota_keluarga,
+        rayon: row.rayon,
+        jenisKegiatan: row.jenis_kegiatan,
+        tanggalDaftar: row.tanggal_daftar,
+        createdAt: row.created_at
+      };
+      res.json({ success: true, data });
     }
   } catch (error: any) {
-    console.error("Error updating prayer request status:", error);
+    console.error("Error updating registration status:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
