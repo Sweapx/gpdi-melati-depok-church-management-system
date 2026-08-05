@@ -72,25 +72,49 @@ export default function Jemaat() {
     return age;
   };
 
-  const assignWadahByAge = (tanggalLahir: string): string => {
+  const assignWadahByAgeAndGender = (tanggalLahir: string, gender?: string): string => {
     if (!tanggalLahir) return '';
     const age = calculateAge(tanggalLahir);
+
     const matchingWadah = wadahList.find(w => {
       const minAge = Number(w.umur_minimal !== undefined ? w.umur_minimal : w.umurMinimal) || 0;
       const maxAge = Number(w.umur_maksimal !== undefined ? w.umur_maksimal : w.umurMaksimal) || 150;
-      return age >= minAge && age <= maxAge;
+      const wName = (w.nama_wadah || w.namaWadah || '').toLowerCase();
+
+      if (age < minAge || age > maxAge) return false;
+
+      const isPriaWadah = wName.includes('pria') || wName.includes('bapak');
+      const isWanitaWadah = wName.includes('wanita') || wName.includes('ibu');
+
+      if (isPriaWadah && gender && gender !== 'Pria') return false;
+      if (isWanitaWadah && gender && gender !== 'Wanita') return false;
+
+      return true;
     });
+
     return matchingWadah ? (matchingWadah.nama_wadah || matchingWadah.namaWadah || '') : '';
   };
 
   const getDisplayWadah = (jemaat: JemaatType): string => {
+    // Check if jemaat.wadah matches any active Wadah in current wadahList
     if (jemaat.wadah && jemaat.wadah !== 'Otomatis' && jemaat.wadah.trim() !== '') {
-      return jemaat.wadah;
+      const trimmedJ = jemaat.wadah.trim().toLowerCase();
+      const existingInList = wadahList.find(w => {
+        const name = (w.nama_wadah || w.namaWadah || '').trim().toLowerCase();
+        return name === trimmedJ;
+      });
+      if (existingInList) {
+        return existingInList.nama_wadah || existingInList.namaWadah;
+      }
     }
+
+    // If jemaat.wadah was an old name that no longer exists, or is unassigned/Otomatis, assign dynamically:
     if (jemaat.tanggalLahir) {
-      return assignWadahByAge(jemaat.tanggalLahir) || '-';
+      const dynamicWadah = assignWadahByAgeAndGender(jemaat.tanggalLahir, jemaat.gender);
+      if (dynamicWadah) return dynamicWadah;
     }
-    return '-';
+
+    return jemaat.wadah && jemaat.wadah !== 'Otomatis' ? jemaat.wadah : '-';
   };
 
   const handleDelete = async (id: string) => {
@@ -120,11 +144,11 @@ export default function Jemaat() {
       ? formatDateForInput(formTanggalLahir)
       : cleanExistingDate;
 
+    const gender = (formData.get('gender') as string) || editingJemaat.gender;
     const selectedWadah = (formData.get('wadah') as string) || '';
-    const assignedWadah = selectedWadah || assignWadahByAge(tanggalLahir);
+    const assignedWadah = selectedWadah || assignWadahByAgeAndGender(tanggalLahir, gender);
 
     const nama = (formData.get('nama') as string) || editingJemaat.nama;
-    const gender = (formData.get('gender') as string) || editingJemaat.gender;
     const tempat_lahir = (formData.get('tempatLahir') as string) || editingJemaat.tempatLahir;
     const alamat = (formData.get('alamat') as string) || editingJemaat.alamat;
     const no_hp = (formData.get('noHp') as string) || editingJemaat.noHp;
@@ -194,13 +218,13 @@ export default function Jemaat() {
     const formData = new FormData(form);
     const formTanggalLahir = formData.get('tanggalLahir') as string;
     const tanggalLahir = formatDateForInput(formTanggalLahir);
+    const gender = formData.get('gender') as string;
     const selectedWadah = (formData.get('wadah') as string) || '';
-    const assignedWadah = selectedWadah || assignWadahByAge(tanggalLahir);
+    const assignedWadah = selectedWadah || assignWadahByAgeAndGender(tanggalLahir, gender);
 
     const nama = formData.get('nama') as string;
     const status_jemaat = (formData.get('statusJemaat') as string) || 'Aktif';
     const tempat_lahir = formData.get('tempatLahir') as string;
-    const gender = formData.get('gender') as string;
     const rayon = (formData.get('rayon') as string) || '';
     const no_telepon = formData.get('noTelepon') as string;
     const no_hp = formData.get('noHp') as string;
@@ -263,13 +287,18 @@ export default function Jemaat() {
 
   const filteredData = data.filter(j =>
     (!j.statusJemaat || j.statusJemaat === 'Aktif') &&
-    (filterWadah === 'Semua Wadah' || !j.wadah || j.wadah === filterWadah) &&
+    (filterWadah === 'Semua Wadah' || getDisplayWadah(j) === filterWadah || j.wadah === filterWadah) &&
     (filterRayon === 'Semua Rayon' || !j.rayon || j.rayon === filterRayon) &&
     (j.nama && j.nama.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const wadahOptions = ['Semua Wadah', ...Array.from(new Set(data.map(j => j.wadah).filter(Boolean)))];
-  const rayonOptions = ['Semua Rayon', ...Array.from(new Set(data.map(j => j.rayon).filter(Boolean)))];
+  const wadahNamesFromList = wadahList.map(w => w.nama_wadah || w.namaWadah).filter(Boolean);
+  const wadahNamesFromJemaat = data.map(j => getDisplayWadah(j)).filter(b => b && b !== '-');
+  const wadahOptions = ['Semua Wadah', ...Array.from(new Set([...wadahNamesFromList, ...wadahNamesFromJemaat]))];
+
+  const rayonNamesFromList = rayonList.map(r => r.nama_rayon || r.namaRayon).filter(Boolean);
+  const rayonNamesFromJemaat = data.map(j => j.rayon).filter(Boolean);
+  const rayonOptions = ['Semua Rayon', ...Array.from(new Set([...rayonNamesFromList, ...rayonNamesFromJemaat]))];
 
   return (
     <div>
