@@ -15,6 +15,7 @@ import JemaatKeluarMeninggal from './pages/admin/JemaatKeluarMeninggal.tsx';
 import UlangTahun from './pages/admin/UlangTahun.tsx';
 import Approvals from './pages/admin/Approvals.tsx';
 import ApprovalsEvent from './pages/admin/ApprovalsEvent.tsx';
+import ApprovalsBaptisan from './pages/admin/ApprovalsBaptisan.tsx';
 import Cms from './pages/admin/Cms.tsx';
 import KnowledgeBase from './pages/admin/KnowledgeBase.tsx';
 import Prayers from './pages/admin/Prayers.tsx';
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="ulang-tahun" element={<UlangTahun />} />
           <Route path="approvals" element={<Approvals />} />
           <Route path="approvals/event" element={<ApprovalsEvent />} />
+          <Route path="approvals/baptisan" element={<ApprovalsBaptisan />} />
           <Route path="cms" element={<Cms />} />
           <Route path="kb" element={<KnowledgeBase />} />
           <Route path="prayers" element={<Prayers />} />

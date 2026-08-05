@@ -23,6 +23,7 @@ const jemaatSubmenu = [
 const approvalsSubmenu = [
   { path: '/admin/approvals', label: 'Pendaftaran Jemaat Baru' },
   { path: '/admin/approvals/event', label: 'Pendaftaran Event' },
+  { path: '/admin/approvals/baptisan', label: 'Pendaftaran Baptisan' },
 ];
 
 export default function AdminLayout() {
