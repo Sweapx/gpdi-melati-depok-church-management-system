@@ -5,6 +5,49 @@ import { Link, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { ScheduleItem } from '../types/index.ts';
 
+function formatTanggalDisplay(tanggal?: string, hariJam?: string, waktu?: string) {
+  let dateText = '';
+  if (tanggal && tanggal.trim() !== '' && tanggal !== '-') {
+    const cleanStr = tanggal.toString().split('T')[0];
+    const parts = cleanStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) {
+        dateText = d.toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+      }
+    }
+    if (!dateText) {
+      const d = new Date(tanggal);
+      if (!isNaN(d.getTime())) {
+        dateText = d.toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+      }
+    }
+  }
+
+  const extraTime = waktu || hariJam || '';
+  if (dateText && extraTime) {
+    if (extraTime.includes(':') || extraTime.includes('WIB')) {
+      const timeOnly = extraTime.replace(/^[A-Za-z\s]+,\s*/, '');
+      return `${dateText} (${timeOnly})`;
+    }
+    return `${dateText} • ${extraTime}`;
+  }
+  return dateText || extraTime || '-';
+}
+
 export default function JadwalEvent() {
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -138,7 +181,7 @@ export default function JadwalEvent() {
                   <div className="space-y-3 mb-4">
                     <div className="flex items-center gap-2 text-sm text-navy">
                       <Calendar size={16} className="text-gold" />
-                      <span className="font-medium">{schedule.hariJam}</span>
+                      <span className="font-medium">{formatTanggalDisplay(schedule.tanggal, schedule.hariJam, schedule.waktu)}</span>
                     </div>
                     {schedule.lokasi && (
                       <div className="flex items-center gap-2 text-sm text-navy">

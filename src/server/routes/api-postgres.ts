@@ -476,7 +476,7 @@ router.get("/schedules", async (req, res) => {
     const data = result.rows.map(row => ({
       id: row.id,
       judul: row.judul,
-      tanggal: row.tanggal,
+      tanggal: row.tanggal ? (typeof row.tanggal === 'string' ? row.tanggal.split('T')[0] : new Date(row.tanggal).toISOString().split('T')[0]) : '',
       waktu: row.waktu,
       lokasi: row.lokasi,
       deskripsi: row.deskripsi,
