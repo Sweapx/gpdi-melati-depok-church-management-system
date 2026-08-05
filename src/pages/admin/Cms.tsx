@@ -82,7 +82,7 @@ export default function Cms() {
     } else if (activeTab === 'ibadah' || activeTab === 'event') {
       payload = {
         judul: payload.judul,
-        tanggal: payload.tanggal,
+        tanggal: payload.tanggal || new Date().toISOString().split('T')[0],
         waktu: payload.waktu,
         lokasi: payload.lokasi,
         deskripsi: payload.deskripsi,

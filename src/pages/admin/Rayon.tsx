@@ -28,14 +28,21 @@ export default function Rayon() {
   const [isLoadingAnggota, setIsLoadingAnggota] = useState(false);
 
   useEffect(() => {
-    // Mock data for now - replace with API call
-    const mockData: Rayon[] = [
-      { id: '1', namaRayon: 'Rayon Depok Timur', ketuaRayon: 'Hendro Wijaya', jumlahAnggota: 120 },
-      { id: '2', namaRayon: 'Rayon Depok Barat', ketuaRayon: 'Dewi Sartika', jumlahAnggota: 95 },
-      { id: '3', namaRayon: 'Rayon Depok Selatan', ketuaRayon: 'Rudi Hartono', jumlahAnggota: 88 },
-    ];
-    setData(mockData);
-    setIsLoading(false);
+    fetch('/api/rayon')
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          const convertedData = res.data.map((row: any) => ({
+            id: row.id,
+            namaRayon: row.nama_rayon,
+            ketuaRayon: row.ketua_rayon,
+            jumlahAnggota: row.jumlah_anggota,
+          }));
+          setData(convertedData);
+        }
+        setIsLoading(false);
+      })
+      .catch(() => setIsLoading(false));
   }, []);
 
   const handleViewAnggota = async (rayon: Rayon) => {
@@ -77,19 +84,35 @@ export default function Rayon() {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
-    const newRayon: Rayon = {
-      id: Date.now().toString(),
-      namaRayon: formData.get('namaRayon') as string,
-      ketuaRayon: formData.get('ketuaRayon') as string,
-      jumlahAnggota: 0,
+    const newRayon = {
+      nama_rayon: formData.get('namaRayon') as string,
+      ketua_rayon: formData.get('ketuaRayon') as string,
+      jumlah_anggota: 0,
     };
 
     try {
-      // API call here
-      setData([...data, newRayon]);
-      setIsAdding(false);
+      const res = await fetch('/api/rayon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify(newRayon)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const convertedData = {
+          id: json.data.id,
+          namaRayon: json.data.nama_rayon,
+          ketuaRayon: json.data.ketua_rayon,
+          jumlahAnggota: json.data.jumlah_anggota,
+        };
+        setData([...data, convertedData]);
+        setIsAdding(false);
+      } else {
+        const error = await res.json();
+        alert('Gagal menambah rayon: ' + (error.message || 'Unknown error'));
+      }
     } catch (e) {
       console.error(e);
+      alert('Gagal menambah rayon: Network error');
     }
   };
 
@@ -256,11 +279,11 @@ export default function Rayon() {
                 </h2>
               </div>
               <div className="p-6">
-                <form onSubmit={isAdding ? handleAddSave : handleEditSave} className="space-y-5">
+                <form id="rayon-form" onSubmit={isAdding ? handleAddSave : handleEditSave} className="space-y-5">
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold text-navy">Nama Rayon</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="namaRayon"
                       defaultValue={editingRayon?.namaRayon}
                       className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
@@ -269,8 +292,8 @@ export default function Rayon() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold text-navy">Ketua Rayon</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="ketuaRayon"
                       defaultValue={editingRayon?.ketuaRayon}
                       className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
@@ -280,16 +303,15 @@ export default function Rayon() {
                 </form>
               </div>
               <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
-                <button 
+                <button
                   onClick={() => { setIsAdding(false); setEditingRayon(null); }}
                   className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
                 >
                   Batal
                 </button>
-                <button 
-                  onClick={isAdding ? undefined : handleEditSave}
-                  type={isAdding ? "submit" : "button"}
-                  form={isAdding ? undefined : "edit-form"}
+                <button
+                  type="submit"
+                  form="rayon-form"
                   className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
                 >
                   <Save size={16} /> {isAdding ? 'Simpan Data Rayon' : 'Simpan Perubahan'}

@@ -21,14 +21,23 @@ export default function Wadah() {
   const [viewingWadah, setViewingWadah] = useState<Wadah | null>(null);
 
   useEffect(() => {
-    // Mock data for now - replace with API call
-    const mockData: Wadah[] = [
-      { id: '1', namaWadah: 'Wadah Muda Mudi', ketuaWadah: 'Budi Santoso', umurMinimal: 18, umurMaksimal: 35, jumlahAnggota: 45 },
-      { id: '2', namaWadah: 'Wadah Remaja', ketuaWadah: 'Siti Rahayu', umurMinimal: 13, umurMaksimal: 17, jumlahAnggota: 32 },
-      { id: '3', namaWadah: 'Wadah Dewasa', ketuaWadah: 'Agus Pratama', umurMinimal: 36, umurMaksimal: 60, jumlahAnggota: 78 },
-    ];
-    setData(mockData);
-    setIsLoading(false);
+    fetch('/api/wadah')
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          const convertedData = res.data.map((row: any) => ({
+            id: row.id,
+            namaWadah: row.nama_wadah,
+            ketuaWadah: row.ketua_wadah,
+            umurMinimal: row.umur_minimal,
+            umurMaksimal: row.umur_maksimal,
+            jumlahAnggota: row.jumlah_anggota,
+          }));
+          setData(convertedData);
+        }
+        setIsLoading(false);
+      })
+      .catch(() => setIsLoading(false));
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -57,21 +66,39 @@ export default function Wadah() {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
-    const newWadah: Wadah = {
-      id: Date.now().toString(),
-      namaWadah: formData.get('namaWadah') as string,
-      ketuaWadah: formData.get('ketuaWadah') as string,
-      umurMinimal: parseInt(formData.get('umurMinimal') as string),
-      umurMaksimal: parseInt(formData.get('umurMaksimal') as string),
-      jumlahAnggota: 0,
+    const newWadah = {
+      nama_wadah: formData.get('namaWadah') as string,
+      ketua_wadah: formData.get('ketuaWadah') as string,
+      umur_minimal: parseInt(formData.get('umurMinimal') as string),
+      umur_maksimal: parseInt(formData.get('umurMaksimal') as string),
+      jumlah_anggota: 0,
     };
 
     try {
-      // API call here
-      setData([...data, newWadah]);
-      setIsAdding(false);
+      const res = await fetch('/api/wadah', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify(newWadah)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const convertedData = {
+          id: json.data.id,
+          namaWadah: json.data.nama_wadah,
+          ketuaWadah: json.data.ketua_wadah,
+          umurMinimal: json.data.umur_minimal,
+          umurMaksimal: json.data.umur_maksimal,
+          jumlahAnggota: json.data.jumlah_anggota,
+        };
+        setData([...data, convertedData]);
+        setIsAdding(false);
+      } else {
+        const error = await res.json();
+        alert('Gagal menambah wadah: ' + (error.message || 'Unknown error'));
+      }
     } catch (e) {
       console.error(e);
+      alert('Gagal menambah wadah: Network error');
     }
   };
 
@@ -175,11 +202,11 @@ export default function Wadah() {
             </h2>
           </div>
           <div className="p-6">
-            <form onSubmit={isAdding ? handleAddSave : handleEditSave} className="space-y-5">
+            <form id="wadah-form" onSubmit={isAdding ? handleAddSave : handleEditSave} className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-navy">Nama Wadah</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="namaWadah"
                   defaultValue={editingWadah?.namaWadah}
                   className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
@@ -188,8 +215,8 @@ export default function Wadah() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-navy">Ketua Wadah</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="ketuaWadah"
                   defaultValue={editingWadah?.ketuaWadah}
                   className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
@@ -199,8 +226,8 @@ export default function Wadah() {
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-1.5">
                   <label className="text-sm font-bold text-navy">Umur Minimal</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     name="umurMinimal"
                     defaultValue={editingWadah?.umurMinimal}
                     className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
@@ -209,8 +236,8 @@ export default function Wadah() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-bold text-navy">Umur Maksimal</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     name="umurMaksimal"
                     defaultValue={editingWadah?.umurMaksimal}
                     className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
@@ -221,16 +248,15 @@ export default function Wadah() {
             </form>
           </div>
           <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
-            <button 
+            <button
               onClick={() => { setIsAdding(false); setEditingWadah(null); }}
               className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
             >
               Batal
             </button>
-            <button 
-              onClick={isAdding ? undefined : handleEditSave}
-              type={isAdding ? "submit" : "button"}
-              form={isAdding ? undefined : "edit-form"}
+            <button
+              type="submit"
+              form="wadah-form"
               className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
             >
               <Save size={16} /> {isAdding ? 'Simpan Data Wadah' : 'Simpan Perubahan'}

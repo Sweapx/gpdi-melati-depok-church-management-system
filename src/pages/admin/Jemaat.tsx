@@ -7,10 +7,10 @@ export default function Jemaat() {
   const [data, setData] = useState<JemaatType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filterWadah, setFilterWadah] = useState('Semua Wadah');
-  const [filterRayon, setFilterRayon] = useState('Semua Rayon');
-  const [editingJemaat, setEditingJemaat] = useState<JemaatType | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingJemaat, setEditingJemaat] = useState<JemaatType | null>(null);
+  const [wadahList, setWadahList] = useState<any[]>([]);
+  const [rayonList, setRayonList] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/jemaat')
@@ -21,6 +21,41 @@ export default function Jemaat() {
       })
       .catch(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetch('/api/wadah')
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) setWadahList(res.data);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/rayon')
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) setRayonList(res.data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const calculateAge = (tanggalLahir: string): number => {
+    const birthDate = new Date(tanggalLahir);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const assignWadahByAge = (tanggalLahir: string): string => {
+    const age = calculateAge(tanggalLahir);
+    const matchingWadah = wadahList.find(w => age >= w.umur_minimal && age <= w.umur_maksimal);
+    return matchingWadah ? matchingWadah.nama_wadah : '';
+  };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Yakin ingin menghapus data ini?')) return;
@@ -44,7 +79,6 @@ export default function Jemaat() {
       // Convert camelCase to snake_case for backend
       const backendData = {
         nama: editingJemaat.nama,
-        nik: editingJemaat.nik,
         gender: editingJemaat.gender,
         tempat_lahir: editingJemaat.tempatLahir,
         tanggal_lahir: editingJemaat.tanggalLahir,
@@ -85,17 +119,20 @@ export default function Jemaat() {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
+    const tanggalLahir = formData.get('tanggalLahir') as string;
+    const assignedWadah = assignWadahByAge(tanggalLahir);
+
     const newJemaat = {
       nama: formData.get('nama') as string,
       status_jemaat: formData.get('statusJemaat') as string,
       tempat_lahir: formData.get('tempatLahir') as string,
-      tanggal_lahir: formData.get('tanggalLahir') as string,
+      tanggal_lahir: tanggalLahir,
       gender: formData.get('gender') as string,
       rayon: formData.get('rayon') as string,
+      wadah: assignedWadah,
       no_telepon: formData.get('noTelepon') as string,
       no_hp: formData.get('noHp') as string,
       alamat: formData.get('alamat') as string,
-      nik: formData.get('nik') as string,
     };
 
     console.log('Form data:', newJemaat);
@@ -294,12 +331,18 @@ export default function Jemaat() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-navy">Rayon</label>
-                <input 
-                  type="text" 
+                <select
                   name="rayon"
-                  defaultValue={editingJemaat?.rayon}
+                  defaultValue={editingJemaat?.rayon || ''}
                   className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                />
+                >
+                  <option value="">Pilih Rayon...</option>
+                  {rayonList.map(rayon => (
+                    <option key={rayon.id} value={rayon.nama_rayon}>
+                      {rayon.nama_rayon}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-navy">No. Telepon</label>
@@ -322,21 +365,11 @@ export default function Jemaat() {
               </div>
               <div className="space-y-1.5 col-span-2">
                 <label className="text-sm font-bold text-navy">Alamat</label>
-                <textarea 
+                <textarea
                   name="alamat"
                   defaultValue={editingJemaat?.alamat}
                   rows={3}
                   className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none resize-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">NIK</label>
-                <input 
-                  type="text" 
-                  name="nik"
-                  defaultValue={editingJemaat?.nik}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
                   required
                 />
               </div>

@@ -839,6 +839,160 @@ router.delete("/prayers/:id", async (req, res) => {
   }
 });
 
+// ============ WADAH CRUD ============
+router.get("/wadah", async (req, res) => {
+  try {
+    checkPostgres();
+    const result = await pool!.query("SELECT * FROM wadah ORDER BY nama_wadah ASC");
+    res.json({ success: true, data: result.rows });
+  } catch (error: any) {
+    console.error("Error fetching wadah:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.post("/wadah", async (req, res) => {
+  try {
+    checkPostgres();
+    const { nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota } = req.body;
+
+    const id = generateId("WAD");
+    const query = `
+      INSERT INTO wadah (
+        id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `;
+    const values = [
+      id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota || 0
+    ];
+
+    const result = await pool!.query(query, values);
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error: any) {
+    console.error("Error creating wadah:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.put("/wadah/:id", async (req, res) => {
+  try {
+    checkPostgres();
+    const { id } = req.params;
+    const { nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota } = req.body;
+
+    const query = `
+      UPDATE wadah SET
+        nama_wadah = $1, ketua_wadah = $2, umur_minimal = $3, umur_maksimal = $4, jumlah_anggota = $5
+      WHERE id = $6
+      RETURNING *
+    `;
+    const values = [nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota, id];
+
+    const result = await pool!.query(query, values);
+    if (result.rows.length === 0) {
+      res.status(404).json({ success: false, message: "Wadah not found" });
+    } else {
+      res.json({ success: true, data: result.rows[0] });
+    }
+  } catch (error: any) {
+    console.error("Error updating wadah:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.delete("/wadah/:id", async (req, res) => {
+  try {
+    checkPostgres();
+    const { id } = req.params;
+    const result = await pool!.query("DELETE FROM wadah WHERE id = $1 RETURNING *", [id]);
+    if (result.rows.length === 0) {
+      res.status(404).json({ success: false, message: "Wadah not found" });
+    } else {
+      res.json({ success: true, message: "Deleted" });
+    }
+  } catch (error: any) {
+    console.error("Error deleting wadah:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============ RAYON CRUD ============
+router.get("/rayon", async (req, res) => {
+  try {
+    checkPostgres();
+    const result = await pool!.query("SELECT * FROM rayon ORDER BY nama_rayon ASC");
+    res.json({ success: true, data: result.rows });
+  } catch (error: any) {
+    console.error("Error fetching rayon:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.post("/rayon", async (req, res) => {
+  try {
+    checkPostgres();
+    const { nama_rayon, ketua_rayon, jumlah_anggota } = req.body;
+
+    const id = generateId("RAY");
+    const query = `
+      INSERT INTO rayon (
+        id, nama_rayon, ketua_rayon, jumlah_anggota
+      ) VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `;
+    const values = [id, nama_rayon, ketua_rayon, jumlah_anggota || 0];
+
+    const result = await pool!.query(query, values);
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error: any) {
+    console.error("Error creating rayon:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.put("/rayon/:id", async (req, res) => {
+  try {
+    checkPostgres();
+    const { id } = req.params;
+    const { nama_rayon, ketua_rayon, jumlah_anggota } = req.body;
+
+    const query = `
+      UPDATE rayon SET
+        nama_rayon = $1, ketua_rayon = $2, jumlah_anggota = $3
+      WHERE id = $4
+      RETURNING *
+    `;
+    const values = [nama_rayon, ketua_rayon, jumlah_anggota, id];
+
+    const result = await pool!.query(query, values);
+    if (result.rows.length === 0) {
+      res.status(404).json({ success: false, message: "Rayon not found" });
+    } else {
+      res.json({ success: true, data: result.rows[0] });
+    }
+  } catch (error: any) {
+    console.error("Error updating rayon:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.delete("/rayon/:id", async (req, res) => {
+  try {
+    checkPostgres();
+    const { id } = req.params;
+    const result = await pool!.query("DELETE FROM rayon WHERE id = $1 RETURNING *", [id]);
+    if (result.rows.length === 0) {
+      res.status(404).json({ success: false, message: "Rayon not found" });
+    } else {
+      res.json({ success: true, message: "Deleted" });
+    }
+  } catch (error: any) {
+    console.error("Error deleting rayon:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ============ CERTIFICATE REQUESTS CRUD ============
 router.get("/certificate-requests", async (req, res) => {
   try {
