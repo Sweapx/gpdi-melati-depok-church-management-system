@@ -77,22 +77,26 @@ export default function Jemaat() {
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingJemaat) return;
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const tanggalLahir = (formData.get('tanggalLahir') as string) || editingJemaat.tanggalLahir;
+    const assignedWadah = assignWadahByAge(tanggalLahir);
+
     try {
-      // Convert camelCase to snake_case for backend
       const backendData = {
-        nama: editingJemaat.nama,
-        gender: editingJemaat.gender,
-        tempat_lahir: editingJemaat.tempatLahir,
-        tanggal_lahir: editingJemaat.tanggalLahir,
-        alamat: editingJemaat.alamat,
-        no_hp: editingJemaat.noHp,
+        nama: (formData.get('nama') as string) || editingJemaat.nama,
+        gender: (formData.get('gender') as string) || editingJemaat.gender,
+        tempat_lahir: (formData.get('tempatLahir') as string) || editingJemaat.tempatLahir,
+        tanggal_lahir: tanggalLahir,
+        alamat: (formData.get('alamat') as string) || editingJemaat.alamat,
+        no_hp: (formData.get('noHp') as string) || editingJemaat.noHp,
         status_pernikahan: editingJemaat.statusPernikahan,
-        status_jemaat: editingJemaat.statusJemaat,
+        status_jemaat: (formData.get('statusJemaat') as string) || editingJemaat.statusJemaat,
         kategori_kaum: editingJemaat.kategoriKaum,
         sektor: editingJemaat.sektor,
-        wadah: editingJemaat.wadah,
-        rayon: editingJemaat.rayon,
-        no_telepon: editingJemaat.noTelepon,
+        wadah: assignedWadah,
+        rayon: (formData.get('rayon') as string) || editingJemaat.rayon,
+        no_telepon: (formData.get('noTelepon') as string) || editingJemaat.noTelepon,
         anggota_keluarga: editingJemaat.anggotaKeluarga
       };
 
@@ -103,7 +107,15 @@ export default function Jemaat() {
       });
       if (res.ok) {
         const json = await res.json();
-        setData(data.map(j => j.id === editingJemaat.id ? json.data : j));
+        const updated = {
+          ...json.data,
+          tempatLahir: json.data.tempat_lahir,
+          tanggalLahir: json.data.tanggal_lahir,
+          noHp: json.data.no_hp,
+          statusJemaat: json.data.status_jemaat,
+          noTelepon: json.data.no_telepon
+        };
+        setData(data.map(j => j.id === editingJemaat.id ? updated : j));
         setEditingJemaat(null);
       } else {
         const error = await res.json();
@@ -192,7 +204,7 @@ export default function Jemaat() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input 
               type="text" 
-              placeholder="Cari nama atau NIK..." 
+              placeholder="Cari nama..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-xl border border-border-subtle focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold text-sm bg-white"
@@ -275,7 +287,7 @@ export default function Jemaat() {
             </h2>
           </div>
           <div className="p-6">
-            <form onSubmit={isAdding ? handleAddSave : handleEditSave} className="grid grid-cols-2 gap-5">
+            <form id="jemaat-form" onSubmit={isAdding ? handleAddSave : handleEditSave} className="grid grid-cols-2 gap-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-navy">Nama Lengkap</label>
                 <input 
@@ -385,9 +397,8 @@ export default function Jemaat() {
               Batal
             </button>
             <button 
-              onClick={isAdding ? undefined : handleEditSave}
-              type={isAdding ? "submit" : "button"}
-              form={isAdding ? undefined : "edit-form"}
+              type="submit"
+              form="jemaat-form"
               className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
             >
               <Save size={16} /> {isAdding ? 'Simpan Data Jemaat' : 'Simpan Perubahan'}

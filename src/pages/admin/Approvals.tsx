@@ -89,8 +89,8 @@ export default function Approvals() {
                           {expandedId === item.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                         </button>
                       </td>
-                      <td className="px-6 py-4 font-medium">{item.namaPendaftar}</td>
-                      <td className="px-6 py-4">{item.noHp}</td>
+                      <td className="px-6 py-4 font-medium">{item.namaPendaftar || (item as any).nama_pendaftar || (item as any).nama || 'Pendaftar Baru'}</td>
+                      <td className="px-6 py-4">{item.noHp || (item as any).no_hp || (item as any).no_whatsapp || '-'}</td>
                       <td className="px-6 py-4">
                         <span className={clsx(
                           "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",

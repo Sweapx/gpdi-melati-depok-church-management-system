@@ -29,10 +29,14 @@ export interface Jemaat {
   wadah?: string;
   rayon?: string;
   anggotaKeluarga?: JemaatFamilyMember[];
+  kelurahan?: string;
+  kecamatan?: string;
+  kabupatenKota?: string;
+  provinsi?: string;
   createdAt: string;
 }
 
-export type RegistrationType = 'jemaat_baru' | 'event';
+export type RegistrationType = 'jemaat_baru' | 'event' | 'baptisan' | 'pemutakhiran_data' | 'pendataan_terdaftar';
 export type RegistrationStatus = 'Pending' | 'Disetujui' | 'Ditolak';
 
 export interface RegistrationItem {
@@ -40,6 +44,7 @@ export interface RegistrationItem {
   type: RegistrationType;
   jenisKegiatan?: string;
   namaPendaftar: string;
+  nik?: string;
   gender?: 'Pria' | 'Wanita';
   tempatLahir?: string;
   tanggalLahir?: string;
@@ -47,6 +52,8 @@ export interface RegistrationItem {
   alamat?: string;
   rayon?: string;
   status: RegistrationStatus;
+  statusNote?: string;
+  anggotaKeluarga?: any[];
   tanggalDaftar: string;
 }
 
@@ -62,7 +69,10 @@ export interface ScheduleItem {
   id: string;
   kategori: string;
   judul: string;
+  tanggal?: string;
+  waktu?: string;
   hariJam: string;
+  pembicara?: string;
   lokasi?: string;
   deskripsi?: string;
   isRegistrationRequired?: boolean;

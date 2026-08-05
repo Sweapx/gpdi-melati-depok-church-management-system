@@ -43,8 +43,13 @@ export default function Wadah() {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Yakin ingin menghapus wadah ini?')) return;
     try {
-      // API call here
-      setData(data.filter(w => w.id !== id));
+      const res = await fetch(`/api/wadah/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        setData(data.filter(w => w.id !== id));
+      }
     } catch (err) {
       console.error(err);
     }
@@ -53,12 +58,41 @@ export default function Wadah() {
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingWadah) return;
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const updatedWadah = {
+      nama_wadah: (formData.get('namaWadah') as string) || editingWadah.namaWadah,
+      ketua_wadah: (formData.get('ketuaWadah') as string) || editingWadah.ketuaWadah,
+      umur_minimal: parseInt(formData.get('umurMinimal') as string) || editingWadah.umurMinimal,
+      umur_maksimal: parseInt(formData.get('umurMaksimal') as string) || editingWadah.umurMaksimal,
+      jumlah_anggota: editingWadah.jumlahAnggota,
+    };
+
     try {
-      // API call here
-      setData(data.map(w => w.id === editingWadah.id ? editingWadah : w));
-      setEditingWadah(null);
+      const res = await fetch(`/api/wadah/${editingWadah.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify(updatedWadah)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const converted = {
+          id: json.data.id,
+          namaWadah: json.data.nama_wadah,
+          ketuaWadah: json.data.ketua_wadah,
+          umurMinimal: json.data.umur_minimal,
+          umurMaksimal: json.data.umur_maksimal,
+          jumlahAnggota: json.data.jumlah_anggota,
+        };
+        setData(data.map(w => w.id === editingWadah.id ? converted : w));
+        setEditingWadah(null);
+      } else {
+        const error = await res.json();
+        alert('Gagal mengupdate wadah: ' + (error.message || 'Unknown error'));
+      }
     } catch (err) {
       console.error(err);
+      alert('Gagal mengupdate wadah: Network error');
     }
   };
 

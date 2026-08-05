@@ -61,7 +61,7 @@ export default function UlangTahun() {
     const birthDate = j.tanggalLahir ? new Date(j.tanggalLahir) : null;
     const birthMonth = birthDate ? birthDate.getMonth() + 1 : null;
     
-    const matchesSearch = j.nama.toLowerCase().includes(search.toLowerCase()) || j.nik.includes(search);
+    const matchesSearch = (j.nama && j.nama.toLowerCase().includes(search.toLowerCase())) || (j.nik && j.nik.includes(search));
     const matchesMonth = filterMonth === '' || birthMonth === parseInt(filterMonth);
     
     return matchesSearch && matchesMonth;
@@ -95,7 +95,7 @@ export default function UlangTahun() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input 
               type="text" 
-              placeholder="Cari nama atau NIK..." 
+              placeholder="Cari nama..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-xl border border-border-subtle focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold text-sm bg-white"

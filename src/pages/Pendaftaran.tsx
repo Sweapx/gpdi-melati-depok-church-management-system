@@ -14,6 +14,17 @@ export default function Pendaftaran() {
       setActiveTab('event');
     }
   }, [searchParams]);
+
+  const [rayonList, setRayonList] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/rayon')
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) setRayonList(res.data);
+      })
+      .catch(() => {});
+  }, []);
   const [step, setStep] = useState(1);
   const [totalSteps] = useState(2);
   const [formData, setFormData] = useState<any>({ type: activeTab === 'jemaat' ? 'jemaat_baru' : 'event' });
@@ -34,17 +45,23 @@ export default function Pendaftaran() {
       const payload = {
         type: activeTab === 'jemaat' ? 'jemaat_baru' : 'event',
         namaPendaftar: formData.namaPendaftar,
+        nama_pendaftar: formData.namaPendaftar,
         noHp: formData.noHp,
+        no_hp: formData.noHp,
         status: 'Pending',
         tanggalDaftar: new Date().toISOString(),
+        tanggal_daftar: new Date().toISOString(),
         ...(activeTab === 'jemaat' ? {
           gender: formData.gender,
           tempatLahir: formData.tempatLahir,
+          tempat_lahir: formData.tempatLahir,
           tanggalLahir: formData.tanggalLahir,
+          tanggal_lahir: formData.tanggalLahir,
           alamat: formData.alamat,
           rayon: formData.rayon
         } : {
-          jenisKegiatan: formData.jenisKegiatan
+          jenisKegiatan: formData.jenisKegiatan,
+          jenis_kegiatan: formData.jenisKegiatan
         })
       };
       const res = await fetch('/api/registrations', {
@@ -186,11 +203,11 @@ export default function Pendaftaran() {
                               <label className="text-sm font-bold text-navy">Rayon</label>
                               <select name="rayon" onChange={handleChange} value={formData.rayon || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50">
                                 <option value="">Pilih Rayon...</option>
-                                <option value="Rayon 1">Rayon 1</option>
-                                <option value="Rayon 2">Rayon 2</option>
-                                <option value="Rayon 3">Rayon 3</option>
-                                <option value="Rayon 4">Rayon 4</option>
-                                <option value="Rayon 5">Rayon 5</option>
+                                {rayonList.map(rayon => (
+                                  <option key={rayon.id} value={rayon.nama_rayon}>
+                                    {rayon.nama_rayon}
+                                  </option>
+                                ))}
                               </select>
                             </div>
                           </div>

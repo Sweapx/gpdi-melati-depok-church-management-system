@@ -149,6 +149,7 @@ router.post("/schedules", async (req, res) => {
       hari_jam, kategori, kuota, terdaftar, registration_fee, need_payment_proof
     } = req.body;
 
+    const finalTanggal = tanggal || new Date().toISOString().split('T')[0];
     const id = generateId("SCH");
     const query = `
       INSERT INTO schedules (
@@ -158,7 +159,7 @@ router.post("/schedules", async (req, res) => {
       RETURNING *
     `;
     const values = [
-      id, judul, tanggal, waktu, lokasi, deskripsi,
+      id, judul, finalTanggal, waktu, lokasi, deskripsi,
       is_registration_required || false, hari_jam, kategori,
       kuota || 0, terdaftar || 0, registration_fee, need_payment_proof || false
     ];
@@ -520,21 +521,21 @@ router.get("/registrations", async (req, res) => {
     const data = result.rows.map(row => ({
       id: row.id,
       type: row.type,
-      namaPendaftar: row.nama_pendaftar,
+      namaPendaftar: row.nama_pendaftar || row.namaPendaftar || row.nama || 'Pendaftar Baru',
       nik: row.nik,
       gender: row.gender,
-      tempatLahir: row.tempat_lahir,
-      tanggalLahir: row.tanggal_lahir,
+      tempatLahir: row.tempat_lahir || row.tempatLahir || '',
+      tanggalLahir: row.tanggal_lahir || row.tanggalLahir || '',
       alamat: row.alamat,
-      noHp: row.no_hp,
+      noHp: row.no_hp || row.noHp || '-',
       lampiranKtp: row.lampiran_ktp,
       lampiranBuktiBayar: row.lampiran_bukti_bayar,
       status: row.status,
       statusNote: row.status_note,
       anggotaKeluarga: row.anggota_keluarga,
       rayon: row.rayon,
-      jenisKegiatan: row.jenis_kegiatan,
-      tanggalDaftar: row.tanggal_daftar,
+      jenisKegiatan: row.jenis_kegiatan || row.jenisKegiatan || '-',
+      tanggalDaftar: row.tanggal_daftar || row.created_at,
       createdAt: row.created_at
     }));
     res.json({ success: true, data });
@@ -548,10 +549,20 @@ router.post("/registrations", async (req, res) => {
   try {
     checkPostgres();
     const {
-      type, nama_pendaftar, nik, gender, tempat_lahir, tanggal_lahir,
-      alamat, no_hp, lampiran_ktp, lampiran_bukti_bayar, status,
-      status_note, anggota_keluarga, rayon, jenis_kegiatan, tanggal_daftar
+      type, status, status_note, anggota_keluarga, rayon
     } = req.body;
+
+    const nama_pendaftar = req.body.nama_pendaftar || req.body.namaPendaftar;
+    const nik = req.body.nik;
+    const gender = req.body.gender;
+    const tempat_lahir = req.body.tempat_lahir || req.body.tempatLahir;
+    const tanggal_lahir = req.body.tanggal_lahir || req.body.tanggalLahir;
+    const alamat = req.body.alamat;
+    const no_hp = req.body.no_hp || req.body.noHp;
+    const lampiran_ktp = req.body.lampiran_ktp || req.body.lampiranKtp;
+    const lampiran_bukti_bayar = req.body.lampiran_bukti_bayar || req.body.lampiranBuktiBayar;
+    const jenis_kegiatan = req.body.jenis_kegiatan || req.body.jenisKegiatan;
+    const tanggal_daftar = req.body.tanggal_daftar || req.body.tanggalDaftar || new Date().toISOString();
 
     const id = generateId("REG");
     const query = `
@@ -567,7 +578,7 @@ router.post("/registrations", async (req, res) => {
       alamat, no_hp, lampiran_ktp, lampiran_bukti_bayar,
       status || 'Pending', status_note,
       anggota_keluarga ? JSON.stringify(anggota_keluarga) : null,
-      rayon, jenis_kegiatan, tanggal_daftar || new Date().toISOString()
+      rayon, jenis_kegiatan, tanggal_daftar
     ];
 
     const result = await pool!.query(query, values);
@@ -673,7 +684,9 @@ router.get("/knowledge-base", async (req, res) => {
 router.post("/knowledge-base", async (req, res) => {
   try {
     checkPostgres();
-    const { patterns, bot_response, is_active } = req.body;
+    const { patterns } = req.body;
+    const bot_response = req.body.bot_response || req.body.botResponse;
+    const is_active = req.body.is_active !== undefined ? req.body.is_active : (req.body.isActive !== undefined ? req.body.isActive : true);
 
     const id = generateId("KB");
     const query = `
@@ -685,11 +698,17 @@ router.post("/knowledge-base", async (req, res) => {
       id,
       Array.isArray(patterns) ? JSON.stringify(patterns) : patterns,
       bot_response,
-      is_active !== undefined ? is_active : true
+      is_active
     ];
 
     const result = await pool!.query(query, values);
-    res.json({ success: true, data: result.rows[0] });
+    const row = result.rows[0];
+    const data = {
+      ...row,
+      botResponse: row.bot_response,
+      isActive: row.is_active
+    };
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error creating knowledge base:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -700,7 +719,9 @@ router.put("/knowledge-base/:id", async (req, res) => {
   try {
     checkPostgres();
     const { id } = req.params;
-    const { patterns, bot_response, is_active } = req.body;
+    const { patterns } = req.body;
+    const bot_response = req.body.bot_response || req.body.botResponse;
+    const is_active = req.body.is_active !== undefined ? req.body.is_active : (req.body.isActive !== undefined ? req.body.isActive : true);
 
     const query = `
       UPDATE knowledge_base SET
@@ -711,7 +732,7 @@ router.put("/knowledge-base/:id", async (req, res) => {
     const values = [
       Array.isArray(patterns) ? JSON.stringify(patterns) : patterns,
       bot_response,
-      is_active !== undefined ? is_active : true,
+      is_active,
       id
     ];
 
@@ -719,7 +740,13 @@ router.put("/knowledge-base/:id", async (req, res) => {
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: "Knowledge base not found" });
     } else {
-      res.json({ success: true, data: result.rows[0] });
+      const row = result.rows[0];
+      const data = {
+        ...row,
+        botResponse: row.bot_response,
+        isActive: row.is_active
+      };
+      res.json({ success: true, data });
     }
   } catch (error: any) {
     console.error("Error updating knowledge base:", error);
@@ -843,8 +870,39 @@ router.delete("/prayers/:id", async (req, res) => {
 router.get("/wadah", async (req, res) => {
   try {
     checkPostgres();
-    const result = await pool!.query("SELECT * FROM wadah ORDER BY nama_wadah ASC");
-    res.json({ success: true, data: result.rows });
+    const wadahRes = await pool!.query("SELECT * FROM wadah ORDER BY nama_wadah ASC");
+    const jemaatRes = await pool!.query("SELECT * FROM jemaat WHERE status_jemaat = 'Aktif' OR status_jemaat IS NULL");
+    const jemaats = jemaatRes.rows;
+
+    const data = wadahRes.rows.map(w => {
+      const minAge = Number(w.umur_minimal) || 0;
+      const maxAge = Number(w.umur_maksimal) || 150;
+      let count = 0;
+      for (const j of jemaats) {
+        if (j.wadah && j.wadah.trim().toLowerCase() === w.nama_wadah.trim().toLowerCase()) {
+          count++;
+        } else if (j.tanggal_lahir) {
+          const birthDate = new Date(j.tanggal_lahir);
+          if (!isNaN(birthDate.getTime())) {
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const m = today.getMonth() - birthDate.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+              age--;
+            }
+            if (age >= minAge && age <= maxAge) {
+              count++;
+            }
+          }
+        }
+      }
+      return {
+        ...w,
+        jumlah_anggota: count
+      };
+    });
+
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error fetching wadah:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -887,7 +945,7 @@ router.put("/wadah/:id", async (req, res) => {
       WHERE id = $6
       RETURNING *
     `;
-    const values = [nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota, id];
+    const values = [nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota || 0, id];
 
     const result = await pool!.query(query, values);
     if (result.rows.length === 0) {
@@ -921,8 +979,19 @@ router.delete("/wadah/:id", async (req, res) => {
 router.get("/rayon", async (req, res) => {
   try {
     checkPostgres();
-    const result = await pool!.query("SELECT * FROM rayon ORDER BY nama_rayon ASC");
-    res.json({ success: true, data: result.rows });
+    const rayonRes = await pool!.query("SELECT * FROM rayon ORDER BY nama_rayon ASC");
+    const jemaatRes = await pool!.query("SELECT * FROM jemaat WHERE status_jemaat = 'Aktif' OR status_jemaat IS NULL");
+    const jemaats = jemaatRes.rows;
+
+    const data = rayonRes.rows.map(r => {
+      const count = jemaats.filter(j => j.rayon && j.rayon.trim().toLowerCase() === r.nama_rayon.trim().toLowerCase()).length;
+      return {
+        ...r,
+        jumlah_anggota: count
+      };
+    });
+
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error fetching rayon:", error);
     res.status(500).json({ success: false, message: error.message });

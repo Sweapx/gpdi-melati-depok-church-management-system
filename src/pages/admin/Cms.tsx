@@ -83,16 +83,16 @@ export default function Cms() {
       payload = {
         judul: payload.judul,
         tanggal: payload.tanggal || new Date().toISOString().split('T')[0],
-        waktu: payload.waktu,
+        waktu: payload.waktu || '',
         lokasi: payload.lokasi,
-        deskripsi: payload.deskripsi,
+        deskripsi: payload.deskripsi || '',
         kategori: activeTab === 'ibadah' ? 'Ibadah Raya' : 'Event',
-        is_registration_required: payload.is_registration_required === 'true' || payload.is_registration_required === true,
-        hari_jam: payload.hari_jam,
-        kuota: payload.is_registration_required === 'true' || payload.is_registration_required === true ? Number(payload.kuota) : 0,
+        is_registration_required: payload.isRegistrationRequired === 'true' || payload.isRegistrationRequired === true || payload.is_registration_required === 'true' || payload.is_registration_required === true,
+        hari_jam: payload.hariJam || payload.hari_jam || '',
+        kuota: (payload.isRegistrationRequired === 'true' || payload.isRegistrationRequired === true || payload.is_registration_required === 'true' || payload.is_registration_required === true) ? Number(payload.kuota) : 0,
         terdaftar: 0,
-        registration_fee: payload.registration_fee,
-        need_payment_proof: payload.need_payment_proof
+        registration_fee: payload.registrationFee || payload.registration_fee,
+        need_payment_proof: payload.needPaymentProof || payload.need_payment_proof
       };
     } else if (activeTab === 'hero') {
       payload = {
@@ -346,6 +346,10 @@ export default function Cms() {
                 {(activeTab === 'ibadah' || activeTab === 'event') && (
                   <>
                     <div>
+                      <label className="text-xs font-bold text-navy">Tanggal</label>
+                      <input type="date" value={editingItem.tanggal ? editingItem.tanggal.split('T')[0] : ''} onChange={e => setEditingItem({...editingItem, tanggal: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
+                    </div>
+                    <div>
                       <label className="text-xs font-bold text-navy">Hari & Jam (contoh: Minggu, 09:00 WIB)</label>
                       <input type="text" value={editingItem.hariJam || ''} onChange={e => setEditingItem({...editingItem, hariJam: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
                     </div>
@@ -533,6 +537,10 @@ export default function Cms() {
 
                 {(activeTab === 'ibadah' || activeTab === 'event') && (
                   <>
+                    <div>
+                      <label className="text-xs font-bold text-navy">Tanggal</label>
+                      <input type="date" value={formData.tanggal || new Date().toISOString().split('T')[0]} onChange={e => setFormData({...formData, tanggal: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />
+                    </div>
                     <div>
                       <label className="text-xs font-bold text-navy">Hari & Jam (contoh: Minggu, 09:00 WIB)</label>
                       <input type="text" value={formData.hariJam || ''} onChange={e => setFormData({...formData, hariJam: e.target.value})} className="w-full border border-border-subtle rounded-lg px-3 py-2 text-sm mt-1 focus:ring-1 focus:ring-gold outline-none" required />

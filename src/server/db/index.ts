@@ -1,4 +1,3 @@
-import { InMemoryStore } from './types.ts';
 import bcrypt from 'bcrypt';
 import dotenv from "dotenv";
 import { Pool } from 'pg';

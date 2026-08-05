@@ -64,7 +64,7 @@ export default function JemaatKeluarMeninggal() {
     (filterStatus === 'Semua' || j.statusJemaat === filterStatus) &&
     (filterWadah === 'Semua Wadah' || (j as any).wadah === filterWadah) &&
     (filterRayon === 'Semua Rayon' || (j as any).rayon === filterRayon) &&
-    (j.nama.toLowerCase().includes(search.toLowerCase()) || j.nik.includes(search))
+    ((j.nama && j.nama.toLowerCase().includes(search.toLowerCase())) || (j.nik && j.nik.includes(search)))
   );
 
   const wadahOptions = ['Semua Wadah', ...Array.from(new Set(data.map(j => (j as any).wadah).filter(Boolean)))];
@@ -83,7 +83,7 @@ export default function JemaatKeluarMeninggal() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input 
               type="text" 
-              placeholder="Cari nama atau NIK..." 
+              placeholder="Cari nama..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-xl border border-border-subtle focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold text-sm bg-white"

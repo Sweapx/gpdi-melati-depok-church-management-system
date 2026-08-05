@@ -48,21 +48,37 @@ export default function Rayon() {
   const handleViewAnggota = async (rayon: Rayon) => {
     setViewingRayon(rayon);
     setIsLoadingAnggota(true);
-    // Mock data for anggota rayon
-    const mockAnggota: AnggotaRayon[] = [
-      { id: '1', nama: 'Budi Santoso', tanggalLahir: '1990-05-15', noWhatsApp: '081234567890' },
-      { id: '2', nama: 'Siti Rahayu', tanggalLahir: '1992-08-20', noWhatsApp: '081234567891' },
-      { id: '3', nama: 'Agus Pratama', tanggalLahir: '1988-03-10', noWhatsApp: '081234567892' },
-    ];
-    setAnggotaRayon(mockAnggota);
-    setIsLoadingAnggota(false);
+    try {
+      const res = await fetch('/api/jemaat');
+      const json = await res.json();
+      if (json.success) {
+        const filtered = json.data
+          .filter((j: any) => j.rayon && j.rayon.trim().toLowerCase() === rayon.namaRayon.trim().toLowerCase())
+          .map((j: any) => ({
+            id: j.id,
+            nama: j.nama,
+            tanggalLahir: j.tanggal_lahir || j.tanggalLahir || '-',
+            noWhatsApp: j.no_hp || j.noHp || '-'
+          }));
+        setAnggotaRayon(filtered);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingAnggota(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Yakin ingin menghapus rayon ini?')) return;
     try {
-      // API call here
-      setData(data.filter(r => r.id !== id));
+      const res = await fetch(`/api/rayon/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        setData(data.filter(r => r.id !== id));
+      }
     } catch (err) {
       console.error(err);
     }
@@ -71,12 +87,37 @@ export default function Rayon() {
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRayon) return;
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const updatedRayon = {
+      nama_rayon: (formData.get('namaRayon') as string) || editingRayon.namaRayon,
+      ketua_rayon: (formData.get('ketuaRayon') as string) || editingRayon.ketuaRayon,
+      jumlah_anggota: editingRayon.jumlahAnggota,
+    };
+
     try {
-      // API call here
-      setData(data.map(r => r.id === editingRayon.id ? editingRayon : r));
-      setEditingRayon(null);
+      const res = await fetch(`/api/rayon/${editingRayon.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify(updatedRayon)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const converted = {
+          id: json.data.id,
+          namaRayon: json.data.nama_rayon,
+          ketuaRayon: json.data.ketua_rayon,
+          jumlahAnggota: json.data.jumlah_anggota,
+        };
+        setData(data.map(r => r.id === editingRayon.id ? converted : r));
+        setEditingRayon(null);
+      } else {
+        const error = await res.json();
+        alert('Gagal mengupdate rayon: ' + (error.message || 'Unknown error'));
+      }
     } catch (err) {
       console.error(err);
+      alert('Gagal mengupdate rayon: Network error');
     }
   };
 
