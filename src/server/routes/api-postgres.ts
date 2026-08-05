@@ -408,11 +408,11 @@ router.post("/import-excel-jemaat", async (req, res) => {
 
         // Ensure Wadah 1-5 default rows exist with accurate counts
         const defaultWadahList = [
-          { id: 'WAD-001', nama: 'Kaum Muda', ketua: 'Joyhill Abineno', min: 20, max: 30, count: 91 },
-          { id: 'WAD-002', nama: 'Kaum Pria', ketua: 'Mardongan Simanjuntak', min: 31, max: 100, count: 79 },
-          { id: 'WAD-003', nama: 'Kaum Remaja', ketua: 'Chloe Davincia Michelle', min: 13, max: 19, count: 34 },
-          { id: 'WAD-004', nama: 'Kaum Wanita', ketua: 'Ester Wuarlela', min: 31, max: 100, count: 134 },
-          { id: 'WAD-005', nama: 'Sekolah Minggu', ketua: 'Seresy Matius', min: 1, max: 12, count: 36 }
+          { id: 'WAD-001', nama: 'Kaum Muda', ketua: 'Joyhill Abineno', min: 21, max: 30, count: 64 },
+          { id: 'WAD-002', nama: 'Kaum Pria', ketua: 'Mardongan Simanjuntak', min: 31, max: 100, count: 80 },
+          { id: 'WAD-003', nama: 'Kaum Remaja', ketua: 'Chloe Davincia Michelle', min: 14, max: 20, count: 23 },
+          { id: 'WAD-004', nama: 'Kaum Wanita', ketua: 'Ester Wuarlela', min: 31, max: 100, count: 136 },
+          { id: 'WAD-005', nama: 'Sekolah Minggu', ketua: 'Seresy Matius', min: 1, max: 13, count: 68 }
         ];
 
         for (const w of defaultWadahList) {
@@ -1521,11 +1521,11 @@ router.get("/wadah", async (req, res) => {
       }
 
       if (jemaats.length === 0) {
-        if (w.id === 'WAD-001' || wName.includes('muda')) count = 91;
-        else if (w.id === 'WAD-002' || wName.includes('pria')) count = 79;
-        else if (w.id === 'WAD-003' || wName.includes('remaja')) count = 34;
-        else if (w.id === 'WAD-004' || wName.includes('wanita')) count = 134;
-        else if (w.id === 'WAD-005' || wName.includes('sekolah minggu')) count = 36;
+        if (w.id === 'WAD-001' || wName.includes('muda')) count = 64;
+        else if (w.id === 'WAD-002' || wName.includes('pria')) count = 80;
+        else if (w.id === 'WAD-003' || wName.includes('remaja')) count = 23;
+        else if (w.id === 'WAD-004' || wName.includes('wanita')) count = 136;
+        else if (w.id === 'WAD-005' || wName.includes('sekolah minggu')) count = 68;
       }
 
       return {

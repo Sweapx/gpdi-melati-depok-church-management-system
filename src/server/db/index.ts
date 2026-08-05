@@ -236,11 +236,11 @@ async function initDb() {
 
       INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
       VALUES 
-        ('WAD-001', 'Kaum Muda', 'Joyhill Abineno', 20, 30, 91),
-        ('WAD-002', 'Kaum Pria', 'Mardongan Simanjuntak', 31, 100, 79),
-        ('WAD-003', 'Kaum Remaja', 'Chloe Davincia Michelle', 13, 19, 34),
-        ('WAD-004', 'Kaum Wanita', 'Ester Wuarlela', 31, 100, 134),
-        ('WAD-005', 'Sekolah Minggu', 'Seresy Matius', 1, 12, 36)
+        ('WAD-001', 'Kaum Muda', 'Joyhill Abineno', 21, 30, 64),
+        ('WAD-002', 'Kaum Pria', 'Mardongan Simanjuntak', 31, 100, 80),
+        ('WAD-003', 'Kaum Remaja', 'Chloe Davincia Michelle', 14, 20, 23),
+        ('WAD-004', 'Kaum Wanita', 'Ester Wuarlela', 31, 100, 136),
+        ('WAD-005', 'Sekolah Minggu', 'Seresy Matius', 1, 13, 68)
       ON CONFLICT (id) DO UPDATE SET
         nama_wadah = EXCLUDED.nama_wadah,
         ketua_wadah = EXCLUDED.ketua_wadah,
