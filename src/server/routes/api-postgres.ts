@@ -198,7 +198,37 @@ const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().
 router.get("/jemaat", async (req, res) => {
   try {
     checkPostgres();
-    const result = await pool!.query("SELECT * FROM jemaat ORDER BY created_at DESC");
+    let result = await pool!.query("SELECT * FROM jemaat ORDER BY created_at DESC");
+    
+    if (result.rows.length === 0) {
+      const parsedPath = path.resolve(process.cwd(), './data_jemaat_parsed.json');
+      if (fs.existsSync(parsedPath)) {
+        try {
+          const parsedData = JSON.parse(fs.readFileSync(parsedPath, 'utf-8'));
+          for (const item of parsedData) {
+            await pool!.query(`
+              INSERT INTO jemaat (id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat, no_hp, status_jemaat, wadah, rayon)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              ON CONFLICT (id) DO UPDATE SET
+                nama = EXCLUDED.nama,
+                gender = EXCLUDED.gender,
+                tanggal_lahir = EXCLUDED.tanggal_lahir,
+                status_jemaat = EXCLUDED.status_jemaat,
+                wadah = EXCLUDED.wadah,
+                rayon = EXCLUDED.rayon;
+            `, [
+              item.id, item.nama, item.nik, item.gender, item.tempat_lahir,
+              item.tanggal_lahir, item.alamat, item.no_hp, item.status_jemaat || 'Aktif',
+              item.wadah, item.rayon
+            ]);
+          }
+          result = await pool!.query("SELECT * FROM jemaat ORDER BY created_at DESC");
+        } catch (seedErr) {
+          console.error("Error auto-seeding jemaat table:", seedErr);
+        }
+      }
+    }
+
     const data = result.rows.map(row => ({
       ...row,
       tempatLahir: row.tempat_lahir || row.tempatLahir || '',
@@ -1364,8 +1394,51 @@ router.put("/registrations/:id/status", async (req, res) => {
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: "Registration not found" });
     } else {
-      // Convert snake_case to camelCase for frontend
       const row = result.rows[0];
+
+      // Auto-insert into jemaat table if new jemaat registration is approved
+      if (status === 'Disetujui' && (row.type === 'jemaat_baru' || row.type === 'pendataan_terdaftar')) {
+        try {
+          const jId = generateId("JEM");
+          const tglStr = row.tanggal_lahir ? (typeof row.tanggal_lahir === 'string' ? row.tanggal_lahir.split('T')[0] : new Date(row.tanggal_lahir).toISOString().split('T')[0]) : null;
+          let age = 30;
+          if (tglStr) {
+            const parts = tglStr.split(/[-/]/);
+            if (parts.length === 3) {
+              let year = 0, month = 0, day = 0;
+              if (parseInt(parts[0]) > 1000) { year = parseInt(parts[0]); month = parseInt(parts[1]) - 1; day = parseInt(parts[2]); }
+              else if (parseInt(parts[2]) > 1000) { year = parseInt(parts[2]); month = parseInt(parts[1]) - 1; day = parseInt(parts[0]); }
+              if (year > 0) {
+                const birthDate = new Date(year, month, day);
+                const today = new Date();
+                age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+              }
+            }
+          }
+          let autoWadah = '';
+          if (age > 0 && age <= 13) autoWadah = 'Sekolah Minggu';
+          else if (age >= 14 && age <= 20) autoWadah = 'Kaum Remaja';
+          else if (age >= 21 && age <= 30) autoWadah = 'Kaum Muda';
+          else if ((row.gender || '').toLowerCase() === 'wanita' || (row.gender || '').toLowerCase() === 'perempuan') autoWadah = 'Kaum Wanita';
+          else autoWadah = 'Kaum Pria';
+
+          await pool!.query(`
+            INSERT INTO jemaat (id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat, no_hp, status_jemaat, wadah, rayon)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ON CONFLICT (id) DO NOTHING;
+          `, [
+            jId, row.nama_pendaftar || 'Jemaat Baru', row.nik, row.gender || 'Pria',
+            row.tempat_lahir || 'Depok', tglStr, row.alamat || '-', row.no_hp || '-',
+            'Aktif', autoWadah, row.rayon || 'Rayon 1'
+          ]);
+        } catch (jInsErr) {
+          console.error("Error auto inserting new jemaat on approval:", jInsErr);
+        }
+      }
+
+      // Convert snake_case to camelCase for frontend
       const data = {
         id: row.id,
         type: row.type,
