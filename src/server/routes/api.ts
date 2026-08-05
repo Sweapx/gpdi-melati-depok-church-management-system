@@ -111,6 +111,24 @@ router.put("/registrations/:id/status", (req, res) => {
     
     // Auto insert into jemaat if approved
     if (reg.status === "Disetujui" && (reg.type === "jemaat_baru" || reg.type === "pendataan_terdaftar")) {
+      let computedWadah = 'Kaum Pria';
+      const genderLower = (reg.gender || '').toLowerCase();
+      let age = 35;
+      if (reg.tanggalLahir) {
+        const birthStr = reg.tanggalLahir.toString().split('T')[0];
+        const parts = birthStr.split('-');
+        if (parts.length === 3) {
+          const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          const today = new Date();
+          age = today.getFullYear() - birthDate.getFullYear();
+        }
+      }
+      if (age <= 13) computedWadah = 'Sekolah Minggu';
+      else if (age <= 20) computedWadah = 'Kaum Remaja';
+      else if (age <= 30) computedWadah = 'Kaum Muda';
+      else if (genderLower === 'wanita' || genderLower === 'perempuan') computedWadah = 'Kaum Wanita';
+      else computedWadah = 'Kaum Pria';
+
       const newJemaat = {
         id: `JEM-${Date.now()}`,
         nama: reg.namaPendaftar,
@@ -124,6 +142,8 @@ router.put("/registrations/:id/status", (req, res) => {
         statusJemaat: 'Aktif',
         kategoriKaum: 'Umum',
         sektor: 'Default Sektor',
+        rayon: reg.rayon || 'Rayon 1',
+        wadah: computedWadah,
         createdAt: new Date().toISOString(),
         anggotaKeluarga: reg.anggotaKeluarga || []
       };

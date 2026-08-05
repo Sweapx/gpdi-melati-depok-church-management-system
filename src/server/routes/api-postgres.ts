@@ -408,11 +408,11 @@ router.post("/import-excel-jemaat", async (req, res) => {
 
         // Ensure Wadah 1-5 default rows exist
         const defaultWadahList = [
-          { id: 'WAD-001', nama: 'Kaum Pria (Bapak)', ketua: 'Tim Kaum Pria', min: 32, max: 91 },
-          { id: 'WAD-002', nama: 'Kaum Wanita (Ibu)', ketua: 'Tim Kaum Wanita', min: 28, max: 96 },
-          { id: 'WAD-003', nama: 'Anak & Remaja', ketua: 'Tim Anak & Remaja', min: 2, max: 26 },
-          { id: 'WAD-004', nama: 'Pemuda (Youth)', ketua: 'Tim Pemuda', min: 16, max: 32 },
-          { id: 'WAD-005', nama: 'Dewasa Muda (Professional)', ketua: 'Tim Professional', min: 20, max: 67 }
+          { id: 'WAD-001', nama: 'Kaum Muda', ketua: 'Joyhill Abineno', min: 21, max: 30 },
+          { id: 'WAD-002', nama: 'Kaum Pria', ketua: 'Mardongan Simanjuntak', min: 31, max: 100 },
+          { id: 'WAD-003', nama: 'Kaum Remaja', ketua: 'Chloe Davincia Michelle', min: 14, max: 20 },
+          { id: 'WAD-004', nama: 'Kaum Wanita', ketua: 'Ester Wuarlela', min: 31, max: 100 },
+          { id: 'WAD-005', nama: 'Sekolah Minggu', ketua: 'Seresy Matius', min: 1, max: 13 }
         ];
 
         for (const w of defaultWadahList) {
@@ -1015,16 +1015,36 @@ router.put("/registrations/:id/status", async (req, res) => {
         const reg = result.rows[0];
         if (reg.type === "jemaat_baru" || reg.type === "pendataan_terdaftar") {
           const jemaatId = generateId("JEM");
+
+          // Determine Wadah
+          let computedWadah = 'Kaum Pria';
+          const genderLower = (reg.gender || '').toLowerCase();
+          let age = 35;
+          if (reg.tanggal_lahir) {
+            const birthStr = reg.tanggal_lahir.toString().split('T')[0];
+            const parts = birthStr.split('-');
+            if (parts.length === 3) {
+              const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+              const today = new Date();
+              age = today.getFullYear() - birthDate.getFullYear();
+            }
+          }
+          if (age <= 13) computedWadah = 'Sekolah Minggu';
+          else if (age <= 20) computedWadah = 'Kaum Remaja';
+          else if (age <= 30) computedWadah = 'Kaum Muda';
+          else if (genderLower === 'wanita' || genderLower === 'perempuan') computedWadah = 'Kaum Wanita';
+          else computedWadah = 'Kaum Pria';
+
           const jemaatQuery = `
             INSERT INTO jemaat (
               id, nama, nik, gender, tempat_lahir, tanggal_lahir,
-              alamat, no_hp, status_jemaat, anggota_keluarga
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+              alamat, no_hp, status_jemaat, anggota_keluarga, rayon, wadah
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           `;
           await pool!.query(jemaatQuery, [
             jemaatId, reg.nama_pendaftar, reg.nik, reg.gender,
             reg.tempat_lahir, reg.tanggal_lahir, reg.alamat,
-            reg.no_hp, 'Aktif', reg.anggota_keluarga
+            reg.no_hp, 'Aktif', reg.anggota_keluarga, reg.rayon || 'Rayon 1', computedWadah
           ]);
         }
       }
@@ -1400,11 +1420,11 @@ router.get("/wadah", async (req, res) => {
     }
 
     const defaultWadah = [
-      { id: 'WAD-001', nama_wadah: 'Kaum Pria (Bapak)', ketua_wadah: 'Tim Kaum Pria', umur_minimal: 32, umur_maksimal: 91 },
-      { id: 'WAD-002', nama_wadah: 'Kaum Wanita (Ibu)', ketua_wadah: 'Tim Kaum Wanita', umur_minimal: 28, umur_maksimal: 96 },
-      { id: 'WAD-003', nama_wadah: 'Anak & Remaja', ketua_wadah: 'Tim Anak & Remaja', umur_minimal: 2, umur_maksimal: 26 },
-      { id: 'WAD-004', nama_wadah: 'Pemuda (Youth)', ketua_wadah: 'Tim Pemuda', umur_minimal: 16, umur_maksimal: 32 },
-      { id: 'WAD-005', nama_wadah: 'Dewasa Muda (Professional)', ketua_wadah: 'Tim Professional', umur_minimal: 20, umur_maksimal: 67 }
+      { id: 'WAD-001', nama_wadah: 'Kaum Muda', ketua_wadah: 'Joyhill Abineno', umur_minimal: 21, umur_maksimal: 30 },
+      { id: 'WAD-002', nama_wadah: 'Kaum Pria', ketua_wadah: 'Mardongan Simanjuntak', umur_minimal: 31, umur_maksimal: 100 },
+      { id: 'WAD-003', nama_wadah: 'Kaum Remaja', ketua_wadah: 'Chloe Davincia Michelle', umur_minimal: 14, umur_maksimal: 20 },
+      { id: 'WAD-004', nama_wadah: 'Kaum Wanita', ketua_wadah: 'Ester Wuarlela', umur_minimal: 31, umur_maksimal: 100 },
+      { id: 'WAD-005', nama_wadah: 'Sekolah Minggu', ketua_wadah: 'Seresy Matius', umur_minimal: 1, umur_maksimal: 13 }
     ];
 
     if (wadahRows.length === 0) {
@@ -1423,6 +1443,7 @@ router.get("/wadah", async (req, res) => {
       let count = 0;
       for (const j of jemaats) {
         const jw = (j.wadah || '').trim().toLowerCase();
+        const jGender = (j.gender || '').trim().toLowerCase();
         let age: number | null = null;
         if (j.tanggal_lahir || j.tanggalLahir) {
           const birthStr = (j.tanggal_lahir || j.tanggalLahir).toString();
@@ -1440,30 +1461,45 @@ router.get("/wadah", async (req, res) => {
           }
         }
 
-        const isAgeMatch = age !== null && age >= minAge && age <= maxAge;
-        const isExplicitMatch = jw !== '' && (jw === wName || jw.includes(wName) || wName.includes(jw));
+        let isMatch = false;
+        if (jw !== '') {
+          if (jw === wName || jw.includes(wName) || wName.includes(jw)) {
+            // If explicit wadah name matches, verify gender if it is Pria or Wanita
+            if (wName.includes('pria') && jGender === 'wanita') {
+              isMatch = false;
+            } else if (wName.includes('wanita') && jGender === 'pria') {
+              isMatch = false;
+            } else {
+              isMatch = true;
+            }
+          }
+        }
 
-        if (isAgeMatch || isExplicitMatch) {
-          count++;
-        } else if (w.id === 'WAD-001' && (jw.includes('pria') || jw.includes('bapak') || jw === 'wadah 1')) {
-          count++;
-        } else if (w.id === 'WAD-002' && (jw.includes('wanita') || jw.includes('ibu') || jw === 'wadah 2')) {
-          count++;
-        } else if (w.id === 'WAD-003' && (jw.includes('anak') || jw.includes('remaja') || jw === 'wadah 3')) {
-          count++;
-        } else if (w.id === 'WAD-004' && (jw.includes('pemuda') || jw.includes('youth') || jw === 'wadah 4')) {
-          count++;
-        } else if (w.id === 'WAD-005' && (jw.includes('dewasa muda') || jw.includes('professional') || jw === 'wadah 5')) {
+        if (!isMatch) {
+          if (w.id === 'WAD-002' || wName === 'kaum pria') {
+            if (jw.includes('pria') || jw.includes('bapak') || (jGender === 'pria' && (jw === '' || age === null || (age >= 31 && age <= 100)))) isMatch = true;
+          } else if (w.id === 'WAD-004' || wName === 'kaum wanita') {
+            if (jw.includes('wanita') || jw.includes('ibu') || (jGender === 'wanita' && (jw === '' || age === null || (age >= 31 && age <= 100)))) isMatch = true;
+          } else if (w.id === 'WAD-001' || wName === 'kaum muda') {
+            if (jw.includes('muda') || jw.includes('pemuda') || (age !== null && age >= 21 && age <= 30)) isMatch = true;
+          } else if (w.id === 'WAD-003' || wName === 'kaum remaja') {
+            if (jw.includes('remaja') || (age !== null && age >= 14 && age <= 20)) isMatch = true;
+          } else if (w.id === 'WAD-005' || wName === 'sekolah minggu') {
+            if (jw.includes('sekolah minggu') || jw.includes('anak') || (age !== null && age >= 1 && age <= 13)) isMatch = true;
+          }
+        }
+
+        if (isMatch) {
           count++;
         }
       }
 
       if (jemaats.length === 0) {
-        if (w.id === 'WAD-001' || wName.includes('pria')) count = 80;
-        else if (w.id === 'WAD-002' || wName.includes('wanita')) count = 136;
-        else if (w.id === 'WAD-003' || wName.includes('anak')) count = 68;
-        else if (w.id === 'WAD-004' || wName.includes('pemuda')) count = 23;
-        else if (w.id === 'WAD-005' || wName.includes('dewasa muda')) count = 64;
+        if (w.id === 'WAD-001' || wName.includes('muda')) count = 64;
+        else if (w.id === 'WAD-002' || wName.includes('pria')) count = 80;
+        else if (w.id === 'WAD-003' || wName.includes('remaja')) count = 23;
+        else if (w.id === 'WAD-004' || wName.includes('wanita')) count = 136;
+        else if (w.id === 'WAD-005' || wName.includes('sekolah minggu')) count = 68;
       }
 
       return {

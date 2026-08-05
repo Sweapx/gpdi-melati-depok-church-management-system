@@ -154,7 +154,7 @@ export default function Approvals() {
                             </div>
                             <div>
                               <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Rayon</p>
-                              <p className="font-medium text-navy">{item.rayon || '-'}</p>
+                              <p className="font-medium text-navy">{item.rayon || (item as any).nama_rayon || (item as any).namaRayon || '-'}</p>
                             </div>
                             <div>
                               <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Tanggal Daftar</p>

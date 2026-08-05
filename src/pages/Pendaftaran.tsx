@@ -217,13 +217,16 @@ export default function Pendaftaran() {
                             </div>
                             <div className="space-y-1.5 sm:col-span-2">
                               <label className="text-sm font-bold text-navy">Rayon</label>
-                              <select name="rayon" onChange={handleChange} value={formData.rayon || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50">
+                              <select name="rayon" onChange={handleChange} value={formData.rayon || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50" required>
                                 <option value="">Pilih Rayon...</option>
-                                {rayonList.map(rayon => (
-                                  <option key={rayon.id} value={rayon.nama_rayon}>
-                                    {rayon.nama_rayon}
-                                  </option>
-                                ))}
+                                {rayonList.map(rayon => {
+                                  const rName = rayon.nama_rayon || rayon.namaRayon || rayon.nama || `Rayon ${rayon.id}`;
+                                  return (
+                                    <option key={rayon.id} value={rName}>
+                                      {rName}
+                                    </option>
+                                  );
+                                })}
                               </select>
                             </div>
                           </div>

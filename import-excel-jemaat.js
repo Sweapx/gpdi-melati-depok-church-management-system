@@ -27,11 +27,11 @@ console.log(`📊 Ditemukan ${rawData.length} data jemaat dari Excel (${sheetNam
 
 // Exact Wadah Mapping
 const wadahNameMap = {
-  1: 'Kaum Pria (Bapak)',
-  2: 'Kaum Wanita (Ibu)',
-  3: 'Anak & Remaja',
-  4: 'Pemuda (Youth)',
-  5: 'Dewasa Muda (Professional)'
+  1: 'Kaum Pria',
+  2: 'Kaum Wanita',
+  3: 'Sekolah Minggu',
+  4: 'Kaum Remaja',
+  5: 'Kaum Muda'
 };
 
 // Exact Rayon Mapping & Ketua
@@ -150,11 +150,11 @@ async function runImport() {
 
       // 2. Safe upsert Wadah list
       const defaultWadahList = [
-        { id: 'WAD-001', nama: 'Kaum Pria (Bapak)', ketua: 'Tim Kaum Pria', minAge: 32, maxAge: 91, count: 80 },
-        { id: 'WAD-002', nama: 'Kaum Wanita (Ibu)', ketua: 'Tim Kaum Wanita', minAge: 28, maxAge: 96, count: 136 },
-        { id: 'WAD-003', nama: 'Anak & Remaja', ketua: 'Tim Anak & Remaja', minAge: 2, maxAge: 26, count: 68 },
-        { id: 'WAD-004', nama: 'Pemuda (Youth)', ketua: 'Tim Pemuda', minAge: 16, maxAge: 32, count: 23 },
-        { id: 'WAD-005', nama: 'Dewasa Muda (Professional)', ketua: 'Tim Professional', minAge: 20, maxAge: 67, count: 64 }
+        { id: 'WAD-001', nama: 'Kaum Muda', ketua: 'Joyhill Abineno', minAge: 21, maxAge: 30, count: 64 },
+        { id: 'WAD-002', nama: 'Kaum Pria', ketua: 'Mardongan Simanjuntak', minAge: 31, maxAge: 100, count: 80 },
+        { id: 'WAD-003', nama: 'Kaum Remaja', ketua: 'Chloe Davincia Michelle', minAge: 14, maxAge: 20, count: 23 },
+        { id: 'WAD-004', nama: 'Kaum Wanita', ketua: 'Ester Wuarlela', minAge: 31, maxAge: 100, count: 136 },
+        { id: 'WAD-005', nama: 'Sekolah Minggu', ketua: 'Seresy Matius', minAge: 1, maxAge: 13, count: 68 }
       ];
 
       for (const w of defaultWadahList) {

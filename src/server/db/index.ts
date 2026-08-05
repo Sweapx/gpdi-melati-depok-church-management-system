@@ -236,19 +236,28 @@ async function initDb() {
 
       INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
       VALUES 
-        ('WAD-001', 'Wadah Muda Mudi', 'Budi Santoso', 18, 35, 0),
-        ('WAD-002', 'Wadah Remaja', 'Siti Rahayu', 13, 17, 0),
-        ('WAD-003', 'Wadah Dewasa', 'Agus Pratama', 36, 60, 0),
-        ('WAD-004', 'Wadah Lansia', 'Dewi Sartika', 61, 100, 0)
-      ON CONFLICT (id) DO NOTHING;
+        ('WAD-001', 'Kaum Muda', 'Joyhill Abineno', 21, 30, 64),
+        ('WAD-002', 'Kaum Pria', 'Mardongan Simanjuntak', 31, 100, 80),
+        ('WAD-003', 'Kaum Remaja', 'Chloe Davincia Michelle', 14, 20, 23),
+        ('WAD-004', 'Kaum Wanita', 'Ester Wuarlela', 31, 100, 136),
+        ('WAD-005', 'Sekolah Minggu', 'Seresy Matius', 1, 13, 68)
+      ON CONFLICT (id) DO UPDATE SET
+        nama_wadah = EXCLUDED.nama_wadah,
+        ketua_wadah = EXCLUDED.ketua_wadah,
+        umur_minimal = EXCLUDED.umur_minimal,
+        umur_maksimal = EXCLUDED.umur_maksimal,
+        jumlah_anggota = EXCLUDED.jumlah_anggota;
 
       INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
       VALUES 
-        ('RAY-001', 'Rayon Depok Timur', 'Hendro Wijaya', 0),
-        ('RAY-002', 'Rayon Depok Barat', 'Dewi Sartika', 0),
-        ('RAY-003', 'Rayon Depok Selatan', 'Rudi Hartono', 0),
-        ('RAY-004', 'Rayon Depok Utara', 'Sri Mulyani', 0)
-      ON CONFLICT (id) DO NOTHING;
+        ('RAY-001', 'Rayon 1', 'Suci Br Kembaren', 78),
+        ('RAY-002', 'Rayon 2', 'Tarningsih', 83),
+        ('RAY-003', 'Rayon 3', 'Harliarso', 123),
+        ('RAY-004', 'Rayon 4', 'Mega Sihombing', 87)
+      ON CONFLICT (id) DO UPDATE SET
+        nama_rayon = EXCLUDED.nama_rayon,
+        ketua_rayon = EXCLUDED.ketua_rayon,
+        jumlah_anggota = EXCLUDED.jumlah_anggota;
     `);
     console.log("PostgreSQL Database Schema Check/Initialization Complete.");
   } catch (err) {

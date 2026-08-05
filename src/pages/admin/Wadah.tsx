@@ -36,6 +36,44 @@ export default function Wadah() {
     return age;
   };
 
+  const isMemberOfWadah = (j: any, wadahId: string, wadahName: string): boolean => {
+    const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || j.status_jemaat === 'Aktif';
+    if (!isAktif) return false;
+
+    const jw = (j.wadah || '').trim().toLowerCase();
+    const jGender = (j.gender || '').trim().toLowerCase();
+    const wName = (wadahName || '').trim().toLowerCase();
+
+    const tgl = j.tanggalLahir || j.tanggal_lahir;
+    const age = tgl ? calculateAge(tgl) : null;
+
+    if (jw !== '') {
+      if (jw === wName || jw.includes(wName) || wName.includes(jw)) {
+        if (wName.includes('pria') && jGender === 'wanita') return false;
+        if (wName.includes('wanita') && jGender === 'pria') return false;
+        return true;
+      }
+    }
+
+    if (wadahId === 'WAD-002' || wName === 'kaum pria') {
+      return jw.includes('pria') || jw.includes('bapak') || (jGender === 'pria' && (jw === '' || age === null || (age >= 31 && age <= 100)));
+    }
+    if (wadahId === 'WAD-004' || wName === 'kaum wanita') {
+      return jw.includes('wanita') || jw.includes('ibu') || (jGender === 'wanita' && (jw === '' || age === null || (age >= 31 && age <= 100)));
+    }
+    if (wadahId === 'WAD-001' || wName === 'kaum muda') {
+      return jw.includes('muda') || jw.includes('pemuda') || (age !== null && age >= 21 && age <= 30);
+    }
+    if (wadahId === 'WAD-003' || wName === 'kaum remaja') {
+      return jw.includes('remaja') || (age !== null && age >= 14 && age <= 20);
+    }
+    if (wadahId === 'WAD-005' || wName === 'sekolah minggu') {
+      return jw.includes('sekolah minggu') || jw.includes('anak') || (age !== null && age >= 1 && age <= 13);
+    }
+
+    return false;
+  };
+
   const fetchAllData = () => {
     setIsLoading(true);
     Promise.all([
@@ -49,37 +87,21 @@ export default function Wadah() {
       }
       if (wadahRes.success) {
         const convertedData = wadahRes.data.map((row: any) => {
-          const wName = (row.nama_wadah || row.namaWadah || '').trim().toLowerCase();
+          const wName = row.nama_wadah || row.namaWadah || '';
           const minAge = Number(row.umur_minimal !== undefined ? row.umur_minimal : row.umurMinimal) || 0;
           const maxAge = Number(row.umur_maksimal !== undefined ? row.umur_maksimal : row.umurMaksimal) || 150;
 
           // Count matching active members
           let count = 0;
           if (jList.length > 0) {
-            count = jList.filter((j: any) => {
-              const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || j.status_jemaat === 'Aktif';
-              if (!isAktif) return false;
-              const jw = (j.wadah || '').trim().toLowerCase();
-              const tgl = j.tanggalLahir || j.tanggal_lahir;
-              const age = tgl ? calculateAge(tgl) : null;
-
-              const isAgeMatch = age !== null && age >= minAge && age <= maxAge;
-              const isExplicitMatch = jw !== '' && (jw === wName || jw.includes(wName) || wName.includes(jw));
-              if (isAgeMatch || isExplicitMatch) return true;
-              if (row.id === 'WAD-001' && (jw.includes('pria') || jw.includes('bapak'))) return true;
-              if (row.id === 'WAD-002' && (jw.includes('wanita') || jw.includes('ibu'))) return true;
-              if (row.id === 'WAD-003' && (jw.includes('anak') || jw.includes('remaja'))) return true;
-              if (row.id === 'WAD-004' && (jw.includes('pemuda') || jw.includes('youth'))) return true;
-              if (row.id === 'WAD-005' && (jw.includes('dewasa muda') || jw.includes('professional'))) return true;
-              return false;
-            }).length;
+            count = jList.filter((j: any) => isMemberOfWadah(j, row.id, wName)).length;
           } else {
             count = row.jumlah_anggota || row.jumlahAnggota || 0;
           }
 
           return {
             id: row.id,
-            namaWadah: row.nama_wadah || row.namaWadah,
+            namaWadah: wName,
             ketuaWadah: row.ketua_wadah || row.ketuaWadah,
             umurMinimal: minAge,
             umurMaksimal: maxAge,
@@ -97,27 +119,7 @@ export default function Wadah() {
   }, []);
 
   const getWadahMembers = (wadah: Wadah) => {
-    const wName = (wadah.namaWadah || '').trim().toLowerCase();
-    return jemaatList.filter((j: any) => {
-      const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || j.status_jemaat === 'Aktif';
-      if (!isAktif) return false;
-
-      const jw = (j.wadah || '').trim().toLowerCase();
-      const tgl = j.tanggalLahir || j.tanggal_lahir;
-      const age = tgl ? calculateAge(tgl) : null;
-
-      const isAgeMatch = age !== null && age >= wadah.umurMinimal && age <= wadah.umurMaksimal;
-      const isExplicitMatch = jw !== '' && (jw === wName || jw.includes(wName) || wName.includes(jw));
-      if (isAgeMatch || isExplicitMatch) return true;
-
-      if (wadah.id === 'WAD-001' && (jw.includes('pria') || jw.includes('bapak'))) return true;
-      if (wadah.id === 'WAD-002' && (jw.includes('wanita') || jw.includes('ibu'))) return true;
-      if (wadah.id === 'WAD-003' && (jw.includes('anak') || jw.includes('remaja'))) return true;
-      if (wadah.id === 'WAD-004' && (jw.includes('pemuda') || jw.includes('youth'))) return true;
-      if (wadah.id === 'WAD-005' && (jw.includes('dewasa muda') || jw.includes('professional'))) return true;
-
-      return false;
-    });
+    return jemaatList.filter((j: any) => isMemberOfWadah(j, wadah.id, wadah.namaWadah));
   };
 
   const handleDelete = async (id: string) => {
