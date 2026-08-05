@@ -284,7 +284,7 @@ export default function Cms() {
                       <td className="px-6 py-4">{item.ringkasan || item.isi?.substring(0, 50) + '...'}</td>
                     )}
                     {(activeTab === 'ibadah' || activeTab === 'event') && (
-                      <td className="px-6 py-4">{item.hariJam}</td>
+                      <td className="px-6 py-4">{item.hariJam || item.hari_jam || (item.tanggal ? new Date(item.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '-')}</td>
                     )}
                     {(activeTab === 'ibadah' || activeTab === 'event') && (
                       <td className="px-6 py-4">{item.lokasi || '-'}</td>

@@ -873,9 +873,31 @@ router.delete("/registrations/:id", async (req, res) => {
 // ============ KNOWLEDGE BASE CRUD ============
 router.get("/knowledge-base", async (req, res) => {
   try {
-    checkPostgres();
-    const result = await pool!.query("SELECT * FROM knowledge_base ORDER BY created_at DESC");
-    res.json({ success: true, data: result.rows });
+    let rows: any[] = [];
+    if (pool) {
+      try {
+        const result = await queryWithAutoTable("SELECT * FROM knowledge_base ORDER BY created_at DESC");
+        rows = result.rows;
+      } catch (dbErr) {
+        console.error("Database fetch knowledge base error:", dbErr);
+      }
+    }
+
+    if (rows.length === 0) {
+      rows = (inMemoryDB as any).knowledgeBase || [];
+    }
+
+    const data = rows.map(r => ({
+      id: r.id,
+      category: r.category || 'Umum',
+      intent: r.intent || 'general',
+      patterns: Array.isArray(r.patterns) ? r.patterns : (typeof r.patterns === 'string' ? JSON.parse(r.patterns || '[]') : []),
+      botResponse: r.bot_response || r.botResponse || '',
+      isActive: r.is_active !== undefined ? r.is_active : (r.isActive !== undefined ? r.isActive : true),
+      lastUpdated: r.last_updated || r.lastUpdated || r.created_at
+    }));
+
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error fetching knowledge base:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -884,32 +906,55 @@ router.get("/knowledge-base", async (req, res) => {
 
 router.post("/knowledge-base", async (req, res) => {
   try {
-    checkPostgres();
-    const { patterns } = req.body;
-    const bot_response = req.body.bot_response || req.body.botResponse;
+    const category = (req.body.category || "Umum").toString();
+    const intent = (req.body.intent || "general").toString();
+    const patterns = req.body.patterns || [];
+    const bot_response = (req.body.bot_response || req.body.botResponse || "").toString();
     const is_active = req.body.is_active !== undefined ? req.body.is_active : (req.body.isActive !== undefined ? req.body.isActive : true);
 
     const id = generateId("KB");
-    const query = `
-      INSERT INTO knowledge_base (id, patterns, bot_response, is_active)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `;
-    const values = [
-      id,
-      Array.isArray(patterns) ? JSON.stringify(patterns) : patterns,
-      bot_response,
-      is_active
-    ];
+    const patternsJson = Array.isArray(patterns) ? JSON.stringify(patterns) : (typeof patterns === 'string' ? patterns : JSON.stringify([patterns]));
 
-    const result = await pool!.query(query, values);
-    const row = result.rows[0];
-    const data = {
-      ...row,
-      botResponse: row.bot_response,
-      isActive: row.is_active
+    if (pool) {
+      try {
+        const query = `
+          INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING *
+        `;
+        const values = [id, category, intent, patternsJson, bot_response, is_active];
+        const result = await queryWithAutoTable(query, values);
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          return res.json({
+            success: true,
+            data: {
+              id: row.id,
+              category: row.category,
+              intent: row.intent,
+              patterns: Array.isArray(row.patterns) ? row.patterns : (typeof row.patterns === 'string' ? JSON.parse(row.patterns) : patterns),
+              botResponse: row.bot_response,
+              isActive: row.is_active
+            }
+          });
+        }
+      } catch (dbErr) {
+        console.error("Database insert knowledge base error, using fallback:", dbErr);
+      }
+    }
+
+    const fallbackItem = {
+      id,
+      category,
+      intent,
+      patterns: Array.isArray(patterns) ? patterns : [patterns],
+      botResponse: bot_response,
+      isActive: is_active,
+      lastUpdated: new Date().toISOString()
     };
-    res.json({ success: true, data });
+    (inMemoryDB as any).knowledgeBase = (inMemoryDB as any).knowledgeBase || [];
+    (inMemoryDB as any).knowledgeBase.push(fallbackItem);
+    res.json({ success: true, data: fallbackItem });
   } catch (error: any) {
     console.error("Error creating knowledge base:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -918,37 +963,57 @@ router.post("/knowledge-base", async (req, res) => {
 
 router.put("/knowledge-base/:id", async (req, res) => {
   try {
-    checkPostgres();
     const { id } = req.params;
-    const { patterns } = req.body;
-    const bot_response = req.body.bot_response || req.body.botResponse;
+    const category = (req.body.category || "Umum").toString();
+    const intent = (req.body.intent || "general").toString();
+    const patterns = req.body.patterns || [];
+    const bot_response = (req.body.bot_response || req.body.botResponse || "").toString();
     const is_active = req.body.is_active !== undefined ? req.body.is_active : (req.body.isActive !== undefined ? req.body.isActive : true);
 
-    const query = `
-      UPDATE knowledge_base SET
-        patterns = $1, bot_response = $2, is_active = $3
-      WHERE id = $4
-      RETURNING *
-    `;
-    const values = [
-      Array.isArray(patterns) ? JSON.stringify(patterns) : patterns,
-      bot_response,
-      is_active,
-      id
-    ];
+    const patternsJson = Array.isArray(patterns) ? JSON.stringify(patterns) : (typeof patterns === 'string' ? patterns : JSON.stringify([patterns]));
 
-    const result = await pool!.query(query, values);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Knowledge base not found" });
-    } else {
-      const row = result.rows[0];
-      const data = {
-        ...row,
-        botResponse: row.bot_response,
-        isActive: row.is_active
-      };
-      res.json({ success: true, data });
+    if (pool) {
+      try {
+        const query = `
+          UPDATE knowledge_base SET
+            category = $1, intent = $2, patterns = $3, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
+          WHERE id = $6
+          RETURNING *
+        `;
+        const values = [category, intent, patternsJson, bot_response, is_active, id];
+        const result = await queryWithAutoTable(query, values);
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          return res.json({
+            success: true,
+            data: {
+              id: row.id,
+              category: row.category,
+              intent: row.intent,
+              patterns: Array.isArray(row.patterns) ? row.patterns : (typeof row.patterns === 'string' ? JSON.parse(row.patterns) : patterns),
+              botResponse: row.bot_response,
+              isActive: row.is_active
+            }
+          });
+        }
+      } catch (dbErr) {
+        console.error("Database update knowledge base error, using fallback:", dbErr);
+      }
     }
+
+    const updated = {
+      id,
+      category,
+      intent,
+      patterns: Array.isArray(patterns) ? patterns : [patterns],
+      botResponse: bot_response,
+      isActive: is_active,
+      lastUpdated: new Date().toISOString()
+    };
+    if ((inMemoryDB as any).knowledgeBase) {
+      (inMemoryDB as any).knowledgeBase = (inMemoryDB as any).knowledgeBase.map((k: any) => k.id === id ? updated : k);
+    }
+    res.json({ success: true, data: updated });
   } catch (error: any) {
     console.error("Error updating knowledge base:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -957,14 +1022,18 @@ router.put("/knowledge-base/:id", async (req, res) => {
 
 router.delete("/knowledge-base/:id", async (req, res) => {
   try {
-    checkPostgres();
     const { id } = req.params;
-    const result = await pool!.query("DELETE FROM knowledge_base WHERE id = $1 RETURNING *", [id]);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Knowledge base not found" });
-    } else {
-      res.json({ success: true, message: "Deleted" });
+    if (pool) {
+      try {
+        await queryWithAutoTable("DELETE FROM knowledge_base WHERE id = $1", [id]);
+      } catch (dbErr) {
+        console.error("Database delete knowledge base error:", dbErr);
+      }
     }
+    if ((inMemoryDB as any).knowledgeBase) {
+      (inMemoryDB as any).knowledgeBase = (inMemoryDB as any).knowledgeBase.filter((k: any) => k.id !== id);
+    }
+    res.json({ success: true, message: "Deleted" });
   } catch (error: any) {
     console.error("Error deleting knowledge base:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -1567,62 +1636,130 @@ router.get("/certificates/validate/:code", async (req, res) => {
 
 // ============ CHATBOT ============
 router.post("/chat", async (req, res) => {
-  const { message } = req.body;
-  const lowercaseMsg = message.toLowerCase();
+  const message = (req.body.message || "").toString();
+  if (!message.trim()) {
+    return res.status(400).json({ success: false, message: "Pesan tidak boleh kosong" });
+  }
+  const lowercaseMsg = message.toLowerCase().trim();
 
   try {
-    // Load knowledge base from PostgreSQL
-    const { rows } = await pool!.query(
-      "SELECT id, patterns, bot_response, is_active FROM knowledge_base WHERE is_active = true"
-    );
-    const knowledgeBase = rows.map(row => ({
-      ...row,
-      patterns: Array.isArray(row.patterns) ? row.patterns : (typeof row.patterns === 'string' ? JSON.parse(row.patterns) : []),
-      botResponse: row.bot_response || row.botResponse,
-      isActive: row.is_active !== undefined ? row.is_active : row.isActive
-    }));
+    // 1. Fetch Knowledge Base
+    let kbList: any[] = [];
+    if (pool) {
+      try {
+        const result = await queryWithAutoTable("SELECT * FROM knowledge_base WHERE is_active = true");
+        kbList = result.rows;
+      } catch (e) {
+        console.error("Error fetching KB for chat:", e);
+      }
+    }
+    if (kbList.length === 0) {
+      kbList = (inMemoryDB as any).knowledgeBase || [];
+    }
 
-    console.log('Knowledge base loaded:', knowledgeBase.length, 'items');
+    const knowledgeBase = kbList.map(r => ({
+      id: r.id,
+      category: r.category || 'Umum',
+      patterns: Array.isArray(r.patterns) ? r.patterns : (typeof r.patterns === 'string' ? JSON.parse(r.patterns || '[]') : []),
+      botResponse: r.bot_response || r.botResponse || '',
+      isActive: r.is_active !== undefined ? r.is_active : (r.isActive !== undefined ? r.isActive : true)
+    })).filter(k => k.isActive);
 
-    // 1. Fallback to knowledge base first if perfect match or no api key
-    let kbMatch = null;
+    // 2. Fetch Schedules & Events
+    let scheduleList: any[] = [];
+    if (pool) {
+      try {
+        const result = await queryWithAutoTable("SELECT * FROM schedules ORDER BY created_at DESC");
+        scheduleList = result.rows;
+      } catch (e) {
+        console.error("Error fetching schedules for chat:", e);
+      }
+    }
+    if (scheduleList.length === 0) {
+      scheduleList = (inMemoryDB as any).schedules || [];
+    }
+
+    // Format Schedules for Chat Context
+    const formattedSchedules = scheduleList.map(s => {
+      const tglStr = s.tanggal ? (typeof s.tanggal === 'string' ? s.tanggal : new Date(s.tanggal).toISOString().split('T')[0]) : '';
+      const dateObj = tglStr ? new Date(tglStr) : null;
+      const formattedDate = dateObj && !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : tglStr;
+      const hariJam = s.hari_jam || s.hariJam || formattedDate || '-';
+      const reg = (s.is_registration_required || s.isRegistrationRequired) ? `(Pendaftaran Dibuka, Kuota: ${s.kuota || 'Terbatas'})` : '';
+      return `📌 [${s.kategori || 'Jadwal'}] ${s.judul} - Hari/Tanggal: ${hariJam}, Jam: ${s.waktu || 'Sesuai Jadwal'}, Lokasi: ${s.lokasi || 'Gereja GPdI Melati Depok'} ${reg}`;
+    }).join('\n');
+
+    // 3. Match against Knowledge Base patterns
     for (const kb of knowledgeBase) {
-      if (!kb.isActive) continue;
       for (const pattern of kb.patterns) {
-        if (lowercaseMsg.includes(pattern.toLowerCase())) {
-          kbMatch = kb.botResponse;
-          break;
+        if (pattern && lowercaseMsg.includes(pattern.toLowerCase())) {
+          return res.json({ success: true, data: { response: kb.botResponse } });
         }
       }
-      if (kbMatch) break;
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      if (kbMatch) {
-        return res.json({ success: true, data: { response: kbMatch } });
+    // 4. Check if user is asking about schedules / events / worship times
+    const isScheduleQuery = lowercaseMsg.includes('jadwal') || 
+                            lowercaseMsg.includes('event') || 
+                            lowercaseMsg.includes('ibadah') || 
+                            lowercaseMsg.includes('kegiatan') || 
+                            lowercaseMsg.includes('minggu') || 
+                            lowercaseMsg.includes('jam') || 
+                            lowercaseMsg.includes('waktu');
+
+    if (isScheduleQuery) {
+      if (scheduleList.length > 0) {
+        const responseText = `Berikut adalah Jadwal Ibadah & Event GPdI Melati Depok terbaru:\n\n${formattedSchedules}\n\nSilakan kunjungi menu 'Jadwal & Event' di website kami untuk informasi selengkapnya atau melakukan pendaftaran!`;
+        return res.json({ success: true, data: { response: responseText } });
       } else {
-        return res.json({ success: true, data: { response: "Maaf, saya hanya dapat menjawab pertanyaan seputar jadwal ibadah, pendaftaran jemaat, dan informasi gereja. Silakan hubungi sekretariat untuk informasi lebih lanjut." } });
+        return res.json({ success: true, data: { response: "Saat ini belum ada jadwal ibadah atau event khusus yang terdaftar dari Admin. Silakan cek secara berkala atau hubungi tim gereja." } });
       }
     }
 
-    // 2. Call Gemini API
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    // 5. Check if user asks about baptis / doa / pendaftaran
+    if (lowercaseMsg.includes('baptis') || lowercaseMsg.includes('baptisan')) {
+      return res.json({ success: true, data: { response: "Untuk Pendaftaran Baptisan Air, Anda dapat mendaftar langsung di halaman Layanan -> Baptisan di website ini. Pastikan menyiapkan foto dan data diri (NIK, Tanggal Lahir, Alamat, No WhatsApp)." } });
+    }
 
-    // Inject KB context
-    const kbContext = knowledgeBase.filter(k => k.isActive).map(k => `Q: ${k.patterns.join(", ")} A: ${k.botResponse}`).join("\n");
-    const systemPrompt = `Anda adalah asisten AI ramah untuk Gereja GPdI Melati Depok. Jawab dengan singkat, padat, hangat. Gunakan pengetahuan ini:\n${kbContext}\n\nJika pertanyaan di luar konteks gereja, tolak dengan halus.`;
+    if (lowercaseMsg.includes('doa') || lowercaseMsg.includes('permohonan doa')) {
+      return res.json({ success: true, data: { response: "Anda dapat mengirimkan Permohonan Doa melalui halaman Layanan -> Permohonan Doa di website ini. Tim pendoa kami siap mendoakan pergumulan Anda." } });
+    }
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: message,
-      config: { systemInstruction: systemPrompt },
-    });
+    if (lowercaseMsg.includes('alamat') || lowercaseMsg.includes('lokasi') || lowercaseMsg.includes('kontak') || lowercaseMsg.includes('telepon')) {
+      return res.json({ success: true, data: { response: "📍 Alamat GPdI Melati Depok:\nJl. Melati No. 8, Depok, Jawa Barat.\n📞 Telepon/WA: (021) 7521216\nJam Operasional Sekretariat: Selasa - Minggu (08.00 - 17.00 WIB)." } });
+    }
 
-    res.json({ success: true, data: { response: response.text } });
+    // 6. Gemini AI Call with complete DB context (KB + Schedules) if API Key is configured
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const kbContext = knowledgeBase.map(k => `Q: ${k.patterns.join(", ")} A: ${k.botResponse}`).join("\n");
+        const systemPrompt = `Anda adalah asisten AI resmi ramah untuk Gereja GPdI Melati Depok. Jawab pertanyaan jemaat dengan ramah, hangat, dan ringkas.\n\nGunakan data terbaru berikut dari database gereja:\n\n[JADWAL & EVENT SAAT INI]:\n${formattedSchedules}\n\n[KNOWLEDGE BASE GEREJA]:\n${kbContext}\n\nJika pertanyaan di luar konteks gereja, jawab dengan sopan bahwa Anda adalah asisten gereja GPdI Melati Depok.`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: message,
+          config: { systemInstruction: systemPrompt },
+        });
+
+        if (response && response.text) {
+          return res.json({ success: true, data: { response: response.text } });
+        }
+      } catch (aiErr) {
+        console.error("Gemini AI call error:", aiErr);
+      }
+    }
+
+    // 7. General friendly fallback response with schedules overview
+    const fallbackText = scheduleList.length > 0 
+      ? `Shalom! Terima kasih telah menghubungi asisten GPdI Melati Depok.\n\nJadwal Ibadah & Event terdekat kami:\n${formattedSchedules}\n\nAda yang bisa kami bantu lagi mengenai jadwal, pendaftaran, atau layanan gereja?`
+      : `Shalom! Terima kasih telah menghubungi GPdI Melati Depok. Ada yang bisa saya bantu terkait Jadwal Ibadah, Pendaftaran, Permohonan Doa, atau Baptisan?`;
+
+    return res.json({ success: true, data: { response: fallbackText } });
+
   } catch (error: any) {
-    console.error("Chat error:", error);
-    // Fallback if AI fails
-    res.json({ success: true, data: { response: "Mohon maaf, sistem chat sedang sibuk. Silakan hubungi nomor WhatsApp sekretariat gereja." } });
+    console.error("Chatbot processing error:", error);
+    res.json({ success: true, data: { response: "Shalom! Terima kasih telah menghubungi GPdI Melati Depok. Ada yang bisa saya bantu terkait Jadwal Ibadah, Pendaftaran, Permohonan Doa, atau Baptisan?" } });
   }
 });
 
