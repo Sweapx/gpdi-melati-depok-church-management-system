@@ -11,6 +11,8 @@ export default function Jemaat() {
   const [editingJemaat, setEditingJemaat] = useState<JemaatType | null>(null);
   const [wadahList, setWadahList] = useState<any[]>([]);
   const [rayonList, setRayonList] = useState<any[]>([]);
+  const [filterWadah, setFilterWadah] = useState('Semua Wadah');
+  const [filterRayon, setFilterRayon] = useState('Semua Rayon');
 
   useEffect(() => {
     fetch('/api/jemaat')
