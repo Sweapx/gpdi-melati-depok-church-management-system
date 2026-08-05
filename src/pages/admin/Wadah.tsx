@@ -24,10 +24,20 @@ export default function Wadah() {
 
   const calculateAge = (tanggalLahir: string): number => {
     if (!tanggalLahir) return 0;
-    const cleanStr = tanggalLahir.split('T')[0];
-    const parts = cleanStr.split('-');
+    const cleanStr = tanggalLahir.toString().split('T')[0];
+    const parts = cleanStr.split(/[-/]/);
     if (parts.length !== 3) return 0;
-    const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    let year = 0, month = 0, day = 0;
+    if (parseInt(parts[0]) > 1000) {
+      year = parseInt(parts[0]);
+      month = parseInt(parts[1]) - 1;
+      day = parseInt(parts[2]);
+    } else if (parseInt(parts[2]) > 1000) {
+      year = parseInt(parts[2]);
+      month = parseInt(parts[1]) - 1;
+      day = parseInt(parts[0]);
+    } else return 0;
+    const birthDate = new Date(year, month, day);
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -37,42 +47,48 @@ export default function Wadah() {
     return age;
   };
 
+  const getWadahNameForJemaat = (j: any): string => {
+    const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || j.status_jemaat === 'Aktif';
+    if (!isAktif) return '';
+
+    const tgl = j.tanggalLahir || j.tanggal_lahir;
+    const age = tgl ? calculateAge(tgl) : 0;
+    const jw = (j.wadah || '').trim();
+
+    // Explicit Wadah set by admin
+    if (jw && jw !== 'Otomatis' && jw !== '-') {
+      const jwLower = jw.toLowerCase();
+      if (jwLower.includes('sekolah minggu') || jwLower.includes('anak')) return 'Sekolah Minggu';
+      if (jwLower.includes('remaja')) return 'Kaum Remaja';
+      if (jwLower.includes('muda') || jwLower.includes('pemuda')) return 'Kaum Muda';
+      if (jwLower.includes('wanita') || jwLower.includes('ibu')) return 'Kaum Wanita';
+      if (jwLower.includes('pria') || jwLower.includes('bapak')) return 'Kaum Pria';
+    }
+
+    // Dynamic age brackets
+    if (age > 0 && age <= 12) return 'Sekolah Minggu';
+    if (age >= 13 && age <= 19) return 'Kaum Remaja';
+    if (age >= 20 && age <= 30) return 'Kaum Muda';
+
+    const g = (j.gender || '').trim().toLowerCase();
+    if (g === 'wanita' || g === 'perempuan') return 'Kaum Wanita';
+    return 'Kaum Pria';
+  };
+
   const isMemberOfWadah = (j: any, wadahId: string, wadahName: string): boolean => {
     const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || j.status_jemaat === 'Aktif';
     if (!isAktif) return false;
 
-    const jw = (j.wadah || '').trim().toLowerCase();
-    const jGender = (j.gender || '').trim().toLowerCase();
-    const wName = (wadahName || '').trim().toLowerCase();
+    const computedWadah = getWadahNameForJemaat(j);
+    const targetWadah = (wadahName || '').trim().toLowerCase();
 
-    const tgl = j.tanggalLahir || j.tanggal_lahir;
-    const age = tgl ? calculateAge(tgl) : null;
+    if (targetWadah.includes('sekolah minggu') && computedWadah === 'Sekolah Minggu') return true;
+    if (targetWadah.includes('remaja') && computedWadah === 'Kaum Remaja') return true;
+    if (targetWadah.includes('muda') && computedWadah === 'Kaum Muda') return true;
+    if (targetWadah.includes('wanita') && computedWadah === 'Kaum Wanita') return true;
+    if (targetWadah.includes('pria') && computedWadah === 'Kaum Pria') return true;
 
-    if (jw !== '') {
-      if (jw === wName || jw.includes(wName) || wName.includes(jw)) {
-        if (wName.includes('pria') && jGender === 'wanita') return false;
-        if (wName.includes('wanita') && jGender === 'pria') return false;
-        return true;
-      }
-    } else {
-      if (wadahId === 'WAD-002' || wName.includes('pria')) {
-        return jGender === 'pria' && (age === null || age >= 31);
-      }
-      if (wadahId === 'WAD-004' || wName.includes('wanita')) {
-        return jGender === 'wanita' && (age === null || age >= 31);
-      }
-      if (wadahId === 'WAD-001' || wName.includes('muda')) {
-        return age !== null && age >= 20 && age <= 30;
-      }
-      if (wadahId === 'WAD-003' || wName.includes('remaja')) {
-        return age !== null && age >= 13 && age <= 19;
-      }
-      if (wadahId === 'WAD-005' || wName.includes('sekolah minggu')) {
-        return age !== null && age <= 12;
-      }
-    }
-
-    return false;
+    return computedWadah.toLowerCase() === targetWadah;
   };
 
   const fetchAllData = () => {

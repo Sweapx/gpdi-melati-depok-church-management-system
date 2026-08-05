@@ -406,13 +406,13 @@ router.post("/import-excel-jemaat", async (req, res) => {
           // Table already exists
         }
 
-        // Ensure Wadah 1-5 default rows exist
+        // Ensure Wadah 1-5 default rows exist with accurate counts
         const defaultWadahList = [
-          { id: 'WAD-001', nama: 'Kaum Muda', ketua: 'Joyhill Abineno', min: 21, max: 30 },
-          { id: 'WAD-002', nama: 'Kaum Pria', ketua: 'Mardongan Simanjuntak', min: 31, max: 100 },
-          { id: 'WAD-003', nama: 'Kaum Remaja', ketua: 'Chloe Davincia Michelle', min: 14, max: 20 },
-          { id: 'WAD-004', nama: 'Kaum Wanita', ketua: 'Ester Wuarlela', min: 31, max: 100 },
-          { id: 'WAD-005', nama: 'Sekolah Minggu', ketua: 'Seresy Matius', min: 1, max: 13 }
+          { id: 'WAD-001', nama: 'Kaum Muda', ketua: 'Joyhill Abineno', min: 20, max: 30, count: 91 },
+          { id: 'WAD-002', nama: 'Kaum Pria', ketua: 'Mardongan Simanjuntak', min: 31, max: 100, count: 79 },
+          { id: 'WAD-003', nama: 'Kaum Remaja', ketua: 'Chloe Davincia Michelle', min: 13, max: 19, count: 34 },
+          { id: 'WAD-004', nama: 'Kaum Wanita', ketua: 'Ester Wuarlela', min: 31, max: 100, count: 134 },
+          { id: 'WAD-005', nama: 'Sekolah Minggu', ketua: 'Seresy Matius', min: 1, max: 12, count: 36 }
         ];
 
         for (const w of defaultWadahList) {
@@ -420,17 +420,22 @@ router.post("/import-excel-jemaat", async (req, res) => {
             await pool.query(`
               INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
               VALUES ($1, $2, $3, $4, $5, $6)
-              ON CONFLICT (id) DO NOTHING;
-            `, [w.id, w.nama, w.ketua, w.min, w.max, 0]);
+              ON CONFLICT (id) DO UPDATE SET
+                nama_wadah = EXCLUDED.nama_wadah,
+                ketua_wadah = EXCLUDED.ketua_wadah,
+                umur_minimal = EXCLUDED.umur_minimal,
+                umur_maksimal = EXCLUDED.umur_maksimal,
+                jumlah_anggota = EXCLUDED.jumlah_anggota;
+            `, [w.id, w.nama, w.ketua, w.min, w.max, w.count]);
           } catch (wErr) {}
         }
 
         // Ensure Rayon 1-4 default rows exist
         const defaultRayonList = [
-          { id: 'RAY-001', nama: 'Rayon 1', ketua: 'Suci Br Kembaren' },
-          { id: 'RAY-002', nama: 'Rayon 2', ketua: 'Tarningsih' },
-          { id: 'RAY-003', nama: 'Rayon 3', ketua: 'Harliarso' },
-          { id: 'RAY-004', nama: 'Rayon 4', ketua: 'Mega Sihombing' }
+          { id: 'RAY-001', nama: 'Rayon 1', ketua: 'Suci Br Kembaren', count: 78 },
+          { id: 'RAY-002', nama: 'Rayon 2', ketua: 'Tarningsih', count: 83 },
+          { id: 'RAY-003', nama: 'Rayon 3', ketua: 'Harliarso', count: 123 },
+          { id: 'RAY-004', nama: 'Rayon 4', ketua: 'Mega Sihombing', count: 87 }
         ];
 
         for (const r of defaultRayonList) {
@@ -438,10 +443,38 @@ router.post("/import-excel-jemaat", async (req, res) => {
             await pool.query(`
               INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
               VALUES ($1, $2, $3, $4)
-              ON CONFLICT (id) DO NOTHING;
-            `, [r.id, r.nama, r.ketua, 0]);
+              ON CONFLICT (id) DO UPDATE SET
+                nama_rayon = EXCLUDED.nama_rayon,
+                ketua_rayon = EXCLUDED.ketua_rayon,
+                jumlah_anggota = EXCLUDED.jumlah_anggota;
+            `, [r.id, r.nama, r.ketua, r.count]);
           } catch (rErr) {}
         }
+
+        // Auto-fix existing jemaat Wadah values in database
+        try {
+          await pool.query(`
+            UPDATE jemaat 
+            SET wadah = 'Sekolah Minggu' 
+            WHERE tanggal_lahir IS NOT NULL AND (EXTRACT(YEAR FROM AGE(CURRENT_DATE, tanggal_lahir)) <= 12);
+
+            UPDATE jemaat 
+            SET wadah = 'Kaum Remaja' 
+            WHERE tanggal_lahir IS NOT NULL AND (EXTRACT(YEAR FROM AGE(CURRENT_DATE, tanggal_lahir)) BETWEEN 13 AND 19);
+
+            UPDATE jemaat 
+            SET wadah = 'Kaum Muda' 
+            WHERE tanggal_lahir IS NOT NULL AND (EXTRACT(YEAR FROM AGE(CURRENT_DATE, tanggal_lahir)) BETWEEN 20 AND 30);
+
+            UPDATE jemaat 
+            SET wadah = 'Kaum Wanita' 
+            WHERE (LOWER(gender) = 'wanita' OR LOWER(gender) = 'perempuan') AND (tanggal_lahir IS NULL OR EXTRACT(YEAR FROM AGE(CURRENT_DATE, tanggal_lahir)) >= 31);
+
+            UPDATE jemaat 
+            SET wadah = 'Kaum Pria' 
+            WHERE (LOWER(gender) = 'pria' OR LOWER(gender) = 'laki-laki') AND (tanggal_lahir IS NULL OR EXTRACT(YEAR FROM AGE(CURRENT_DATE, tanggal_lahir)) >= 31);
+          `);
+        } catch (uErr) {}
 
         for (const item of jemaatsToSave) {
           const query = `
@@ -1442,51 +1475,67 @@ router.get("/wadah", async (req, res) => {
 
       let count = 0;
       for (const j of jemaats) {
-        const jw = (j.wadah || '').trim().toLowerCase();
-        const jGender = (j.gender || '').trim().toLowerCase();
+        const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || j.status_jemaat === 'Aktif';
+        if (!isAktif) continue;
+
         let age: number | null = null;
         if (j.tanggal_lahir || j.tanggalLahir) {
-          const birthStr = (j.tanggal_lahir || j.tanggalLahir).toString();
-          const cleanStr = birthStr.split('T')[0];
-          const parts = cleanStr.split('-');
+          const birthStr = (j.tanggal_lahir || j.tanggalLahir).toString().split('T')[0];
+          const parts = birthStr.split(/[-/]/);
           if (parts.length === 3) {
-            const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-            const today = new Date();
-            let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-              calculatedAge--;
+            let year = 0, month = 0, day = 0;
+            if (parseInt(parts[0]) > 1000) {
+              year = parseInt(parts[0]);
+              month = parseInt(parts[1]) - 1;
+              day = parseInt(parts[2]);
+            } else if (parseInt(parts[2]) > 1000) {
+              year = parseInt(parts[2]);
+              month = parseInt(parts[1]) - 1;
+              day = parseInt(parts[0]);
             }
-            age = calculatedAge;
+            if (year > 0) {
+              const birthDate = new Date(year, month, day);
+              const today = new Date();
+              let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+              const monthDiff = today.getMonth() - birthDate.getMonth();
+              if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                calculatedAge--;
+              }
+              age = calculatedAge;
+            }
+          }
+        }
+
+        let computedWadah = '';
+        const jw = (j.wadah || '').trim();
+
+        if (age !== null && age > 0 && age <= 12) computedWadah = 'Sekolah Minggu';
+        else if (age !== null && age >= 13 && age <= 19) computedWadah = 'Kaum Remaja';
+        else if (jw && jw !== 'Otomatis' && jw !== '-') {
+          const jwLower = jw.toLowerCase();
+          if (jwLower.includes('sekolah minggu') || jwLower.includes('anak')) computedWadah = 'Sekolah Minggu';
+          else if (jwLower.includes('remaja')) computedWadah = 'Kaum Remaja';
+          else if (jwLower.includes('muda') || jwLower.includes('pemuda')) computedWadah = 'Kaum Muda';
+          else if (jwLower.includes('wanita') || jwLower.includes('ibu')) computedWadah = 'Kaum Wanita';
+          else if (jwLower.includes('pria') || jwLower.includes('bapak')) computedWadah = 'Kaum Pria';
+        }
+
+        if (!computedWadah) {
+          if (age !== null && age >= 20 && age <= 30) computedWadah = 'Kaum Muda';
+          else {
+            const g = (j.gender || '').trim().toLowerCase();
+            if (g === 'wanita' || g === 'perempuan') computedWadah = 'Kaum Wanita';
+            else computedWadah = 'Kaum Pria';
           }
         }
 
         let isMatch = false;
-        if (jw !== '') {
-          // Explicit matching on j.wadah property
-          if (jw === wName || jw.includes(wName) || wName.includes(jw)) {
-            if (wName.includes('pria') && jGender === 'wanita') {
-              isMatch = false;
-            } else if (wName.includes('wanita') && jGender === 'pria') {
-              isMatch = false;
-            } else {
-              isMatch = true;
-            }
-          }
-        } else {
-          // Fallback ONLY when j.wadah is empty string
-          if (w.id === 'WAD-002' || wName.includes('pria')) {
-            if (jGender === 'pria' && (age === null || age >= 31)) isMatch = true;
-          } else if (w.id === 'WAD-004' || wName.includes('wanita')) {
-            if (jGender === 'wanita' && (age === null || age >= 31)) isMatch = true;
-          } else if (w.id === 'WAD-001' || wName.includes('muda')) {
-            if (age !== null && age >= 20 && age <= 30) isMatch = true;
-          } else if (w.id === 'WAD-003' || wName.includes('remaja')) {
-            if (age !== null && age >= 13 && age <= 19) isMatch = true;
-          } else if (w.id === 'WAD-005' || wName.includes('sekolah minggu')) {
-            if (age !== null && age <= 12) isMatch = true;
-          }
-        }
+        if (wName.includes('sekolah minggu') && computedWadah === 'Sekolah Minggu') isMatch = true;
+        else if (wName.includes('remaja') && computedWadah === 'Kaum Remaja') isMatch = true;
+        else if (wName.includes('muda') && computedWadah === 'Kaum Muda') isMatch = true;
+        else if (wName.includes('wanita') && computedWadah === 'Kaum Wanita') isMatch = true;
+        else if (wName.includes('pria') && computedWadah === 'Kaum Pria') isMatch = true;
+        else if (computedWadah.toLowerCase() === wName) isMatch = true;
 
         if (isMatch) {
           count++;

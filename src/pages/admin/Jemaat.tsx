@@ -86,25 +86,27 @@ export default function Jemaat() {
   };
 
   const getDisplayWadah = (jemaat: JemaatType): string => {
-    // Check if jemaat.wadah matches any active Wadah in current wadahList
-    if (jemaat.wadah && jemaat.wadah !== 'Otomatis' && jemaat.wadah.trim() !== '') {
-      const trimmedJ = jemaat.wadah.trim().toLowerCase();
-      const existingInList = wadahList.find(w => {
-        const name = (w.nama_wadah || w.namaWadah || '').trim().toLowerCase();
-        return name === trimmedJ;
-      });
-      if (existingInList) {
-        return existingInList.nama_wadah || existingInList.namaWadah;
-      }
+    const tgl = jemaat.tanggalLahir || (jemaat as any).tanggal_lahir;
+    const age = tgl ? calculateAge(tgl) : 0;
+    
+    if (age > 0 && age <= 12) return 'Sekolah Minggu';
+    if (age >= 13 && age <= 19) return 'Kaum Remaja';
+
+    if (jemaat.wadah && jemaat.wadah !== 'Otomatis' && jemaat.wadah.trim() !== '' && jemaat.wadah !== '-') {
+      const jwLower = jemaat.wadah.trim().toLowerCase();
+      if (jwLower.includes('sekolah minggu') || jwLower.includes('anak')) return 'Sekolah Minggu';
+      if (jwLower.includes('remaja')) return 'Kaum Remaja';
+      if (jwLower.includes('muda') || jwLower.includes('pemuda')) return 'Kaum Muda';
+      if (jwLower.includes('wanita') || jwLower.includes('ibu')) return 'Kaum Wanita';
+      if (jwLower.includes('pria') || jwLower.includes('bapak')) return 'Kaum Pria';
+      return jemaat.wadah;
     }
 
-    // If jemaat.wadah was an old name that no longer exists, or is unassigned/Otomatis, assign dynamically:
-    if (jemaat.tanggalLahir) {
-      const dynamicWadah = assignWadahByAgeAndGender(jemaat.tanggalLahir, jemaat.gender);
-      if (dynamicWadah) return dynamicWadah;
-    }
+    if (age >= 20 && age <= 30) return 'Kaum Muda';
 
-    return jemaat.wadah && jemaat.wadah !== 'Otomatis' ? jemaat.wadah : '-';
+    const g = (jemaat.gender || '').trim().toLowerCase();
+    if (g === 'wanita' || g === 'perempuan') return 'Kaum Wanita';
+    return 'Kaum Pria';
   };
 
   const handleDelete = async (id: string) => {
