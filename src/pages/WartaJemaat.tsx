@@ -13,15 +13,24 @@ export default function WartaJemaat() {
     fetch('/api/warta-jemaat')
       .then(res => res.json())
       .then(res => {
-        if (res.success) setWarta(res.data);
+        if (res.success && res.data) {
+          const mapped = res.data.map((w: any) => ({
+            ...w,
+            pdfUrl: w.pdf_url || w.pdfUrl || '',
+            temaMinggu: w.tema_minggu || w.temaMinggu || '',
+            ayatMinggu: w.ayat_minggu || w.ayatMinggu || '',
+            edisi: w.edisi || 'Warta'
+          }));
+          setWarta(mapped);
+        }
         setIsLoading(false);
       })
       .catch(() => setIsLoading(false));
   }, []);
 
   const filteredWarta = warta.filter(w => 
-    w.edisi.toLowerCase().includes(search.toLowerCase()) || 
-    w.temaMinggu.toLowerCase().includes(search.toLowerCase())
+    (w.edisi || '').toLowerCase().includes(search.toLowerCase()) || 
+    (w.temaMinggu || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (

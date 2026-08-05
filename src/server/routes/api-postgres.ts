@@ -447,7 +447,14 @@ router.get("/warta-jemaat", async (req, res) => {
   try {
     checkPostgres();
     const result = await pool!.query("SELECT * FROM warta_jemaat ORDER BY created_at DESC");
-    res.json({ success: true, data: result.rows });
+    const data = result.rows.map(row => ({
+      ...row,
+      pdfUrl: row.pdf_url || row.pdfUrl || '',
+      temaMinggu: row.tema_minggu || row.temaMinggu || '',
+      ayatMinggu: row.ayat_minggu || row.ayatMinggu || '',
+      petugasList: row.petugas_list || row.petugasList || []
+    }));
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error fetching warta jemaat:", error);
     res.status(500).json({ success: false, message: error.message });
