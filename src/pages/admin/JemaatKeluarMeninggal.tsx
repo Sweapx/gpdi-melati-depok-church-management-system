@@ -40,14 +40,54 @@ export default function JemaatKeluarMeninggal() {
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingJemaat) return;
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const nama = (formData.get('nama') as string) || editingJemaat.nama;
+    const statusJemaat = (formData.get('statusJemaat') as string) || editingJemaat.statusJemaat;
+    const tempatLahir = (formData.get('tempatLahir') as string) || editingJemaat.tempatLahir;
+    const tanggalLahir = (formData.get('tanggalLahir') as string) || editingJemaat.tanggalLahir;
+    const gender = (formData.get('gender') as string) || editingJemaat.gender;
+    const rayon = (formData.get('rayon') as string) || (editingJemaat as any).rayon;
+    const noTelepon = (formData.get('noTelepon') as string) || (editingJemaat as any).noTelepon;
+    const noHp = (formData.get('noHp') as string) || editingJemaat.noHp;
+    const alamat = (formData.get('alamat') as string) || editingJemaat.alamat;
+    const nik = (formData.get('nik') as string) || editingJemaat.nik;
+
+    const payload = {
+      ...editingJemaat,
+      nama,
+      status_jemaat: statusJemaat,
+      tempat_lahir: tempatLahir,
+      tanggal_lahir: tanggalLahir,
+      gender,
+      rayon,
+      no_telepon: noTelepon,
+      no_hp: noHp,
+      alamat,
+      nik
+    };
+
     try {
       const res = await fetch(`/api/jemaat/${editingJemaat.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify(editingJemaat)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
-        setData(data.map(j => j.id === editingJemaat.id ? editingJemaat : j));
+        const updated: JemaatType = {
+          ...editingJemaat,
+          nama,
+          statusJemaat: statusJemaat as any,
+          tempatLahir,
+          tanggalLahir,
+          gender: gender as 'Pria' | 'Wanita',
+          rayon,
+          noTelepon,
+          noHp,
+          alamat,
+          nik
+        };
+        setData(data.map(j => j.id === editingJemaat.id ? updated : j));
         setEditingJemaat(null);
       }
     } catch (err) {
@@ -167,130 +207,142 @@ export default function JemaatKeluarMeninggal() {
         </div>
       </div>
 
-      {/* Edit Form Card */}
+      {/* Edit Form Modal */}
       {editingJemaat && (
-        <div className="bg-white rounded-2xl border border-border-subtle shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-border-subtle bg-sand-dark">
-            <h2 className="text-xl font-bold text-navy">Edit Data Jemaat</h2>
-          </div>
-          <div className="p-6">
-            <form onSubmit={handleEditSave} className="grid grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Nama Lengkap</label>
-                <input 
-                  type="text" 
-                  name="nama"
-                  defaultValue={editingJemaat.nama}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Status</label>
-                <select 
-                  name="statusJemaat"
-                  defaultValue={editingJemaat.statusJemaat}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                >
-                  <option value="Keluar">Keluar</option>
-                  <option value="Meninggal">Meninggal</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Tempat Lahir</label>
-                <input 
-                  type="text" 
-                  name="tempatLahir"
-                  defaultValue={editingJemaat.tempatLahir}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Tanggal Lahir</label>
-                <input 
-                  type="date" 
-                  name="tanggalLahir"
-                  defaultValue={editingJemaat.tanggalLahir}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Jenis Kelamin</label>
-                <select 
-                  name="gender"
-                  defaultValue={editingJemaat.gender}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                >
-                  <option value="Pria">Pria</option>
-                  <option value="Wanita">Wanita</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Rayon</label>
-                <input 
-                  type="text" 
-                  name="rayon"
-                  defaultValue={(editingJemaat as any).rayon}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">No. Telepon</label>
-                <input 
-                  type="text" 
-                  name="noTelepon"
-                  defaultValue={(editingJemaat as any).noTelepon}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">No. WhatsApp</label>
-                <input 
-                  type="text" 
-                  name="noHp"
-                  defaultValue={editingJemaat.noHp}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5 col-span-2">
-                <label className="text-sm font-bold text-navy">Alamat</label>
-                <textarea 
-                  name="alamat"
-                  defaultValue={editingJemaat.alamat}
-                  rows={3}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none resize-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">NIK</label>
-                <input 
-                  type="text" 
-                  name="nik"
-                  defaultValue={editingJemaat.nik}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-            </form>
-          </div>
-          <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
-            <button 
-              onClick={() => setEditingJemaat(null)}
-              className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
-            >
-              Batal
-            </button>
-            <button 
-              onClick={handleEditSave}
-              className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
-            >
-              <Save size={16} /> Simpan Perubahan
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-border-subtle shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col my-auto">
+            <div className="p-6 border-b border-border-subtle bg-sand-dark flex justify-between items-center">
+              <h2 className="text-xl font-bold text-navy">Edit Data Jemaat</h2>
+              <button 
+                onClick={() => setEditingJemaat(null)}
+                className="text-text-muted hover:text-navy p-1 rounded-lg transition-colors"
+                type="button"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <form id="keluar-meninggal-form" key={editingJemaat.id} onSubmit={handleEditSave} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Nama Lengkap</label>
+                  <input 
+                    type="text" 
+                    name="nama"
+                    defaultValue={editingJemaat.nama}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Status</label>
+                  <select 
+                    name="statusJemaat"
+                    defaultValue={editingJemaat.statusJemaat}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                  >
+                    <option value="Keluar">Keluar</option>
+                    <option value="Meninggal">Meninggal</option>
+                    <option value="Aktif">Aktif</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Tempat Lahir</label>
+                  <input 
+                    type="text" 
+                    name="tempatLahir"
+                    defaultValue={editingJemaat.tempatLahir}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Tanggal Lahir</label>
+                  <input 
+                    type="date" 
+                    name="tanggalLahir"
+                    defaultValue={editingJemaat.tanggalLahir}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Jenis Kelamin</label>
+                  <select 
+                    name="gender"
+                    defaultValue={editingJemaat.gender}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  >
+                    <option value="Pria">Pria</option>
+                    <option value="Wanita">Wanita</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Rayon</label>
+                  <input 
+                    type="text" 
+                    name="rayon"
+                    defaultValue={(editingJemaat as any).rayon}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">No. Telepon</label>
+                  <input 
+                    type="text" 
+                    name="noTelepon"
+                    defaultValue={(editingJemaat as any).noTelepon}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">No. WhatsApp</label>
+                  <input 
+                    type="text" 
+                    name="noHp"
+                    defaultValue={editingJemaat.noHp}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-sm font-bold text-navy">Alamat</label>
+                  <textarea 
+                    name="alamat"
+                    defaultValue={editingJemaat.alamat}
+                    rows={3}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none resize-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">NIK</label>
+                  <input 
+                    type="text" 
+                    name="nik"
+                    defaultValue={editingJemaat.nik}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+              </form>
+            </div>
+            <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
+              <button 
+                type="button"
+                onClick={() => setEditingJemaat(null)}
+                className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                type="submit"
+                form="keluar-meninggal-form"
+                className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
+              >
+                <Save size={16} /> Simpan Perubahan
+              </button>
+            </div>
           </div>
         </div>
       )}

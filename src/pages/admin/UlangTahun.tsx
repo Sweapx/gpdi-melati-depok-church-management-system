@@ -8,6 +8,7 @@ export default function UlangTahun() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
+  const [filterWadah, setFilterWadah] = useState('Semua Wadah');
   const [editingJemaat, setEditingJemaat] = useState<JemaatType | null>(null);
 
   useEffect(() => {
@@ -38,14 +39,48 @@ export default function UlangTahun() {
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingJemaat) return;
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const nama = (formData.get('nama') as string) || editingJemaat.nama;
+    const statusJemaat = (formData.get('statusJemaat') as string) || editingJemaat.statusJemaat;
+    const tempatLahir = (formData.get('tempatLahir') as string) || editingJemaat.tempatLahir;
+    const tanggalLahir = (formData.get('tanggalLahir') as string) || editingJemaat.tanggalLahir;
+    const gender = (formData.get('gender') as string) || editingJemaat.gender;
+    const noHp = (formData.get('noHp') as string) || editingJemaat.noHp;
+    const alamat = (formData.get('alamat') as string) || editingJemaat.alamat;
+    const nik = (formData.get('nik') as string) || editingJemaat.nik;
+
+    const payload = {
+      ...editingJemaat,
+      nama,
+      status_jemaat: statusJemaat,
+      tempat_lahir: tempatLahir,
+      tanggal_lahir: tanggalLahir,
+      gender,
+      no_hp: noHp,
+      alamat,
+      nik
+    };
+
     try {
       const res = await fetch(`/api/jemaat/${editingJemaat.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify(editingJemaat)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
-        setData(data.map(j => j.id === editingJemaat.id ? editingJemaat : j));
+        const updated: JemaatType = {
+          ...editingJemaat,
+          nama,
+          statusJemaat: statusJemaat as any,
+          tempatLahir,
+          tanggalLahir,
+          gender: gender as 'Pria' | 'Wanita',
+          noHp,
+          alamat,
+          nik
+        };
+        setData(data.map(j => j.id === editingJemaat.id ? updated : j));
         setEditingJemaat(null);
       }
     } catch (err) {
@@ -57,30 +92,32 @@ export default function UlangTahun() {
     alert('Export Excel feature - implement with library like xlsx');
   };
 
+  const calculateAge = (tanggalLahir: string): number => {
+    if (!tanggalLahir) return 0;
+    const birthDate = new Date(tanggalLahir);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   const filteredData = data.filter(j => {
-    const birthDate = j.tanggalLahir ? new Date(j.tanggalLahir) : null;
-    const birthMonth = birthDate ? birthDate.getMonth() + 1 : null;
-    
-    const matchesSearch = (j.nama && j.nama.toLowerCase().includes(search.toLowerCase())) || (j.nik && j.nik.includes(search));
-    const matchesMonth = filterMonth === '' || birthMonth === parseInt(filterMonth);
-    
-    return matchesSearch && matchesMonth;
+    if (!j.tanggalLahir) return false;
+    const birthMonth = new Date(j.tanggalLahir).getMonth() + 1;
+    const isMonthMatch = filterMonth === 'Semua' || birthMonth.toString() === filterMonth;
+    const isWadahMatch = filterWadah === 'Semua Wadah' || j.wadah === filterWadah;
+    const isSearchMatch = !search || j.nama.toLowerCase().includes(search.toLowerCase());
+    return isMonthMatch && isWadahMatch && isSearchMatch;
   });
 
-  const months = [
-    { value: '', label: 'Semua Bulan' },
-    { value: '1', label: 'Januari' },
-    { value: '2', label: 'Februari' },
-    { value: '3', label: 'Maret' },
-    { value: '4', label: 'April' },
-    { value: '5', label: 'Mei' },
-    { value: '6', label: 'Juni' },
-    { value: '7', label: 'Juli' },
-    { value: '8', label: 'Agustus' },
-    { value: '9', label: 'September' },
-    { value: '10', label: 'Oktober' },
-    { value: '11', label: 'November' },
-    { value: '12', label: 'Desember' },
+  const wadahOptions = ['Semua Wadah', ...Array.from(new Set(data.map(j => j.wadah).filter(Boolean)))];
+
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ];
 
   return (
@@ -101,21 +138,28 @@ export default function UlangTahun() {
               className="w-full pl-10 pr-4 py-2 rounded-xl border border-border-subtle focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold text-sm bg-white"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Calendar size={18} className="text-text-muted" />
-            <select 
-              value={filterMonth}
-              onChange={e => setFilterMonth(e.target.value)}
-              className="px-4 py-2 rounded-xl border border-border-subtle focus:outline-none focus:ring-1 focus:ring-gold text-sm bg-white"
-            >
-              {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-          </div>
+          <select 
+            value={filterMonth}
+            onChange={e => setFilterMonth(e.target.value)}
+            className="px-4 py-2 rounded-xl border border-border-subtle focus:outline-none focus:ring-1 focus:ring-gold text-sm bg-white"
+          >
+            <option value="Semua">Semua Bulan</option>
+            {monthNames.map((month, idx) => (
+              <option key={idx + 1} value={(idx + 1).toString()}>{month}</option>
+            ))}
+          </select>
+          <select 
+            value={filterWadah}
+            onChange={e => setFilterWadah(e.target.value)}
+            className="px-4 py-2 rounded-xl border border-border-subtle focus:outline-none focus:ring-1 focus:ring-gold text-sm bg-white"
+          >
+            {wadahOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
           <button 
             onClick={handleExport}
             className="border border-emerald-600 text-emerald-600 px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-50 transition-colors flex items-center gap-2"
           >
-            <Download size={16} /> Export Excel
+            <Download size={16} /> Export XLS
           </button>
         </div>
 
@@ -124,9 +168,9 @@ export default function UlangTahun() {
           <table className="w-full text-left text-sm text-navy">
             <thead className="bg-sand-dark text-text-muted text-xs uppercase font-bold tracking-wider border-b border-border-subtle">
               <tr>
-                <th className="px-6 py-4">NAMA JEMAAT</th>
-                <th className="px-6 py-4">TANGGAL ULANG TAHUN</th>
-                <th className="px-6 py-4">USIA (TAHUN INI)</th>
+                <th className="px-6 py-4">NAMA</th>
+                <th className="px-6 py-4">TGL LAHIR</th>
+                <th className="px-6 py-4">UMUR</th>
                 <th className="px-6 py-4">WADAH</th>
                 <th className="px-6 py-4 text-center">AKSI</th>
               </tr>
@@ -138,14 +182,13 @@ export default function UlangTahun() {
                 </tr>
               ) : filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-text-muted">Tidak ada data jemaat.</td>
+                  <td colSpan={5} className="text-center py-12 text-text-muted">Tidak ada data ulang tahun.</td>
                 </tr>
               ) : (
                 filteredData.map(jemaat => {
                   const birthDate = jemaat.tanggalLahir ? new Date(jemaat.tanggalLahir) : null;
-                  const age = birthDate ? new Date().getFullYear() - birthDate.getFullYear() : '-';
-                  const birthday = birthDate ? birthDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' }) : '-';
-                  
+                  const birthday = birthDate ? `${birthDate.getDate()} ${monthNames[birthDate.getMonth()]}` : '-';
+                  const age = jemaat.tanggalLahir ? calculateAge(jemaat.tanggalLahir) : '-';
                   return (
                     <tr key={jemaat.id} className="hover:bg-sand-darker/50 transition-colors">
                       <td className="px-6 py-4 font-medium">{jemaat.nama}</td>
@@ -165,114 +208,125 @@ export default function UlangTahun() {
         </div>
       </div>
 
-      {/* Edit Form Card */}
+      {/* Edit Form Modal */}
       {editingJemaat && (
-        <div className="bg-white rounded-2xl border border-border-subtle shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-border-subtle bg-sand-dark">
-            <h2 className="text-xl font-bold text-navy">Edit Data Jemaat</h2>
-          </div>
-          <div className="p-6">
-            <form onSubmit={handleEditSave} className="grid grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Nama Lengkap</label>
-                <input 
-                  type="text" 
-                  name="nama"
-                  defaultValue={editingJemaat.nama}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Status</label>
-                <select 
-                  name="statusJemaat"
-                  defaultValue={editingJemaat.statusJemaat}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                >
-                  <option value="Aktif">Aktif</option>
-                  <option value="Inaktif">Inaktif</option>
-                  <option value="Keluar">Keluar</option>
-                  <option value="Meninggal">Meninggal</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Tempat Lahir</label>
-                <input 
-                  type="text" 
-                  name="tempatLahir"
-                  defaultValue={editingJemaat.tempatLahir}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Tanggal Lahir</label>
-                <input 
-                  type="date" 
-                  name="tanggalLahir"
-                  defaultValue={editingJemaat.tanggalLahir}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">Jenis Kelamin</label>
-                <select 
-                  name="gender"
-                  defaultValue={editingJemaat.gender}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                >
-                  <option value="Pria">Pria</option>
-                  <option value="Wanita">Wanita</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">No. WhatsApp</label>
-                <input 
-                  type="text" 
-                  name="noHp"
-                  defaultValue={editingJemaat.noHp}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5 col-span-2">
-                <label className="text-sm font-bold text-navy">Alamat</label>
-                <textarea 
-                  name="alamat"
-                  defaultValue={editingJemaat.alamat}
-                  rows={3}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none resize-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-navy">NIK</label>
-                <input 
-                  type="text" 
-                  name="nik"
-                  defaultValue={editingJemaat.nik}
-                  className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                  required
-                />
-              </div>
-            </form>
-          </div>
-          <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
-            <button 
-              onClick={() => setEditingJemaat(null)}
-              className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
-            >
-              Batal
-            </button>
-            <button 
-              onClick={handleEditSave}
-              className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
-            >
-              <Save size={16} /> Simpan Perubahan
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-border-subtle shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col my-auto">
+            <div className="p-6 border-b border-border-subtle bg-sand-dark flex justify-between items-center">
+              <h2 className="text-xl font-bold text-navy">Edit Data Jemaat</h2>
+              <button 
+                onClick={() => setEditingJemaat(null)}
+                className="text-text-muted hover:text-navy p-1 rounded-lg transition-colors"
+                type="button"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <form id="ulang-tahun-form" key={editingJemaat.id} onSubmit={handleEditSave} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Nama Lengkap</label>
+                  <input 
+                    type="text" 
+                    name="nama"
+                    defaultValue={editingJemaat.nama}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Status</label>
+                  <select 
+                    name="statusJemaat"
+                    defaultValue={editingJemaat.statusJemaat}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                  >
+                    <option value="Aktif">Aktif</option>
+                    <option value="Inaktif">Inaktif</option>
+                    <option value="Keluar">Keluar</option>
+                    <option value="Meninggal">Meninggal</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Tempat Lahir</label>
+                  <input 
+                    type="text" 
+                    name="tempatLahir"
+                    defaultValue={editingJemaat.tempatLahir}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Tanggal Lahir</label>
+                  <input 
+                    type="date" 
+                    name="tanggalLahir"
+                    defaultValue={editingJemaat.tanggalLahir}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">Jenis Kelamin</label>
+                  <select 
+                    name="gender"
+                    defaultValue={editingJemaat.gender}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  >
+                    <option value="Pria">Pria</option>
+                    <option value="Wanita">Wanita</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">No. WhatsApp</label>
+                  <input 
+                    type="text" 
+                    name="noHp"
+                    defaultValue={editingJemaat.noHp}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-sm font-bold text-navy">Alamat</label>
+                  <textarea 
+                    name="alamat"
+                    defaultValue={editingJemaat.alamat}
+                    rows={3}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none resize-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-navy">NIK</label>
+                  <input 
+                    type="text" 
+                    name="nik"
+                    defaultValue={editingJemaat.nik}
+                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                    required
+                  />
+                </div>
+              </form>
+            </div>
+            <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
+              <button 
+                type="button"
+                onClick={() => setEditingJemaat(null)}
+                className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                type="submit"
+                form="ulang-tahun-form"
+                className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
+              >
+                <Save size={16} /> Simpan Perubahan
+              </button>
+            </div>
           </div>
         </div>
       )}
