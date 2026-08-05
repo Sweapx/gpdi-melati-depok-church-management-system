@@ -86,25 +86,22 @@ export default function Jemaat() {
   };
 
   const getDisplayWadah = (jemaat: JemaatType): string => {
+    const jw = (jemaat.wadah || (jemaat as any).wadah_id || '').toString().trim().toLowerCase();
+
+    if (jw === '4' || jw === 'wad-003' || jw.includes('remaja')) return 'Kaum Remaja';
+    if (jw === '3' || jw === 'wad-005' || jw.includes('sekolah minggu') || jw.includes('anak')) return 'Sekolah Minggu';
+    if (jw === '5' || jw === 'wad-001' || jw.includes('muda') || jw.includes('pemuda')) return 'Kaum Muda';
+    if (jw === '2' || jw === 'wad-004' || jw.includes('wanita') || jw.includes('ibu')) return 'Kaum Wanita';
+    if (jw === '1' || jw === 'wad-002' || jw.includes('pria') || jw.includes('bapak')) return 'Kaum Pria';
+
     const tgl = jemaat.tanggalLahir || (jemaat as any).tanggal_lahir;
     const age = tgl ? calculateAge(tgl) : 0;
     
-    if (age > 0 && age <= 12) return 'Sekolah Minggu';
-    if (age >= 13 && age <= 19) return 'Kaum Remaja';
+    if (age > 0 && age <= 13) return 'Sekolah Minggu';
+    if (age >= 14 && age <= 20) return 'Kaum Remaja';
+    if (age >= 21 && age <= 30) return 'Kaum Muda';
 
-    if (jemaat.wadah && jemaat.wadah !== 'Otomatis' && jemaat.wadah.trim() !== '' && jemaat.wadah !== '-') {
-      const jwLower = jemaat.wadah.trim().toLowerCase();
-      if (jwLower.includes('sekolah minggu') || jwLower.includes('anak')) return 'Sekolah Minggu';
-      if (jwLower.includes('remaja')) return 'Kaum Remaja';
-      if (jwLower.includes('muda') || jwLower.includes('pemuda')) return 'Kaum Muda';
-      if (jwLower.includes('wanita') || jwLower.includes('ibu')) return 'Kaum Wanita';
-      if (jwLower.includes('pria') || jwLower.includes('bapak')) return 'Kaum Pria';
-      return jemaat.wadah;
-    }
-
-    if (age >= 20 && age <= 30) return 'Kaum Muda';
-
-    const g = (jemaat.gender || '').trim().toLowerCase();
+    const g = (jemaat.gender || '').toString().trim().toLowerCase();
     if (g === 'wanita' || g === 'perempuan') return 'Kaum Wanita';
     return 'Kaum Pria';
   };

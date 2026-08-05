@@ -82,42 +82,18 @@ const formattedJemaatList = rawData.map((row, idx) => {
   }
 
   let wadah = '';
-  const gLower = gender.toLowerCase();
+  const wId = row.wadah_id !== undefined ? String(row.wadah_id).trim() : '';
 
-  if (age <= 12 && smCount < 36) {
-    wadah = 'Sekolah Minggu';
-    smCount++;
-  } else if (age >= 13 && age <= 19 && krCount < 34) {
-    wadah = 'Kaum Remaja';
-    krCount++;
-  } else if (gLower === 'wanita') {
-    if (kwCount < 134) {
-      wadah = 'Kaum Wanita';
-      kwCount++;
-    } else if (kmCount < 88) {
-      wadah = 'Kaum Muda';
-      kmCount++;
-    } else if (krCount < 34) {
-      wadah = 'Kaum Remaja';
-      krCount++;
-    } else {
-      wadah = 'Sekolah Minggu';
-      smCount++;
-    }
+  if (wId && wadahNameMap[wId]) {
+    wadah = wadahNameMap[wId];
+  } else if (wId && wadahNameMap[parseInt(wId)]) {
+    wadah = wadahNameMap[parseInt(wId)];
   } else {
-    if (kpCount < 79) {
-      wadah = 'Kaum Pria';
-      kpCount++;
-    } else if (kmCount < 88) {
-      wadah = 'Kaum Muda';
-      kmCount++;
-    } else if (krCount < 34) {
-      wadah = 'Kaum Remaja';
-      krCount++;
-    } else {
-      wadah = 'Sekolah Minggu';
-      smCount++;
-    }
+    if (age <= 13) wadah = 'Sekolah Minggu';
+    else if (age >= 14 && age <= 20) wadah = 'Kaum Remaja';
+    else if (age >= 21 && age <= 30) wadah = 'Kaum Muda';
+    else if (gender === 'Wanita') wadah = 'Kaum Wanita';
+    else wadah = 'Kaum Pria';
   }
 
   const rayon = row.rayon_id && rayonInfoMap[row.rayon_id] ? rayonInfoMap[row.rayon_id].nama : 'Rayon 1';
