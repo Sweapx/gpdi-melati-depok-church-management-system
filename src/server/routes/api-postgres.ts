@@ -153,6 +153,21 @@ const ensureSchema = async (): Promise<void> => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS prayer_requests (
+        id VARCHAR(50) PRIMARY KEY,
+        name VARCHAR(255),
+        nama VARCHAR(255),
+        request TEXT,
+        isi_doa TEXT,
+        kategori VARCHAR(100),
+        privasi VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'Baru',
+        no_hp VARCHAR(50),
+        tanggal TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
     schemaInitialized = true;
   } catch (e) {
     console.error("Auto schema creation error:", e);
@@ -959,9 +974,34 @@ router.delete("/knowledge-base/:id", async (req, res) => {
 // ============ PRAYER REQUESTS CRUD ============
 router.get("/prayers", async (req, res) => {
   try {
-    checkPostgres();
-    const result = await pool!.query("SELECT * FROM prayer_requests ORDER BY created_at DESC");
-    res.json({ success: true, data: result.rows });
+    let rows: any[] = [];
+    if (pool) {
+      try {
+        const result = await queryWithAutoTable("SELECT * FROM prayer_requests ORDER BY created_at DESC");
+        rows = result.rows;
+      } catch (dbErr) {
+        console.error("Database fetch prayers error:", dbErr);
+      }
+    }
+
+    if (rows.length === 0) {
+      rows = (inMemoryDB as any).prayerRequests || [];
+    }
+
+    const data = rows.map(r => ({
+      id: r.id,
+      name: r.name || r.nama || 'Anonim',
+      nama: r.name || r.nama || 'Anonim',
+      request: r.request || r.isi_doa || r.isiDoa || '',
+      isiDoa: r.request || r.isi_doa || r.isiDoa || '',
+      kategori: r.kategori || 'Umum',
+      privasi: r.privasi || 'Publik',
+      status: r.status || 'Baru',
+      noHp: r.no_hp || r.noHp || '-',
+      createdAt: r.created_at || r.createdAt
+    }));
+
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error fetching prayer requests:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -970,19 +1010,58 @@ router.get("/prayers", async (req, res) => {
 
 router.post("/prayers", async (req, res) => {
   try {
-    checkPostgres();
-    const { name, request, status } = req.body;
+    const name = (req.body.name || req.body.nama || "Anonim").toString();
+    const request = (req.body.request || req.body.isiDoa || req.body.isi_doa || "-").toString();
+    const kategori = (req.body.kategori || "Umum").toString();
+    const privasi = (req.body.privasi || "Publik").toString();
+    const status = (req.body.status || "Baru").toString();
+    const no_hp = (req.body.noHp || req.body.no_hp || "-").toString();
 
     const id = generateId("PR");
-    const query = `
-      INSERT INTO prayer_requests (id, name, request, status)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `;
-    const values = [id, name, request, status || 'Pending'];
 
-    const result = await pool!.query(query, values);
-    res.json({ success: true, data: result.rows[0] });
+    if (pool) {
+      try {
+        const query = `
+          INSERT INTO prayer_requests (id, name, nama, request, isi_doa, kategori, privasi, status, no_hp)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING *
+        `;
+        const values = [id, name, name, request, request, kategori, privasi, status, no_hp];
+        const result = await queryWithAutoTable(query, values);
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          return res.json({
+            success: true,
+            data: {
+              ...row,
+              name: row.name || row.nama,
+              nama: row.name || row.nama,
+              request: row.request || row.isi_doa,
+              isiDoa: row.request || row.isi_doa,
+              noHp: row.no_hp
+            }
+          });
+        }
+      } catch (dbErr) {
+        console.error("Database insert prayer error, using fallback:", dbErr);
+      }
+    }
+
+    const fallbackItem = {
+      id,
+      name,
+      nama: name,
+      request,
+      isiDoa: request,
+      kategori,
+      privasi,
+      status,
+      noHp: no_hp,
+      createdAt: new Date().toISOString()
+    };
+    (inMemoryDB as any).prayerRequests = (inMemoryDB as any).prayerRequests || [];
+    (inMemoryDB as any).prayerRequests.push(fallbackItem);
+    res.json({ success: true, data: fallbackItem });
   } catch (error: any) {
     console.error("Error creating prayer request:", error);
     res.status(500).json({ success: false, message: error.message });
