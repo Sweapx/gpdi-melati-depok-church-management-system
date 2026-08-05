@@ -32,8 +32,11 @@ export default function Pendaftaran() {
       .then(res => res.json())
       .then(res => {
         if (res.success && res.data) {
-          const events = res.data.filter((s: any) => s.kategori === 'Event' || s.isRegistrationRequired || s.is_registration_required);
-          setEventList(events);
+          const events = res.data.filter((s: any) => {
+            const kat = (s.kategori || '').toLowerCase();
+            return kat === 'event' || kat === 'pelatihan' || kat === 'retreat' || kat === 'seminar' || Boolean(s.isRegistrationRequired) || Boolean(s.is_registration_required) || (!kat.includes('ibadah raya') && !kat.includes('minggu'));
+          });
+          setEventList(events.length > 0 ? events : res.data);
         }
       })
       .catch(() => {});
@@ -233,21 +236,16 @@ export default function Pendaftaran() {
                               <label className="text-sm font-bold text-navy">Jenis Kegiatan</label>
                               <select name="jenisKegiatan" onChange={handleChange} value={formData.jenisKegiatan || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50">
                                 <option value="">Pilih Kegiatan...</option>
-                                {eventList.length > 0 ? (
-                                  eventList.map(ev => (
-                                    <option key={ev.id} value={ev.judul}>
-                                      {ev.judul}
-                                    </option>
-                                  ))
-                                ) : (
-                                  <>
-                                    <option value="Ibadah Padang Sekolah Minggu">Ibadah Padang Sekolah Minggu</option>
-                                    <option value="Retreat Pemuda Pemudi">Retreat Pemuda Pemudi</option>
-                                    <option value="Natal Bersama">Natal Bersama</option>
-                                    <option value="Paskah Bersama">Paskah Bersama</option>
-                                    <option value="Lainnya">Lainnya</option>
-                                  </>
-                                )}
+                                {eventList.map((ev, index) => (
+                                  <option key={ev.id || index} value={ev.judul}>
+                                    {ev.judul} {ev.tanggal ? `(${new Date(ev.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })})` : ''}
+                                  </option>
+                                ))}
+                                <option value="Ibadah Padang Sekolah Minggu">Ibadah Padang Sekolah Minggu</option>
+                                <option value="Retreat Pemuda Pemudi">Retreat Pemuda Pemudi</option>
+                                <option value="Natal Bersama">Natal Bersama</option>
+                                <option value="Paskah Bersama">Paskah Bersama</option>
+                                <option value="Lainnya">Lainnya</option>
                               </select>
                             </div>
                             <div className="space-y-1.5 sm:col-span-2">
