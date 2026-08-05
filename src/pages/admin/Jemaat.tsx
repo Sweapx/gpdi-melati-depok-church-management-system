@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, X, Save, Download } from 'lucide-react';
 import { Jemaat as JemaatType } from '../../types';
+import * as XLSX from 'xlsx';
 import clsx from 'clsx';
 
 export default function Jemaat() {
@@ -271,7 +272,27 @@ export default function Jemaat() {
   };
 
   const handleExport = () => {
-    alert('Export to XLS feature - implement with library like xlsx');
+    const exportData = filteredData.map((j, idx) => {
+      const tgl = (j.tanggalLahir || (j as any).tanggal_lahir || '').split('T')[0] || '-';
+      const age = tgl !== '-' ? calculateAge(tgl) : '-';
+      return {
+        'No': idx + 1,
+        'Nama Jemaat': j.nama || '-',
+        'Jenis Kelamin': j.gender || '-',
+        'Tempat Lahir': j.tempatLahir || (j as any).tempat_lahir || '-',
+        'Tanggal Lahir': tgl,
+        'Usia': age !== '-' ? `${age} tahun` : '-',
+        'Alamat': j.alamat || '-',
+        'No. WhatsApp': j.noHp || (j as any).no_hp || '-',
+        'Wadah': getDisplayWadah(j),
+        'Rayon': j.rayon || '-'
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Jemaat');
+    XLSX.writeFile(workbook, 'Data_Jemaat_GPdI_Melati.xlsx');
   };
 
   const filteredData = data.filter(j =>

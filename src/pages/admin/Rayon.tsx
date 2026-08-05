@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Eye, X, Save, Download, ArrowLeft } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface Rayon {
   id: string;
@@ -182,11 +183,31 @@ export default function Rayon() {
   };
 
   const handleExport = () => {
-    alert('Export to XLS feature - implement with library like xlsx');
+    const exportData = data.map((r, idx) => ({
+      'No': idx + 1,
+      'Nama Rayon': r.namaRayon,
+      'Ketua Rayon': r.ketuaRayon,
+      'Jumlah Anggota': `${r.jumlahAnggota} orang`
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Daftar Rayon');
+    XLSX.writeFile(workbook, 'Data_Manajemen_Rayon.xlsx');
   };
 
   const handleExportDetail = () => {
-    alert('Export Detail XLS feature - implement with library like xlsx');
+    if (!viewingRayon) return;
+    const exportData = anggotaRayon.map((a, idx) => ({
+      'No': idx + 1,
+      'Nama Anggota': a.nama,
+      'Tanggal Lahir': a.tanggalLahir,
+      'No WhatsApp': a.noWhatsApp,
+      'Rayon': viewingRayon.namaRayon
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, viewingRayon.namaRayon.slice(0, 31));
+    XLSX.writeFile(workbook, `Data_Anggota_${viewingRayon.namaRayon.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
   };
 
   const filteredData = data.filter(r => 

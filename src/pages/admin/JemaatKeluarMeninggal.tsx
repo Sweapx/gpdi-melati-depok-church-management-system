@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Edit2, Trash2, X, Save, Download } from 'lucide-react';
 import { Jemaat as JemaatType } from '../../types';
+import * as XLSX from 'xlsx';
 import clsx from 'clsx';
 
 export default function JemaatKeluarMeninggal() {
@@ -23,7 +24,7 @@ export default function JemaatKeluarMeninggal() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Yakin ingin menghapus data ini?')) return;
+    if (!window.confirm('Yakin ingin menghapus data ini secara permanen?')) return;
     try {
       const res = await fetch(`/api/jemaat/${id}`, {
         method: 'DELETE',

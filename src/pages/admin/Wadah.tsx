@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Eye, X, Save, Download, ArrowUpDown } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Eye, X, Save, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import clsx from 'clsx';
 
 interface Wadah {
@@ -205,8 +206,28 @@ export default function Wadah() {
     }
   };
 
-  const handleExport = () => {
-    alert('Export to XLS feature - implement with library like xlsx');
+  const handleExportDetail = (wadah: Wadah) => {
+    const members = getWadahMembers(wadah);
+    const exportData = members.map((j: any, index: number) => {
+      const tgl = (j.tanggalLahir || j.tanggal_lahir || '').split('T')[0] || '-';
+      const age = tgl !== '-' ? calculateAge(tgl) : '-';
+      return {
+        'No': index + 1,
+        'Nama Jemaat': j.nama || '-',
+        'Jenis Kelamin': j.gender || '-',
+        'Tanggal Lahir': tgl,
+        'Usia': age !== '-' ? `${age} tahun` : '-',
+        'Rayon': j.rayon || '-',
+        'Wadah': wadah.namaWadah,
+        'No. WhatsApp / HP': j.noHp || j.no_hp || j.noTelepon || '-',
+        'Alamat': j.alamat || '-'
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, wadah.namaWadah.slice(0, 31));
+    XLSX.writeFile(workbook, `Data_Anggota_${wadah.namaWadah.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
   };
 
   const filteredData = data.filter(w => 
@@ -243,12 +264,6 @@ export default function Wadah() {
             <option value="nama-asc">Urutkan Nama (A-Z)</option>
             <option value="nama-desc">Urutkan Nama (Z-A)</option>
           </select>
-          <button 
-            onClick={handleExport}
-            className="border border-emerald-600 text-emerald-600 px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-50 transition-colors flex items-center gap-2"
-          >
-            <Download size={16} /> Export XLS
-          </button>
           <button 
             onClick={() => { setEditingWadah(null); setIsAdding(true); }}
             className="bg-navy text-gold px-4 py-2 rounded-xl font-bold text-sm hover:bg-navy-light transition-colors flex items-center gap-2"
@@ -385,9 +400,17 @@ export default function Wadah() {
                 <h2 className="text-xl font-bold text-navy">{viewingWadah.namaWadah}</h2>
                 <p className="text-xs text-text-muted font-medium">Ketua: {viewingWadah.ketuaWadah} • Rentang Usia: {viewingWadah.umurMinimal} - {viewingWadah.umurMaksimal} tahun</p>
               </div>
-              <button onClick={() => setViewingWadah(null)} className="p-2 hover:bg-sand-darker rounded-full transition-colors text-text-muted hover:text-navy">
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => handleExportDetail(viewingWadah)}
+                  className="border border-emerald-600 text-emerald-600 px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-50 transition-colors flex items-center gap-2"
+                >
+                  <Download size={16} /> Export Detail XLS
+                </button>
+                <button onClick={() => setViewingWadah(null)} className="p-2 hover:bg-sand-darker rounded-full transition-colors text-text-muted hover:text-navy">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
             
             <div className="p-6 overflow-y-auto flex-1 space-y-4">
