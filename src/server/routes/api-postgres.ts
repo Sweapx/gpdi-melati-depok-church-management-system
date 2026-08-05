@@ -395,27 +395,31 @@ router.post("/import-excel-jemaat", async (req, res) => {
 
     if (pool) {
       try {
-        await queryWithAutoTable(`
-          CREATE TABLE IF NOT EXISTS jemaat (
-            id VARCHAR(50) PRIMARY KEY,
-            nama VARCHAR(255) NOT NULL,
-            nik VARCHAR(50),
-            gender VARCHAR(20),
-            tempat_lahir VARCHAR(100),
-            tanggal_lahir DATE,
-            alamat TEXT,
-            no_hp VARCHAR(50),
-            status_pernikahan VARCHAR(50),
-            status_jemaat VARCHAR(50) DEFAULT 'Aktif',
-            kategori_kaum VARCHAR(50),
-            sektor VARCHAR(50),
-            wadah VARCHAR(100),
-            rayon VARCHAR(100),
-            no_telepon VARCHAR(50),
-            anggota_keluarga JSONB,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
-        `);
+        try {
+          await queryWithAutoTable(`
+            CREATE TABLE IF NOT EXISTS jemaat (
+              id VARCHAR(50) PRIMARY KEY,
+              nama VARCHAR(255) NOT NULL,
+              nik VARCHAR(50),
+              gender VARCHAR(20),
+              tempat_lahir VARCHAR(100),
+              tanggal_lahir DATE,
+              alamat TEXT,
+              no_hp VARCHAR(50),
+              status_pernikahan VARCHAR(50),
+              status_jemaat VARCHAR(50) DEFAULT 'Aktif',
+              kategori_kaum VARCHAR(50),
+              sektor VARCHAR(50),
+              wadah VARCHAR(100),
+              rayon VARCHAR(100),
+              no_telepon VARCHAR(50),
+              anggota_keluarga JSONB,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+          `);
+        } catch (tErr) {
+          // Table already exists or schema create permission restricted
+        }
 
         for (const item of jemaatsToSave) {
           const query = `

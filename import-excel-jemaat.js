@@ -124,51 +124,59 @@ async function runImport() {
     });
 
     try {
-      // Create table if not exists
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS jemaat (
-          id VARCHAR(50) PRIMARY KEY,
-          nama VARCHAR(255) NOT NULL,
-          nik VARCHAR(50),
-          gender VARCHAR(20),
-          tempat_lahir VARCHAR(100),
-          tanggal_lahir DATE,
-          alamat TEXT,
-          no_hp VARCHAR(50),
-          status_jemaat VARCHAR(50) DEFAULT 'Aktif',
-          wadah VARCHAR(100),
-          rayon VARCHAR(100),
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-
-      let insertedCount = 0;
-      let updatedCount = 0;
-
-      for (const item of formattedJemaatList) {
-        const query = `
-          INSERT INTO jemaat (id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat, no_hp, status_jemaat, wadah, rayon)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-          ON CONFLICT (id) DO UPDATE SET
-            nama = EXCLUDED.nama,
-            gender = EXCLUDED.gender,
-            tempat_lahir = EXCLUDED.tempat_lahir,
-            tanggal_lahir = EXCLUDED.tanggal_lahir,
-            alamat = EXCLUDED.alamat,
-            no_hp = EXCLUDED.no_hp,
-            wadah = EXCLUDED.wadah,
-            rayon = EXCLUDED.rayon
-          RETURNING *;
-        `;
-        await pool.query(query, [
-          item.id, item.nama, item.nik, item.gender, item.tempat_lahir,
-          item.tanggal_lahir, item.alamat, item.no_hp, item.status_jemaat,
-          item.wadah, item.rayon
-        ]);
-        insertedCount++;
+      // Try CREATE TABLE if schema permits, otherwise proceed directly to INSERT
+      try {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS jemaat (
+            id VARCHAR(50) PRIMARY KEY,
+            nama VARCHAR(255) NOT NULL,
+            nik VARCHAR(50),
+            gender VARCHAR(20),
+            tempat_lahir VARCHAR(100),
+            tanggal_lahir DATE,
+            alamat TEXT,
+            no_hp VARCHAR(50),
+            status_jemaat VARCHAR(50) DEFAULT 'Aktif',
+            wadah VARCHAR(100),
+            rayon VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+      } catch (tableErr) {
+        console.log('ℹ️ Skip CREATE TABLE (menggunakan tabel jemaat yang sudah ada):', tableErr.message);
       }
 
-      console.log(`✅ BERHASIL! ${insertedCount} data jemaat telah diimpor ke PostgreSQL.`);
+      let insertedCount = 0;
+      let errorCount = 0;
+
+      for (const item of formattedJemaatList) {
+        try {
+          const query = `
+            INSERT INTO jemaat (id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat, no_hp, status_jemaat, wadah, rayon)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ON CONFLICT (id) DO UPDATE SET
+              nama = EXCLUDED.nama,
+              gender = EXCLUDED.gender,
+              tempat_lahir = EXCLUDED.tempat_lahir,
+              tanggal_lahir = EXCLUDED.tanggal_lahir,
+              alamat = EXCLUDED.alamat,
+              no_hp = EXCLUDED.no_hp,
+              wadah = EXCLUDED.wadah,
+              rayon = EXCLUDED.rayon;
+          `;
+          await pool.query(query, [
+            item.id, item.nama, item.nik, item.gender, item.tempat_lahir,
+            item.tanggal_lahir, item.alamat, item.no_hp, item.status_jemaat,
+            item.wadah, item.rayon
+          ]);
+          insertedCount++;
+        } catch (itemErr) {
+          console.error(`⚠️ Error insert (${item.nama}):`, itemErr.message);
+          errorCount++;
+        }
+      }
+
+      console.log(`✅ SELESAI! ${insertedCount} data jemaat telah diimpor ke database PostgreSQL (Gagal: ${errorCount}).`);
 
     } catch (err) {
       console.error('❌ Database error:', err.message);
