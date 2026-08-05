@@ -169,10 +169,10 @@ export default function Jemaat() {
   };
 
   const filteredData = data.filter(j =>
-    j.statusJemaat === 'Aktif' &&
-    (filterWadah === 'Semua Wadah' || j.wadah === filterWadah) &&
-    (filterRayon === 'Semua Rayon' || j.rayon === filterRayon) &&
-    (j.nama.toLowerCase().includes(search.toLowerCase()) || (j.nik && j.nik.includes(search)))
+    (!j.statusJemaat || j.statusJemaat === 'Aktif') &&
+    (filterWadah === 'Semua Wadah' || !j.wadah || j.wadah === filterWadah) &&
+    (filterRayon === 'Semua Rayon' || !j.rayon || j.rayon === filterRayon) &&
+    (j.nama && j.nama.toLowerCase().includes(search.toLowerCase()))
   );
 
   const wadahOptions = ['Semua Wadah', ...Array.from(new Set(data.map(j => j.wadah).filter(Boolean)))];
