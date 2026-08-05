@@ -244,6 +244,7 @@ export default function Jemaat() {
             <thead className="bg-sand-dark text-text-muted text-xs uppercase font-bold tracking-wider border-b border-border-subtle">
               <tr>
                 <th className="px-6 py-4">NAMA</th>
+                <th className="px-6 py-4">TEMPAT LAHIR</th>
                 <th className="px-6 py-4">TGL LAHIR</th>
                 <th className="px-6 py-4">WADAH</th>
                 <th className="px-6 py-4">RAYON</th>
@@ -253,18 +254,19 @@ export default function Jemaat() {
             <tbody className="divide-y divide-border-subtle">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-text-muted">Memuat data...</td>
+                  <td colSpan={6} className="text-center py-12 text-text-muted">Memuat data...</td>
                 </tr>
               ) : filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-text-muted">Tidak ada data jemaat.</td>
+                  <td colSpan={6} className="text-center py-12 text-text-muted">Tidak ada data jemaat.</td>
                 </tr>
               ) : (
                 filteredData.map(jemaat => (
                   <tr key={jemaat.id} className="hover:bg-sand-darker/50 transition-colors">
                     <td className="px-6 py-4 font-medium">{jemaat.nama}</td>
-                    <td className="px-6 py-4">{jemaat.tanggalLahir}</td>
-                    <td className="px-6 py-4">{jemaat.wadah || '-'}</td>
+                    <td className="px-6 py-4">{jemaat.tempatLahir || '-'}</td>
+                    <td className="px-6 py-4">{jemaat.tanggalLahir || '-'}</td>
+                    <td className="px-6 py-4">{jemaat.wadah || (jemaat.tanggalLahir ? assignWadahByAge(jemaat.tanggalLahir) : '') || '-'}</td>
                     <td className="px-6 py-4">{jemaat.rayon || '-'}</td>
                     <td className="px-6 py-4 flex justify-center gap-2">
                       <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => setEditingJemaat(jemaat)}><Edit2 size={16} /></button>

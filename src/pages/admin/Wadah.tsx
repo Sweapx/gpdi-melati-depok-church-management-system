@@ -102,10 +102,15 @@ export default function Wadah() {
     const formData = new FormData(form);
     const newWadah = {
       nama_wadah: formData.get('namaWadah') as string,
+      namaWadah: formData.get('namaWadah') as string,
       ketua_wadah: formData.get('ketuaWadah') as string,
-      umur_minimal: parseInt(formData.get('umurMinimal') as string),
-      umur_maksimal: parseInt(formData.get('umurMaksimal') as string),
+      ketuaWadah: formData.get('ketuaWadah') as string,
+      umur_minimal: parseInt(formData.get('umurMinimal') as string) || 0,
+      umurMinimal: parseInt(formData.get('umurMinimal') as string) || 0,
+      umur_maksimal: parseInt(formData.get('umurMaksimal') as string) || 150,
+      umurMaksimal: parseInt(formData.get('umurMaksimal') as string) || 150,
       jumlah_anggota: 0,
+      jumlahAnggota: 0,
     };
 
     try {

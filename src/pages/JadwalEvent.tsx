@@ -23,11 +23,11 @@ export default function JadwalEvent() {
   }, []);
 
   const filteredSchedules = schedules.filter(s => {
-    const kat = s.kategori || '';
+    const kat = (s.kategori || '').toLowerCase();
     if (activeTab === 'jadwal') {
-      return kat.toLowerCase().includes('ibadah') || kat === 'Sekolah Minggu' || kat === 'Baptisan' || kat === '';
+      return kat.includes('ibadah') || kat.includes('sekolah minggu') || kat.includes('baptisan') || kat.includes('doa') || kat === '';
     } else {
-      return kat === 'Event' || kat === 'Pelatihan' || (!kat.toLowerCase().includes('ibadah') && kat !== 'Sekolah Minggu' && kat !== 'Baptisan');
+      return kat.includes('event') || kat.includes('pelatihan') || kat.includes('retreat') || (!kat.includes('ibadah') && !kat.includes('sekolah minggu') && !kat.includes('baptisan') && kat !== '');
     }
   });
 

@@ -97,26 +97,26 @@ export default function Cms() {
     } else if (activeTab === 'hero') {
       payload = {
         title: payload.title,
-        image_url: payload.image_url,
-        link_url: payload.link_url,
-        is_active: payload.is_active !== undefined ? payload.is_active : true,
+        image_url: payload.imageUrl || payload.image_url,
+        link_url: payload.linkUrl || payload.link_url || '',
+        is_active: payload.isActive !== undefined ? payload.isActive : true,
         order_index: data.length,
-        subtitle: payload.subtitle,
-        badge: payload.badge,
-        cta_text: payload.cta_text,
-        cta_type: payload.cta_type,
-        event_name: payload.event_name
+        subtitle: payload.subtitle || '',
+        badge: payload.badge || '',
+        cta_text: payload.ctaText || payload.cta_text || 'Lihat Detail',
+        cta_type: payload.ctaType || payload.cta_type || 'home',
+        event_name: payload.eventName || payload.event_name || ''
       };
     } else if (activeTab === 'warta') {
       payload = {
-        judul: payload.judul,
-        tanggal: payload.tanggal || new Date().toISOString(),
-        pdf_url: payload.pdf_url,
+        judul: payload.judul || (payload.edisi ? `Warta Edisi ${payload.edisi}` : 'Warta Jemaat'),
+        tanggal: payload.tanggal || new Date().toISOString().split('T')[0],
+        pdf_url: payload.pdfUrl || payload.pdf_url || '',
         petugas_list: [],
-        edisi: payload.edisi,
-        tema_minggu: payload.tema_minggu,
-        ayat_minggu: payload.ayat_minggu,
-        pengumuman: payload.pengumuman
+        edisi: payload.edisi || '',
+        tema_minggu: payload.temaMinggu || payload.tema_minggu || '',
+        ayat_minggu: payload.ayatMinggu || payload.ayat_minggu || '',
+        pengumuman: payload.pengumuman || ''
       };
     }
 
@@ -149,13 +149,11 @@ export default function Cms() {
     }
   };
 
-  const handleEditSave = async (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
     try {
       let payload = { ...editingItem };
-
-      // Convert camelCase to snake_case for backend
       if (activeTab === 'announcements') {
         payload = {
           judul: editingItem.judul,
@@ -170,40 +168,40 @@ export default function Cms() {
       } else if (activeTab === 'ibadah' || activeTab === 'event') {
         payload = {
           judul: editingItem.judul,
-          tanggal: editingItem.tanggal,
-          waktu: editingItem.waktu,
+          tanggal: editingItem.tanggal ? editingItem.tanggal.split('T')[0] : new Date().toISOString().split('T')[0],
+          waktu: editingItem.waktu || null,
           lokasi: editingItem.lokasi,
-          deskripsi: editingItem.deskripsi,
-          kategori: editingItem.kategori,
-          is_registration_required: editingItem.is_registration_required,
-          hari_jam: editingItem.hari_jam,
-          kuota: editingItem.kuota,
-          terdaftar: editingItem.terdaftar,
-          registration_fee: editingItem.registration_fee,
-          need_payment_proof: editingItem.need_payment_proof
+          deskripsi: editingItem.deskripsi || '',
+          kategori: editingItem.kategori || (activeTab === 'ibadah' ? 'Ibadah Raya' : 'Event'),
+          is_registration_required: editingItem.is_registration_required || editingItem.isRegistrationRequired,
+          hari_jam: editingItem.hari_jam || editingItem.hariJam || '',
+          kuota: editingItem.kuota || 0,
+          terdaftar: editingItem.terdaftar || 0,
+          registration_fee: editingItem.registration_fee || editingItem.registrationFee,
+          need_payment_proof: editingItem.need_payment_proof || editingItem.needPaymentProof
         };
       } else if (activeTab === 'hero') {
         payload = {
           title: editingItem.title,
-          image_url: editingItem.image_url,
-          link_url: editingItem.link_url,
-          is_active: editingItem.is_active,
-          order_index: editingItem.order_index,
+          image_url: editingItem.imageUrl || editingItem.image_url,
+          link_url: editingItem.linkUrl || editingItem.link_url,
+          is_active: editingItem.isActive !== undefined ? editingItem.isActive : editingItem.is_active,
+          order_index: editingItem.orderIndex !== undefined ? editingItem.orderIndex : editingItem.order_index,
           subtitle: editingItem.subtitle,
           badge: editingItem.badge,
-          cta_text: editingItem.cta_text,
-          cta_type: editingItem.cta_type,
-          event_name: editingItem.event_name
+          cta_text: editingItem.ctaText || editingItem.cta_text,
+          cta_type: editingItem.ctaType || editingItem.cta_type,
+          event_name: editingItem.eventName || editingItem.event_name
         };
       } else if (activeTab === 'warta') {
         payload = {
-          judul: editingItem.judul,
-          tanggal: editingItem.tanggal,
-          pdf_url: editingItem.pdf_url,
-          petugas_list: editingItem.petugas_list,
+          judul: editingItem.judul || editingItem.edisi || 'Warta Jemaat',
+          tanggal: editingItem.tanggal ? editingItem.tanggal.split('T')[0] : new Date().toISOString().split('T')[0],
+          pdf_url: editingItem.pdfUrl || editingItem.pdf_url,
+          petugas_list: editingItem.petugasList || editingItem.petugas_list || [],
           edisi: editingItem.edisi,
-          tema_minggu: editingItem.tema_minggu,
-          ayat_minggu: editingItem.ayat_minggu,
+          tema_minggu: editingItem.temaMinggu || editingItem.tema_minggu,
+          ayat_minggu: editingItem.ayatMinggu || editingItem.ayat_minggu,
           pengumuman: editingItem.pengumuman
         };
       }
@@ -319,7 +317,7 @@ export default function Cms() {
               </button>
             </div>
             <div className="p-6 overflow-y-auto">
-              <form id="edit-cms-form" onSubmit={handleEditSave} className="space-y-4">
+              <form id="edit-cms-form" onSubmit={handleEditSubmit} className="space-y-4">
                 
                 {(activeTab === 'announcements' || activeTab === 'ibadah' || activeTab === 'event') && (
                   <>

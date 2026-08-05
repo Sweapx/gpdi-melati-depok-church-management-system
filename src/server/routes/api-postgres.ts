@@ -19,7 +19,18 @@ router.get("/jemaat", async (req, res) => {
   try {
     checkPostgres();
     const result = await pool!.query("SELECT * FROM jemaat ORDER BY created_at DESC");
-    res.json({ success: true, data: result.rows });
+    const data = result.rows.map(row => ({
+      ...row,
+      tempatLahir: row.tempat_lahir || row.tempatLahir || '',
+      tanggalLahir: row.tanggal_lahir || row.tanggalLahir || '',
+      noHp: row.no_hp || row.noHp || '',
+      statusPernikahan: row.status_pernikahan || row.statusPernikahan || '',
+      statusJemaat: row.status_jemaat || row.statusJemaat || 'Aktif',
+      kategoriKaum: row.kategori_kaum || row.kategoriKaum || '',
+      noTelepon: row.no_telepon || row.noTelepon || '',
+      anggotaKeluarga: row.anggota_keluarga || row.anggotaKeluarga || []
+    }));
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error fetching jemaat:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -149,7 +160,8 @@ router.post("/schedules", async (req, res) => {
       hari_jam, kategori, kuota, terdaftar, registration_fee, need_payment_proof
     } = req.body;
 
-    const finalTanggal = tanggal || new Date().toISOString().split('T')[0];
+    const finalTanggal = (tanggal && typeof tanggal === 'string' && tanggal.trim() !== '') ? tanggal : new Date().toISOString().split('T')[0];
+    const finalWaktu = (waktu && typeof waktu === 'string' && waktu.trim() !== '') ? waktu : null;
     const id = generateId("SCH");
     const query = `
       INSERT INTO schedules (
@@ -159,7 +171,7 @@ router.post("/schedules", async (req, res) => {
       RETURNING *
     `;
     const values = [
-      id, judul, finalTanggal, waktu, lokasi, deskripsi,
+      id, judul, finalTanggal, finalWaktu, lokasi, deskripsi,
       is_registration_required || false, hari_jam, kategori,
       kuota || 0, terdaftar || 0, registration_fee, need_payment_proof || false
     ];
@@ -199,6 +211,9 @@ router.put("/schedules/:id", async (req, res) => {
       hari_jam, kategori, kuota, terdaftar, registration_fee, need_payment_proof
     } = req.body;
 
+    const finalTanggal = (tanggal && typeof tanggal === 'string' && tanggal.trim() !== '') ? tanggal : new Date().toISOString().split('T')[0];
+    const finalWaktu = (waktu && typeof waktu === 'string' && waktu.trim() !== '') ? waktu : null;
+
     const query = `
       UPDATE schedules SET
         judul = $1, tanggal = $2, waktu = $3, lokasi = $4, deskripsi = $5,
@@ -208,7 +223,7 @@ router.put("/schedules/:id", async (req, res) => {
       RETURNING *
     `;
     const values = [
-      judul, tanggal, waktu, lokasi, deskripsi,
+      judul, finalTanggal, finalWaktu, lokasi, deskripsi,
       is_registration_required || false, hari_jam, kategori,
       kuota || 0, terdaftar || 0, registration_fee, need_payment_proof || false,
       id
@@ -444,6 +459,8 @@ router.post("/warta-jemaat", async (req, res) => {
     checkPostgres();
     const { judul, tanggal, pdf_url, petugas_list, edisi, tema_minggu, ayat_minggu, pengumuman } = req.body;
 
+    const finalJudul = judul || (edisi ? `Warta Edisi ${edisi}` : 'Warta Jemaat');
+    const finalTanggal = tanggal || new Date().toISOString().split('T')[0];
     const id = generateId("WJ");
     const query = `
       INSERT INTO warta_jemaat (
@@ -452,7 +469,7 @@ router.post("/warta-jemaat", async (req, res) => {
       RETURNING *
     `;
     const values = [
-      id, judul, tanggal, pdf_url,
+      id, finalJudul, finalTanggal, pdf_url,
       petugas_list ? JSON.stringify(petugas_list) : null,
       edisi, tema_minggu, ayat_minggu, pengumuman
     ];
@@ -912,7 +929,11 @@ router.get("/wadah", async (req, res) => {
 router.post("/wadah", async (req, res) => {
   try {
     checkPostgres();
-    const { nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota } = req.body;
+    const nama_wadah = req.body.nama_wadah || req.body.namaWadah;
+    const ketua_wadah = req.body.ketua_wadah || req.body.ketuaWadah;
+    const umur_minimal = req.body.umur_minimal !== undefined ? req.body.umur_minimal : req.body.umurMinimal;
+    const umur_maksimal = req.body.umur_maksimal !== undefined ? req.body.umur_maksimal : req.body.umurMaksimal;
+    const jumlah_anggota = req.body.jumlah_anggota !== undefined ? req.body.jumlah_anggota : req.body.jumlahAnggota;
 
     const id = generateId("WAD");
     const query = `
@@ -922,7 +943,7 @@ router.post("/wadah", async (req, res) => {
       RETURNING *
     `;
     const values = [
-      id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota || 0
+      id, nama_wadah, ketua_wadah, Number(umur_minimal) || 0, Number(umur_maksimal) || 150, Number(jumlah_anggota) || 0
     ];
 
     const result = await pool!.query(query, values);

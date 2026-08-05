@@ -16,12 +16,25 @@ export default function Pendaftaran() {
   }, [searchParams]);
 
   const [rayonList, setRayonList] = useState<any[]>([]);
+  const [eventList, setEventList] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/rayon')
       .then(res => res.json())
       .then(res => {
         if (res.success) setRayonList(res.data);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/schedules')
+      .then(res => res.json())
+      .then(res => {
+        if (res.success && res.data) {
+          const events = res.data.filter((s: any) => s.kategori === 'Event' || s.isRegistrationRequired || s.is_registration_required);
+          setEventList(events);
+        }
       })
       .catch(() => {});
   }, []);
@@ -220,12 +233,21 @@ export default function Pendaftaran() {
                               <label className="text-sm font-bold text-navy">Jenis Kegiatan</label>
                               <select name="jenisKegiatan" onChange={handleChange} value={formData.jenisKegiatan || ''} className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none transition-all bg-sand-dark/50">
                                 <option value="">Pilih Kegiatan...</option>
-                                <option value="Ibadah Padang Sekolah Minggu">Ibadah Padang Sekolah Minggu</option>
-                                <option value="Retreat Pemudia">Retreat Pemudia</option>
-                                <option value="Retreat Pemudi">Retreat Pemudi</option>
-                                <option value="Natal Bersama">Natal Bersama</option>
-                                <option value="Paskah Bersama">Paskah Bersama</option>
-                                <option value="Lainnya">Lainnya</option>
+                                {eventList.length > 0 ? (
+                                  eventList.map(ev => (
+                                    <option key={ev.id} value={ev.judul}>
+                                      {ev.judul}
+                                    </option>
+                                  ))
+                                ) : (
+                                  <>
+                                    <option value="Ibadah Padang Sekolah Minggu">Ibadah Padang Sekolah Minggu</option>
+                                    <option value="Retreat Pemuda Pemudi">Retreat Pemuda Pemudi</option>
+                                    <option value="Natal Bersama">Natal Bersama</option>
+                                    <option value="Paskah Bersama">Paskah Bersama</option>
+                                    <option value="Lainnya">Lainnya</option>
+                                  </>
+                                )}
                               </select>
                             </div>
                             <div className="space-y-1.5 sm:col-span-2">
