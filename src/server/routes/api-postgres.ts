@@ -11,6 +11,176 @@ const checkPostgres = (): void => {
   }
 };
 
+let schemaInitialized = false;
+
+const ensureSchema = async (): Promise<void> => {
+  if (!pool || schemaInitialized) return;
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wadah (
+        id VARCHAR(50) PRIMARY KEY,
+        nama_wadah VARCHAR(255) NOT NULL,
+        ketua_wadah VARCHAR(255) NOT NULL,
+        umur_minimal INTEGER NOT NULL DEFAULT 0,
+        umur_maksimal INTEGER NOT NULL DEFAULT 0,
+        jumlah_anggota INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS rayon (
+        id VARCHAR(50) PRIMARY KEY,
+        nama_rayon VARCHAR(255) NOT NULL,
+        ketua_rayon VARCHAR(255) NOT NULL,
+        jumlah_anggota INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS jemaat (
+        id VARCHAR(50) PRIMARY KEY,
+        nama VARCHAR(255) NOT NULL,
+        nik VARCHAR(50),
+        gender VARCHAR(20),
+        tempat_lahir VARCHAR(100),
+        tanggal_lahir DATE,
+        alamat TEXT,
+        no_hp VARCHAR(50),
+        status_pernikahan VARCHAR(50),
+        status_jemaat VARCHAR(50) DEFAULT 'Aktif',
+        kategori_kaum VARCHAR(50),
+        sektor VARCHAR(50),
+        wadah VARCHAR(100),
+        rayon VARCHAR(100),
+        no_telepon VARCHAR(50),
+        anggota_keluarga JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS schedules (
+        id VARCHAR(50) PRIMARY KEY,
+        judul VARCHAR(255) NOT NULL,
+        tanggal DATE NOT NULL,
+        waktu TIME,
+        lokasi VARCHAR(255),
+        deskripsi TEXT,
+        is_registration_required BOOLEAN DEFAULT false,
+        hari_jam VARCHAR(100),
+        kategori VARCHAR(100),
+        kuota INTEGER DEFAULT 0,
+        terdaftar INTEGER DEFAULT 0,
+        registration_fee VARCHAR(50),
+        need_payment_proof BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS announcements (
+        id VARCHAR(50) PRIMARY KEY,
+        judul VARCHAR(255) NOT NULL,
+        konten TEXT,
+        tanggal DATE,
+        is_active BOOLEAN DEFAULT true,
+        ringkasan TEXT,
+        isi TEXT,
+        penting BOOLEAN DEFAULT false,
+        gambar_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS hero_slides (
+        id VARCHAR(50) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        image_url TEXT,
+        link_url TEXT,
+        is_active BOOLEAN DEFAULT true,
+        order_index INTEGER DEFAULT 0,
+        subtitle TEXT,
+        badge VARCHAR(100),
+        cta_text VARCHAR(100),
+        cta_type VARCHAR(50),
+        event_name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS warta_jemaat (
+        id VARCHAR(50) PRIMARY KEY,
+        judul VARCHAR(255) NOT NULL,
+        tanggal DATE,
+        pdf_url TEXT,
+        petugas_list JSONB,
+        edisi VARCHAR(100),
+        tema_minggu VARCHAR(255),
+        ayat_minggu VARCHAR(255),
+        pengumuman TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS registrations (
+        id VARCHAR(50) PRIMARY KEY,
+        type VARCHAR(50) NOT NULL,
+        nama_pendaftar VARCHAR(255),
+        nik VARCHAR(50),
+        gender VARCHAR(20),
+        tempat_lahir VARCHAR(100),
+        tanggal_lahir DATE,
+        alamat TEXT,
+        no_hp VARCHAR(50),
+        lampiran_ktp TEXT,
+        lampiran_bukti_bayar TEXT,
+        status VARCHAR(50) DEFAULT 'Pending',
+        status_note TEXT,
+        anggota_keluarga JSONB,
+        rayon VARCHAR(100),
+        jenis_kegiatan VARCHAR(255),
+        tanggal_daftar TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS knowledge_base (
+        id VARCHAR(50) PRIMARY KEY,
+        category VARCHAR(100),
+        intent VARCHAR(100),
+        patterns JSONB,
+        bot_response TEXT,
+        is_active BOOLEAN DEFAULT true,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
+      VALUES 
+        ('WAD-001', 'Wadah Muda Mudi', 'Budi Santoso', 18, 35, 0),
+        ('WAD-002', 'Wadah Remaja', 'Siti Rahayu', 13, 17, 0),
+        ('WAD-003', 'Wadah Dewasa', 'Agus Pratama', 36, 60, 0),
+        ('WAD-004', 'Wadah Lansia', 'Dewi Sartika', 61, 100, 0)
+      ON CONFLICT (id) DO NOTHING;
+
+      INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
+      VALUES 
+        ('RAY-001', 'Rayon Depok Timur', 'Hendro Wijaya', 0),
+        ('RAY-002', 'Rayon Depok Barat', 'Dewi Sartika', 0),
+        ('RAY-003', 'Rayon Depok Selatan', 'Rudi Hartono', 0),
+        ('RAY-004', 'Rayon Depok Utara', 'Sri Mulyani', 0)
+      ON CONFLICT (id) DO NOTHING;
+    `);
+    schemaInitialized = true;
+  } catch (e) {
+    console.error("Auto schema creation error:", e);
+  }
+};
+
+const queryWithAutoTable = async (queryText: string, values?: any[]) => {
+  await ensureSchema();
+  try {
+    return await pool!.query(queryText, values);
+  } catch (err: any) {
+    if (err && err.code === '42P01') { // 42P01 = undefined_table
+      schemaInitialized = false;
+      await ensureSchema();
+      return await pool!.query(queryText, values);
+    }
+    throw err;
+  }
+};
+
 // Helper function to generate ID
 const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -894,8 +1064,8 @@ router.delete("/prayers/:id", async (req, res) => {
 router.get("/wadah", async (req, res) => {
   try {
     checkPostgres();
-    const wadahRes = await pool!.query("SELECT * FROM wadah ORDER BY nama_wadah ASC");
-    const jemaatRes = await pool!.query("SELECT * FROM jemaat WHERE status_jemaat = 'Aktif' OR status_jemaat IS NULL");
+    const wadahRes = await queryWithAutoTable("SELECT * FROM wadah ORDER BY nama_wadah ASC");
+    const jemaatRes = await queryWithAutoTable("SELECT * FROM jemaat WHERE status_jemaat = 'Aktif' OR status_jemaat IS NULL");
     const jemaats = jemaatRes.rows;
 
     const data = wadahRes.rows.map(w => {
@@ -953,7 +1123,7 @@ router.post("/wadah", async (req, res) => {
       id, nama_wadah, ketua_wadah, Number(umur_minimal) || 0, Number(umur_maksimal) || 150, Number(jumlah_anggota) || 0
     ];
 
-    const result = await pool!.query(query, values);
+    const result = await queryWithAutoTable(query, values);
     res.json({ success: true, data: result.rows[0] });
   } catch (error: any) {
     console.error("Error creating wadah:", error);
@@ -975,7 +1145,7 @@ router.put("/wadah/:id", async (req, res) => {
     `;
     const values = [nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota || 0, id];
 
-    const result = await pool!.query(query, values);
+    const result = await queryWithAutoTable(query, values);
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: "Wadah not found" });
     } else {
@@ -991,7 +1161,7 @@ router.delete("/wadah/:id", async (req, res) => {
   try {
     checkPostgres();
     const { id } = req.params;
-    const result = await pool!.query("DELETE FROM wadah WHERE id = $1 RETURNING *", [id]);
+    const result = await queryWithAutoTable("DELETE FROM wadah WHERE id = $1 RETURNING *", [id]);
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: "Wadah not found" });
     } else {
@@ -1007,8 +1177,8 @@ router.delete("/wadah/:id", async (req, res) => {
 router.get("/rayon", async (req, res) => {
   try {
     checkPostgres();
-    const rayonRes = await pool!.query("SELECT * FROM rayon ORDER BY nama_rayon ASC");
-    const jemaatRes = await pool!.query("SELECT * FROM jemaat WHERE status_jemaat = 'Aktif' OR status_jemaat IS NULL");
+    const rayonRes = await queryWithAutoTable("SELECT * FROM rayon ORDER BY nama_rayon ASC");
+    const jemaatRes = await queryWithAutoTable("SELECT * FROM jemaat WHERE status_jemaat = 'Aktif' OR status_jemaat IS NULL");
     const jemaats = jemaatRes.rows;
 
     const data = rayonRes.rows.map(r => {
@@ -1042,7 +1212,7 @@ router.post("/rayon", async (req, res) => {
     `;
     const values = [id, nama_rayon, ketua_rayon, Number(jumlah_anggota) || 0];
 
-    const result = await pool!.query(query, values);
+    const result = await queryWithAutoTable(query, values);
     res.json({ success: true, data: result.rows[0] });
   } catch (error: any) {
     console.error("Error creating rayon:", error);
@@ -1064,7 +1234,7 @@ router.put("/rayon/:id", async (req, res) => {
     `;
     const values = [nama_rayon, ketua_rayon, jumlah_anggota, id];
 
-    const result = await pool!.query(query, values);
+    const result = await queryWithAutoTable(query, values);
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: "Rayon not found" });
     } else {
@@ -1080,7 +1250,7 @@ router.delete("/rayon/:id", async (req, res) => {
   try {
     checkPostgres();
     const { id } = req.params;
-    const result = await pool!.query("DELETE FROM rayon WHERE id = $1 RETURNING *", [id]);
+    const result = await queryWithAutoTable("DELETE FROM rayon WHERE id = $1 RETURNING *", [id]);
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: "Rayon not found" });
     } else {
