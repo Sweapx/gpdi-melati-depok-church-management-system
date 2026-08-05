@@ -31,6 +31,25 @@ const createCrud = (route: string, arrayName: keyof typeof inMemoryDB) => {
         createdAt: row.created_at || row.createdAt
       }));
     }
+    // Convert snake_case to camelCase for schedules
+    if (route === 'schedules') {
+      data = (data as any[]).map((row: any) => ({
+        id: row.id,
+        judul: row.judul,
+        tanggal: row.tanggal,
+        waktu: row.waktu,
+        lokasi: row.lokasi,
+        deskripsi: row.deskripsi,
+        isRegistrationRequired: row.is_registration_required || row.isRegistrationRequired,
+        hariJam: row.hari_jam || row.hariJam,
+        kategori: row.kategori,
+        kuota: row.kuota,
+        terdaftar: row.terdaftar,
+        registrationFee: row.registration_fee || row.registrationFee,
+        needPaymentProof: row.need_payment_proof || row.needPaymentProof,
+        createdAt: row.created_at || row.createdAt
+      }));
+    }
     res.json({ success: true, data });
   });
 
