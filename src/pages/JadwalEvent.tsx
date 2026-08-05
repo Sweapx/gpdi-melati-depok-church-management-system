@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Clock, MapPin, Users, ChevronRight, Bell } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { ScheduleItem } from '../types/index.ts';
 
@@ -9,6 +9,17 @@ export default function JadwalEvent() {
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'jadwal' | 'event'>('jadwal');
+  const [searchParams] = useSearchParams();
+  const highlightedId = searchParams.get('id');
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'event') {
+      setActiveTab('event');
+    } else if (tabParam === 'jadwal') {
+      setActiveTab('jadwal');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetch('/api/schedules')
@@ -21,6 +32,17 @@ export default function JadwalEvent() {
       })
       .catch(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (highlightedId && !isLoading && schedules.length > 0) {
+      setTimeout(() => {
+        const elem = document.getElementById(`schedule-card-${highlightedId}`);
+        if (elem) {
+          elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+    }
+  }, [highlightedId, isLoading, schedules]);
 
   const filteredSchedules = schedules.filter(s => {
     const kat = (s.kategori || '').toLowerCase();
@@ -87,12 +109,16 @@ export default function JadwalEvent() {
               {filteredSchedules.map((schedule) => (
                 <motion.div
                   key={schedule.id}
+                  id={`schedule-card-${schedule.id}`}
                   layout
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className="bg-white rounded-2xl border border-border-subtle shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:shadow-md hover:border-gold transition-all p-6 flex flex-col h-full relative overflow-hidden group"
+                  className={clsx(
+                    "bg-white rounded-2xl border shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:shadow-md hover:border-gold transition-all p-6 flex flex-col h-full relative overflow-hidden group",
+                    highlightedId === schedule.id ? "border-gold ring-2 ring-gold/40 shadow-lg" : "border-border-subtle"
+                  )}
                 >
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-gold rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
 
