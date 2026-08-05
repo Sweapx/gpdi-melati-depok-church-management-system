@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Eye, X, Save, Download, ArrowUpDown, ArrowLeft } from 'lucide-react';
-import clsx from 'clsx';
+import { Search, Plus, Edit2, Trash2, Eye, X, Save, Download, ArrowLeft } from 'lucide-react';
 
 interface Rayon {
   id: string;
@@ -27,22 +26,49 @@ export default function Rayon() {
   const [anggotaRayon, setAnggotaRayon] = useState<AnggotaRayon[]>([]);
   const [isLoadingAnggota, setIsLoadingAnggota] = useState(false);
 
-  useEffect(() => {
-    fetch('/api/rayon')
-      .then(res => res.json())
-      .then(res => {
-        if (res.success) {
-          const convertedData = res.data.map((row: any) => ({
+  const fetchAllData = () => {
+    setIsLoading(true);
+    Promise.all([
+      fetch('/api/rayon').then(res => res.json()),
+      fetch('/api/jemaat').then(res => res.json())
+    ]).then(([rayonRes, jemaatRes]) => {
+      let jList: any[] = [];
+      if (jemaatRes.success) {
+        jList = jemaatRes.data || [];
+      }
+      if (rayonRes.success) {
+        const convertedData = rayonRes.data.map((row: any) => {
+          const rName = (row.nama_rayon || row.namaRayon || '').trim().toLowerCase();
+          let count = 0;
+          if (jList.length > 0) {
+            count = jList.filter((j: any) => {
+              const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || j.status_jemaat === 'Aktif';
+              if (!isAktif) return false;
+              const jr = (j.rayon || '').trim().toLowerCase();
+              return jr === rName || (row.id === 'RAY-001' && (jr.includes('rayon 1') || jr === '1'))
+                || (row.id === 'RAY-002' && (jr.includes('rayon 2') || jr === '2'))
+                || (row.id === 'RAY-003' && (jr.includes('rayon 3') || jr === '3'))
+                || (row.id === 'RAY-004' && (jr.includes('rayon 4') || jr === '4'));
+            }).length;
+          } else {
+            count = row.jumlah_anggota || row.jumlahAnggota || 0;
+          }
+
+          return {
             id: row.id,
-            namaRayon: row.nama_rayon,
-            ketuaRayon: row.ketua_rayon,
-            jumlahAnggota: row.jumlah_anggota,
-          }));
-          setData(convertedData);
-        }
-        setIsLoading(false);
-      })
-      .catch(() => setIsLoading(false));
+            namaRayon: row.nama_rayon || row.namaRayon,
+            ketuaRayon: row.ketua_rayon || row.ketuaRayon,
+            jumlahAnggota: count,
+          };
+        });
+        setData(convertedData);
+      }
+      setIsLoading(false);
+    }).catch(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchAllData();
   }, []);
 
   const handleViewAnggota = async (rayon: Rayon) => {
@@ -52,12 +78,21 @@ export default function Rayon() {
       const res = await fetch('/api/jemaat');
       const json = await res.json();
       if (json.success) {
+        const rName = (rayon.namaRayon || '').trim().toLowerCase();
         const filtered = json.data
-          .filter((j: any) => j.rayon && j.rayon.trim().toLowerCase() === rayon.namaRayon.trim().toLowerCase())
+          .filter((j: any) => {
+            const isAktif = !j.statusJemaat || j.statusJemaat === 'Aktif' || j.status_jemaat === 'Aktif';
+            if (!isAktif) return false;
+            const jr = (j.rayon || '').trim().toLowerCase();
+            return jr === rName || (rayon.id === 'RAY-001' && (jr.includes('rayon 1') || jr === '1'))
+              || (rayon.id === 'RAY-002' && (jr.includes('rayon 2') || jr === '2'))
+              || (rayon.id === 'RAY-003' && (jr.includes('rayon 3') || jr === '3'))
+              || (rayon.id === 'RAY-004' && (jr.includes('rayon 4') || jr === '4'));
+          })
           .map((j: any) => ({
             id: j.id,
             nama: j.nama,
-            tanggalLahir: j.tanggal_lahir || j.tanggalLahir || '-',
+            tanggalLahir: (j.tanggal_lahir || j.tanggalLahir || '').split('T')[0] || '-',
             noWhatsApp: j.no_hp || j.noHp || '-'
           }));
         setAnggotaRayon(filtered);
@@ -77,7 +112,7 @@ export default function Rayon() {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (res.ok) {
-        setData(data.filter(r => r.id !== id));
+        fetchAllData();
       }
     } catch (err) {
       console.error(err);
@@ -102,15 +137,8 @@ export default function Rayon() {
         body: JSON.stringify(updatedRayon)
       });
       if (res.ok) {
-        const json = await res.json();
-        const converted = {
-          id: json.data.id,
-          namaRayon: json.data.nama_rayon,
-          ketuaRayon: json.data.ketua_rayon,
-          jumlahAnggota: json.data.jumlah_anggota,
-        };
-        setData(data.map(r => r.id === editingRayon.id ? converted : r));
         setEditingRayon(null);
+        fetchAllData();
       } else {
         const error = await res.json();
         alert('Gagal mengupdate rayon: ' + (error.message || 'Unknown error'));
@@ -141,15 +169,8 @@ export default function Rayon() {
         body: JSON.stringify(newRayon)
       });
       if (res.ok) {
-        const json = await res.json();
-        const convertedData = {
-          id: json.data.id,
-          namaRayon: json.data.nama_rayon,
-          ketuaRayon: json.data.ketua_rayon,
-          jumlahAnggota: json.data.jumlah_anggota,
-        };
-        setData([...data, convertedData]);
         setIsAdding(false);
+        fetchAllData();
       } else {
         const error = await res.json();
         alert('Gagal menambah rayon: ' + (error.message || 'Unknown error'));
@@ -192,7 +213,7 @@ export default function Rayon() {
             <div className="p-6 border-b border-border-subtle bg-sand-dark flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-bold text-navy">Detail Anggota Rayon</h2>
-                <p className="text-sm text-text-muted">{viewingRayon.namaRayon}</p>
+                <p className="text-sm text-text-muted">{viewingRayon.namaRayon} • Ketua: {viewingRayon.ketuaRayon}</p>
               </div>
               <button 
                 onClick={handleExportDetail}
@@ -268,7 +289,7 @@ export default function Rayon() {
                 <Download size={16} /> Export XLS
               </button>
               <button 
-                onClick={() => setIsAdding(true)}
+                onClick={() => { setEditingRayon(null); setIsAdding(true); }}
                 className="bg-navy text-gold px-4 py-2 rounded-xl font-bold text-sm hover:bg-navy-light transition-colors flex items-center gap-2"
               >
                 <Plus size={16} /> Tambah Rayon
@@ -300,11 +321,11 @@ export default function Rayon() {
                       <tr key={rayon.id} className="hover:bg-sand-darker/50 transition-colors">
                         <td className="px-6 py-4 font-medium">{rayon.namaRayon}</td>
                         <td className="px-6 py-4">{rayon.ketuaRayon}</td>
-                        <td className="px-6 py-4">{rayon.jumlahAnggota}</td>
+                        <td className="px-6 py-4 font-bold">{rayon.jumlahAnggota} orang</td>
                         <td className="px-6 py-4 flex justify-center gap-2">
-                          <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" onClick={() => handleViewAnggota(rayon)}><Eye size={16} /></button>
-                          <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => setEditingRayon(rayon)}><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete(rayon.id)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                          <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" onClick={() => handleViewAnggota(rayon)} title="Lihat Anggota"><Eye size={16} /></button>
+                          <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => { setIsAdding(false); setEditingRayon(rayon); }} title="Edit Rayon"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete(rayon.id)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Hapus"><Trash2 size={16} /></button>
                         </td>
                       </tr>
                     ))
@@ -314,52 +335,58 @@ export default function Rayon() {
             </div>
           </div>
 
-          {/* Add/Edit Form Card */}
+          {/* Add/Edit Modal */}
           {(isAdding || editingRayon) && (
-            <div className="bg-white rounded-2xl border border-border-subtle shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-border-subtle bg-sand-dark">
-                <h2 className="text-xl font-bold text-navy">
-                  {isAdding ? 'Tambah Rayon Baru' : 'Edit Data Rayon'}
-                </h2>
-              </div>
-              <div className="p-6">
-                <form id="rayon-form" onSubmit={isAdding ? handleAddSave : handleEditSave} className="space-y-5">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-navy">Nama Rayon</label>
-                    <input
-                      type="text"
-                      name="namaRayon"
-                      defaultValue={editingRayon?.namaRayon}
-                      className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-navy">Ketua Rayon</label>
-                    <input
-                      type="text"
-                      name="ketuaRayon"
-                      defaultValue={editingRayon?.ketuaRayon}
-                      className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                      required
-                    />
-                  </div>
-                </form>
-              </div>
-              <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
-                <button
-                  onClick={() => { setIsAdding(false); setEditingRayon(null); }}
-                  className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  form="rayon-form"
-                  className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
-                >
-                  <Save size={16} /> {isAdding ? 'Simpan Data Rayon' : 'Simpan Perubahan'}
-                </button>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-sm overflow-y-auto">
+              <div className="bg-white rounded-2xl border border-border-subtle shadow-xl w-full max-w-lg overflow-hidden my-auto">
+                <div className="p-6 border-b border-border-subtle bg-sand-dark flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-navy">
+                    {isAdding ? 'Tambah Rayon Baru' : 'Edit Data Rayon'}
+                  </h2>
+                  <button onClick={() => { setIsAdding(false); setEditingRayon(null); }} className="text-text-muted hover:text-navy p-1 rounded-lg">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-6">
+                  <form id="rayon-form" key={editingRayon?.id || (isAdding ? 'add' : 'none')} onSubmit={isAdding ? handleAddSave : handleEditSave} className="space-y-5">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-navy">Nama Rayon</label>
+                      <input
+                        type="text"
+                        name="namaRayon"
+                        defaultValue={editingRayon?.namaRayon || ''}
+                        className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-navy">Ketua Rayon</label>
+                      <input
+                        type="text"
+                        name="ketuaRayon"
+                        defaultValue={editingRayon?.ketuaRayon || ''}
+                        className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
+                        required
+                      />
+                    </div>
+                  </form>
+                </div>
+                <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setIsAdding(false); setEditingRayon(null); }}
+                    className="px-6 py-2.5 rounded-full text-sm font-bold text-text-muted hover:text-navy transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    form="rayon-form"
+                    className="bg-teal-600 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
+                  >
+                    <Save size={16} /> {isAdding ? 'Simpan Data Rayon' : 'Simpan Perubahan'}
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -407,24 +407,39 @@ router.post("/import-excel-jemaat", async (req, res) => {
         }
 
         // Ensure Wadah 1-5 default rows exist
-        for (let i = 1; i <= 5; i++) {
+        const defaultWadahList = [
+          { id: 'WAD-001', nama: 'Kaum Pria (Bapak)', ketua: 'Tim Kaum Pria', min: 32, max: 91 },
+          { id: 'WAD-002', nama: 'Kaum Wanita (Ibu)', ketua: 'Tim Kaum Wanita', min: 28, max: 96 },
+          { id: 'WAD-003', nama: 'Anak & Remaja', ketua: 'Tim Anak & Remaja', min: 2, max: 26 },
+          { id: 'WAD-004', nama: 'Pemuda (Youth)', ketua: 'Tim Pemuda', min: 16, max: 32 },
+          { id: 'WAD-005', nama: 'Dewasa Muda (Professional)', ketua: 'Tim Professional', min: 20, max: 67 }
+        ];
+
+        for (const w of defaultWadahList) {
           try {
             await pool.query(`
               INSERT INTO wadah (id, nama_wadah, ketua_wadah, umur_minimal, umur_maksimal, jumlah_anggota)
               VALUES ($1, $2, $3, $4, $5, $6)
-              ON CONFLICT (id) DO UPDATE SET nama_wadah = EXCLUDED.nama_wadah;
-            `, [`WAD-00${i}`, `Wadah ${i}`, `Ketua Wadah ${i}`, i === 1 ? 0 : i === 2 ? 13 : i === 3 ? 18 : 26, i === 1 ? 12 : i === 2 ? 17 : i === 3 ? 25 : 150, 0]);
+              ON CONFLICT (id) DO NOTHING;
+            `, [w.id, w.nama, w.ketua, w.min, w.max, 0]);
           } catch (wErr) {}
         }
 
         // Ensure Rayon 1-4 default rows exist
-        for (let i = 1; i <= 4; i++) {
+        const defaultRayonList = [
+          { id: 'RAY-001', nama: 'Rayon 1', ketua: 'Suci Br Kembaren' },
+          { id: 'RAY-002', nama: 'Rayon 2', ketua: 'Tarningsih' },
+          { id: 'RAY-003', nama: 'Rayon 3', ketua: 'Harliarso' },
+          { id: 'RAY-004', nama: 'Rayon 4', ketua: 'Mega Sihombing' }
+        ];
+
+        for (const r of defaultRayonList) {
           try {
             await pool.query(`
               INSERT INTO rayon (id, nama_rayon, ketua_rayon, jumlah_anggota)
               VALUES ($1, $2, $3, $4)
-              ON CONFLICT (id) DO UPDATE SET nama_rayon = EXCLUDED.nama_rayon;
-            `, [`RAY-00${i}`, `Rayon ${i}`, `Ketua Rayon ${i}`, 0]);
+              ON CONFLICT (id) DO NOTHING;
+            `, [r.id, r.nama, r.ketua, 0]);
           } catch (rErr) {}
         }
 
@@ -1392,8 +1407,12 @@ router.get("/wadah", async (req, res) => {
       { id: 'WAD-005', nama_wadah: 'Dewasa Muda (Professional)', ketua_wadah: 'Tim Professional', umur_minimal: 20, umur_maksimal: 67 }
     ];
 
-    if (wadahRows.length === 0 || wadahRows.some(w => w.nama_wadah?.includes('Muda Mudi') || w.nama_wadah?.includes('Lansia'))) {
-      wadahRows = defaultWadah;
+    if (wadahRows.length === 0) {
+      if ((inMemoryDB as any).wadah && (inMemoryDB as any).wadah.length > 0) {
+        wadahRows = (inMemoryDB as any).wadah;
+      } else {
+        wadahRows = defaultWadah;
+      }
     }
 
     const data = wadahRows.map(w => {
@@ -1612,8 +1631,12 @@ router.get("/rayon", async (req, res) => {
       { id: 'RAY-004', nama_rayon: 'Rayon 4', ketua_rayon: 'Mega Sihombing' }
     ];
 
-    if (rayonRows.length === 0 || rayonRows.some(r => r.nama_rayon?.includes('Depok'))) {
-      rayonRows = defaultRayon;
+    if (rayonRows.length === 0) {
+      if ((inMemoryDB as any).rayon && (inMemoryDB as any).rayon.length > 0) {
+        rayonRows = (inMemoryDB as any).rayon;
+      } else {
+        rayonRows = defaultRayon;
+      }
     }
 
     const data = rayonRows.map(r => {

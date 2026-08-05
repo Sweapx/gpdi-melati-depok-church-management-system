@@ -246,7 +246,7 @@ export default function Wadah() {
             <Download size={16} /> Export XLS
           </button>
           <button 
-            onClick={() => setIsAdding(true)}
+            onClick={() => { setEditingWadah(null); setIsAdding(true); }}
             className="bg-navy text-gold px-4 py-2 rounded-xl font-bold text-sm hover:bg-navy-light transition-colors flex items-center gap-2"
           >
             <Plus size={16} /> Tambah Wadah
@@ -283,7 +283,7 @@ export default function Wadah() {
                     <td className="px-6 py-4 font-bold">{wadah.jumlahAnggota} orang</td>
                     <td className="px-6 py-4 flex justify-center gap-2">
                       <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" onClick={() => setViewingWadah(wadah)} title="Lihat Anggota"><Eye size={16} /></button>
-                      <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => setEditingWadah(wadah)} title="Edit Wadah"><Edit2 size={16} /></button>
+                      <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => { setIsAdding(false); setEditingWadah(wadah); }} title="Edit Wadah"><Edit2 size={16} /></button>
                       <button onClick={() => handleDelete(wadah.id)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Hapus"><Trash2 size={16} /></button>
                     </td>
                   </tr>
