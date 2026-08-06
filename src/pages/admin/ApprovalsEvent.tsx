@@ -1,24 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, ChevronDown, ChevronUp, Trash2, Filter } from 'lucide-react';
 import { RegistrationItem } from '../../types';
 import clsx from 'clsx';
 
 export default function ApprovalsEvent() {
   const [data, setData] = useState<RegistrationItem[]>([]);
+  const [schedulesList, setSchedulesList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filterJenisKegiatan, setFilterJenisKegiatan] = useState<string>('Semua Jenis Kegiatan');
 
   useEffect(() => {
-    fetch('/api/registrations')
-      .then(res => res.json())
-      .then(res => {
-        if (res.success) setData(res.data);
-        setIsLoading(false);
-      })
-      .catch(() => setIsLoading(false));
+    setIsLoading(true);
+    Promise.all([
+      fetch('/api/registrations').then(res => res.json()),
+      fetch('/api/schedules').then(res => res.json())
+    ]).then(([regRes, schedRes]) => {
+      if (regRes.success) setData(regRes.data || []);
+      if (schedRes.success && schedRes.data) {
+        const events = schedRes.data.filter((s: any) => {
+          const kat = (s.kategori || '').toLowerCase();
+          return kat !== 'ibadah raya' && kat !== 'ibadah';
+        });
+        setSchedulesList(events);
+      }
+      setIsLoading(false);
+    }).catch(() => setIsLoading(false));
   }, []);
 
-  const filteredData = data.filter(item => item.type === 'event');
+  // Build unique Jenis Kegiatan categories from admin schedules and registrations
+  const eventCategories = Array.from(new Set([
+    ...schedulesList.map(s => s.judul || s.kategori).filter(Boolean),
+    ...data
+      .filter(item => item.type === 'event')
+      .map(item => item.jenisKegiatan || (item as any).jenis_kegiatan || (item as any).kategori)
+      .filter(Boolean)
+  ]));
+
+  const filteredData = data.filter(item => {
+    if (item.type !== 'event') return false;
+    const jk = item.jenisKegiatan || (item as any).jenis_kegiatan || (item as any).kategori || '';
+    if (filterJenisKegiatan !== 'Semua Jenis Kegiatan' && jk !== filterJenisKegiatan) {
+      return false;
+    }
+    return true;
+  });
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     try {
@@ -59,6 +85,37 @@ export default function ApprovalsEvent() {
         <h1 className="text-2xl font-bold text-navy">Pendaftaran Event</h1>
       </div>
 
+      {/* Filter Card */}
+      <div className="bg-white rounded-2xl border border-border-subtle shadow-sm p-6 mb-6">
+        <div className="flex items-center gap-2 mb-4 border-b border-border-subtle pb-3 text-navy font-bold text-lg">
+          <Filter size={20} className="text-gold" />
+          <span>Filter Pendaftaran Event</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="space-y-1.5 md:col-span-2">
+            <label className="text-xs font-bold text-navy uppercase tracking-wider">Kategori / Jenis Kegiatan:</label>
+            <select
+              value={filterJenisKegiatan}
+              onChange={e => setFilterJenisKegiatan(e.target.value)}
+              className="w-full border border-border-subtle rounded-xl px-4 py-2.5 text-sm focus:ring-1 focus:ring-gold outline-none bg-sand-dark/30 text-navy font-medium"
+            >
+              <option value="Semua Jenis Kegiatan">Semua Jenis Kegiatan</option>
+              {eventCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          {filterJenisKegiatan !== 'Semua Jenis Kegiatan' && (
+            <button
+              onClick={() => setFilterJenisKegiatan('Semua Jenis Kegiatan')}
+              className="py-2.5 px-4 rounded-xl text-xs font-bold bg-sand-dark text-navy border border-border-subtle hover:bg-sand-darker transition-colors"
+            >
+              Reset Filter
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white rounded-2xl border border-border-subtle shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-navy">
@@ -79,7 +136,11 @@ export default function ApprovalsEvent() {
                 </tr>
               ) : filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-text-muted">Tidak ada pendaftaran event.</td>
+                  <td colSpan={6} className="text-center py-12 text-text-muted">
+                    {filterJenisKegiatan !== 'Semua Jenis Kegiatan' 
+                      ? `Tidak ada pendaftaran event untuk jenis kegiatan "${filterJenisKegiatan}".`
+                      : 'Tidak ada pendaftaran event.'}
+                  </td>
                 </tr>
               ) : (
                 filteredData.map(item => (

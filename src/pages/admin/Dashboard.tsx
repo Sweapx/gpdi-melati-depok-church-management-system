@@ -30,18 +30,68 @@ export default function Dashboard() {
     Promise.all([
       fetch('/api/jemaat').then(res => res.json()),
       fetch('/api/registrations').then(res => res.json()),
-      fetch('/api/prayers').then(res => res.json())
-    ]).then(([jemaatRes, regRes, prayerRes]) => {
+      fetch('/api/prayers').then(res => res.json()),
+      fetch('/api/wadah').then(res => res.json())
+    ]).then(([jemaatRes, regRes, prayerRes, wadahRes]) => {
       const jemaat = jemaatRes.data || [];
       const regs = regRes.data || [];
       const prayers = prayerRes.data || [];
-      
+      const wadahListRaw = (wadahRes && wadahRes.success && wadahRes.data) ? wadahRes.data : [];
+
+      const wadahList = wadahListRaw.map((w: any) => ({
+        id: w.id,
+        namaWadah: w.nama_wadah || w.namaWadah || '',
+        umurMinimal: Number(w.umur_minimal !== undefined ? w.umur_minimal : w.umurMinimal) || 0,
+        umurMaksimal: Number(w.umur_maksimal !== undefined ? w.umur_maksimal : w.umurMaksimal) || 150,
+      }));
+
+      const getDisplayWadah = (j: any): string => {
+        const jw = j.wadah || j.wadah_id;
+        if (jw && jw !== 'Otomatis' && jw.toString().trim() !== '') {
+          const trimmedJ = jw.toString().trim().toLowerCase();
+          const existingInList = wadahList.find((w: any) => w.namaWadah.trim().toLowerCase() === trimmedJ);
+          if (existingInList) return existingInList.namaWadah;
+        }
+
+        const rawDate = j.tanggalLahir || j.tanggal_lahir;
+        if (rawDate) {
+          const cleanStr = rawDate.toString().split('T')[0];
+          const parts = cleanStr.split('-');
+          if (parts.length === 3) {
+            const birthYear = parseInt(parts[0], 10);
+            const age = new Date().getFullYear() - birthYear;
+            const matchingWadah = wadahList.find((w: any) => {
+              const wName = w.namaWadah.toLowerCase();
+              if (age < w.umurMinimal || age > w.umurMaksimal) return false;
+              const isPriaWadah = wName.includes('pria') || wName.includes('bapak');
+              const isWanitaWadah = wName.includes('wanita') || wName.includes('ibu');
+              if (isPriaWadah && j.gender && j.gender !== 'Pria') return false;
+              if (isWanitaWadah && j.gender && j.gender !== 'Wanita') return false;
+              return true;
+            });
+            if (matchingWadah) return matchingWadah.namaWadah;
+          }
+        }
+
+        return jw && jw !== 'Otomatis' ? jw : '-';
+      };
+
+      const getDisplayRayon = (j: any): string => {
+        const jr = j.rayon;
+        if (!jr || jr === '-') return '-';
+        if (typeof jr === 'number' || /^\d+$/.test(jr.toString().trim())) {
+          return `Rayon ${jr}`;
+        }
+        return jr;
+      };
+
       const aktif = jemaat.filter((j: any) => {
-        const s = j.statusJemaat || j.status_jemaat;
-        return !s || s === 'Aktif';
+        const s = (j.statusJemaat || j.status_jemaat || 'Aktif').toString().trim().toLowerCase();
+        return s === 'aktif';
       });
 
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const currentMonth = today.getMonth();
 
       // Start of current week (Monday)
@@ -83,8 +133,8 @@ export default function Dashboard() {
             id: j.id,
             nama: j.nama,
             tanggalLahir: cleanStr,
-            wadah: j.wadah || '-',
-            rayon: j.rayon || '-',
+            wadah: getDisplayWadah(j),
+            rayon: getDisplayRayon(j),
             turningAge,
             birthdayThisYear: bdayThisYear
           });
@@ -104,6 +154,8 @@ export default function Dashboard() {
       });
 
       setUltahMingguIni(listUltahMingguIni);
+    }).catch(err => {
+      console.error("Dashboard error:", err);
     });
   }, []);
 
