@@ -273,4 +273,3 @@ gpdi-melati-depok-church-management-system/
 
 ---
 
-*Dokumentasi ini disusun secara otomatis untuk mempermudah pemeliharaan dan pengembangan sistem manajemen gereja GPdI Melati Depok.*

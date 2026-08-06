@@ -4,8 +4,63 @@ import { GoogleGenAI } from "@google/genai";
 import xlsx from "xlsx";
 import fs from "fs";
 import path from "path";
+import multer from "multer";
 
 const router = Router();
+
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || (file.mimetype === 'application/pdf' ? '.pdf' : '.bin');
+    const uniqueName = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}${ext}`;
+    cb(null, uniqueName);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 } // 100 MB limit
+});
+
+// File upload endpoint
+router.post("/upload", upload.single("file"), (req, res) => {
+  if (req.file) {
+    const fileUrl = `/uploads/${req.file.filename}`;
+    res.json({ success: true, data: { url: fileUrl } });
+  } else {
+    res.status(400).json({ success: false, message: "No file uploaded" });
+  }
+});
+
+// Helper function to extract legacy base64 file to disk if needed
+const sanitizeUrl = (rawUrl?: string): string => {
+  if (!rawUrl) return '';
+  if (typeof rawUrl === 'string' && rawUrl.startsWith('data:')) {
+    try {
+      const parts = rawUrl.split(',');
+      if (parts.length === 2) {
+        const mimeMatch = parts[0].match(/data:(.*?);base64/);
+        const isPdf = mimeMatch && mimeMatch[1] === 'application/pdf';
+        const ext = isPdf ? '.pdf' : '.png';
+        const buffer = Buffer.from(parts[1], 'base64');
+        const filename = `legacy-${Date.now()}-${Math.random().toString(36).substr(2, 7)}${ext}`;
+        const filePath = path.join(uploadDir, filename);
+        fs.writeFileSync(filePath, buffer);
+        return `/uploads/${filename}`;
+      }
+    } catch (e) {
+      console.error("Error saving legacy base64 to file:", e);
+    }
+  }
+  return rawUrl;
+};
 
 // Helper function to check if PostgreSQL is available
 const checkPostgres = (): void => {
@@ -869,28 +924,54 @@ router.get("/warta-jemaat", async (req, res) => {
   try {
     checkPostgres();
     const result = await pool!.query("SELECT * FROM warta_jemaat ORDER BY created_at DESC");
-    const data = result.rows.map(row => ({
-      ...row,
-      pdfUrl: row.pdf_url || row.pdfUrl || '',
-      temaMinggu: row.tema_minggu || row.temaMinggu || '',
-      ayatMinggu: row.ayat_minggu || row.ayatMinggu || '',
-      petugasList: row.petugas_list || row.petugasList || []
-    }));
+    const data = result.rows.map(row => {
+      const origPdf = row.pdf_url || row.pdfUrl || '';
+      const cleanPdf = sanitizeUrl(origPdf);
+      if (cleanPdf !== origPdf && pool) {
+        pool.query("UPDATE warta_jemaat SET pdf_url = $1 WHERE id = $2", [cleanPdf, row.id]).catch(() => {});
+      }
+      return {
+        ...row,
+        pdfUrl: cleanPdf,
+        pdf_url: cleanPdf,
+        temaMinggu: row.tema_minggu || row.temaMinggu || '',
+        ayatMinggu: row.ayat_minggu || row.ayatMinggu || '',
+        petugasList: row.petugas_list || row.petugasList || []
+      };
+    });
     res.json({ success: true, data });
   } catch (error: any) {
-    console.error("Error fetching warta jemaat:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.warn("PostgreSQL unavailable for warta-jemaat, falling back to inMemoryDB:", error.message);
+    const data = (inMemoryDB.wartaJemaat || []).map((row: any) => {
+      const origPdf = row.pdf_url || row.pdfUrl || '';
+      const cleanPdf = sanitizeUrl(origPdf);
+      row.pdf_url = cleanPdf;
+      row.pdfUrl = cleanPdf;
+      return {
+        ...row,
+        pdfUrl: cleanPdf,
+        pdf_url: cleanPdf,
+        temaMinggu: row.tema_minggu || row.temaMinggu || '',
+        ayatMinggu: row.ayat_minggu || row.ayatMinggu || '',
+        petugasList: row.petugas_list || row.petugasList || []
+      };
+    });
+    res.json({ success: true, data });
   }
 });
 
 router.post("/warta-jemaat", async (req, res) => {
+  const { judul, tanggal, pdf_url, pdfUrl, petugas_list, edisi, tema_minggu, temaMinggu, ayat_minggu, ayatMinggu, pengumuman } = req.body;
+  const rawPdf = pdf_url || pdfUrl || '';
+  const finalPdf = sanitizeUrl(rawPdf);
+  const finalJudul = judul || (edisi ? `Warta Edisi ${edisi}` : 'Warta Jemaat');
+  const finalTanggal = tanggal || new Date().toISOString().split('T')[0];
+  const finalTema = tema_minggu || temaMinggu || '';
+  const finalAyat = ayat_minggu || ayatMinggu || '';
+  const id = generateId("WJ");
+
   try {
     checkPostgres();
-    const { judul, tanggal, pdf_url, petugas_list, edisi, tema_minggu, ayat_minggu, pengumuman } = req.body;
-
-    const finalJudul = judul || (edisi ? `Warta Edisi ${edisi}` : 'Warta Jemaat');
-    const finalTanggal = tanggal || new Date().toISOString().split('T')[0];
-    const id = generateId("WJ");
     const query = `
       INSERT INTO warta_jemaat (
         id, judul, tanggal, pdf_url, petugas_list, edisi, tema_minggu, ayat_minggu, pengumuman
@@ -898,25 +979,54 @@ router.post("/warta-jemaat", async (req, res) => {
       RETURNING *
     `;
     const values = [
-      id, finalJudul, finalTanggal, pdf_url,
+      id, finalJudul, finalTanggal, finalPdf,
       petugas_list ? JSON.stringify(petugas_list) : null,
-      edisi, tema_minggu, ayat_minggu, pengumuman
+      edisi, finalTema, finalAyat, pengumuman
     ];
 
     const result = await pool!.query(query, values);
-    res.json({ success: true, data: result.rows[0] });
+    const item = result.rows[0];
+    const formatted = {
+      ...item,
+      pdfUrl: item.pdf_url || item.pdfUrl || finalPdf,
+      temaMinggu: item.tema_minggu || item.temaMinggu || finalTema,
+      ayatMinggu: item.ayat_minggu || item.ayatMinggu || finalAyat
+    };
+    (inMemoryDB.wartaJemaat as any[]).unshift(formatted);
+    res.json({ success: true, data: formatted });
   } catch (error: any) {
-    console.error("Error creating warta jemaat:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.warn("PostgreSQL unavailable for create warta-jemaat, falling back to inMemoryDB:", error.message);
+    const newItem = {
+      id,
+      judul: finalJudul,
+      tanggal: finalTanggal,
+      pdf_url: finalPdf,
+      pdfUrl: finalPdf,
+      petugas_list: petugas_list || [],
+      edisi,
+      tema_minggu: finalTema,
+      temaMinggu: finalTema,
+      ayat_minggu: finalAyat,
+      ayatMinggu: finalAyat,
+      pengumuman,
+      createdAt: new Date().toISOString()
+    };
+    (inMemoryDB.wartaJemaat as any[]).unshift(newItem);
+    saveInMemoryDBToDisk();
+    res.json({ success: true, data: newItem });
   }
 });
 
 router.put("/warta-jemaat/:id", async (req, res) => {
+  const { id } = req.params;
+  const { judul, tanggal, pdf_url, pdfUrl, petugas_list, edisi, tema_minggu, temaMinggu, ayat_minggu, ayatMinggu, pengumuman } = req.body;
+  const rawPdf = pdf_url || pdfUrl || '';
+  const finalPdf = sanitizeUrl(rawPdf);
+  const finalTema = tema_minggu || temaMinggu || '';
+  const finalAyat = ayat_minggu || ayatMinggu || '';
+
   try {
     checkPostgres();
-    const { id } = req.params;
-    const { judul, tanggal, pdf_url, petugas_list, edisi, tema_minggu, ayat_minggu, pengumuman } = req.body;
-
     const query = `
       UPDATE warta_jemaat SET
         judul = $1, tanggal = $2, pdf_url = $3, petugas_list = $4,
@@ -925,36 +1035,75 @@ router.put("/warta-jemaat/:id", async (req, res) => {
       RETURNING *
     `;
     const values = [
-      judul, tanggal, pdf_url,
+      judul, tanggal, finalPdf,
       petugas_list ? JSON.stringify(petugas_list) : null,
-      edisi, tema_minggu, ayat_minggu, pengumuman, id
+      edisi, finalTema, finalAyat, pengumuman, id
     ];
 
     const result = await pool!.query(query, values);
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: "Warta jemaat not found" });
     } else {
-      res.json({ success: true, data: result.rows[0] });
+      const item = result.rows[0];
+      const formatted = {
+        ...item,
+        pdfUrl: item.pdf_url || item.pdfUrl || finalPdf,
+        temaMinggu: item.tema_minggu || item.temaMinggu || finalTema,
+        ayatMinggu: item.ayat_minggu || item.ayatMinggu || finalAyat
+      };
+      const idx = (inMemoryDB.wartaJemaat as any[]).findIndex(w => w.id === id);
+      if (idx > -1) inMemoryDB.wartaJemaat[idx] = formatted;
+      res.json({ success: true, data: formatted });
     }
   } catch (error: any) {
-    console.error("Error updating warta jemaat:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.warn("PostgreSQL unavailable for update warta-jemaat, falling back to inMemoryDB:", error.message);
+    const arr = inMemoryDB.wartaJemaat as any[];
+    const idx = arr.findIndex(w => w.id === id);
+    if (idx > -1) {
+      arr[idx] = {
+        ...arr[idx],
+        judul: judul || arr[idx].judul,
+        tanggal: tanggal || arr[idx].tanggal,
+        pdf_url: finalPdf || arr[idx].pdf_url,
+        pdfUrl: finalPdf || arr[idx].pdfUrl,
+        edisi: edisi || arr[idx].edisi,
+        tema_minggu: finalTema || arr[idx].tema_minggu,
+        temaMinggu: finalTema || arr[idx].temaMinggu,
+        ayat_minggu: finalAyat || arr[idx].ayat_minggu,
+        ayatMinggu: finalAyat || arr[idx].ayatMinggu,
+        pengumuman: pengumuman || arr[idx].pengumuman
+      };
+      saveInMemoryDBToDisk();
+      res.json({ success: true, data: arr[idx] });
+    } else {
+      res.status(404).json({ success: false, message: "Warta jemaat not found" });
+    }
   }
 });
 
 router.delete("/warta-jemaat/:id", async (req, res) => {
+  const { id } = req.params;
   try {
     checkPostgres();
-    const { id } = req.params;
     const result = await pool!.query("DELETE FROM warta_jemaat WHERE id = $1 RETURNING *", [id]);
+    const idx = (inMemoryDB.wartaJemaat as any[]).findIndex(w => w.id === id);
+    if (idx > -1) (inMemoryDB.wartaJemaat as any[]).splice(idx, 1);
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: "Warta jemaat not found" });
     } else {
       res.json({ success: true, message: "Deleted" });
     }
   } catch (error: any) {
-    console.error("Error deleting warta jemaat:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.warn("PostgreSQL unavailable for delete warta-jemaat, falling back to inMemoryDB:", error.message);
+    const arr = inMemoryDB.wartaJemaat as any[];
+    const idx = arr.findIndex(w => w.id === id);
+    if (idx > -1) {
+      arr.splice(idx, 1);
+      saveInMemoryDBToDisk();
+      res.json({ success: true, message: "Deleted" });
+    } else {
+      res.status(404).json({ success: false, message: "Not found" });
+    }
   }
 });
 
@@ -2223,19 +2372,6 @@ router.post("/chat", async (req, res) => {
   } catch (error: any) {
     console.error("Chatbot processing error:", error);
     res.json({ success: true, data: { response: "Shalom! Terima kasih telah menghubungi GPdI Melati Depok. Ada yang bisa saya bantu terkait Jadwal Ibadah, Pendaftaran, Permohonan Doa, atau Baptisan?" } });
-  }
-});
-
-// ============ FILE UPLOAD ============
-import multer from "multer";
-const upload = multer({ dest: "uploads/" });
-
-router.post("/upload", upload.single("file"), (req, res) => {
-  if (req.file) {
-    const fileUrl = `/uploads/${req.file.filename}`;
-    res.json({ success: true, data: { url: fileUrl } });
-  } else {
-    res.status(400).json({ success: false, message: "No file uploaded" });
   }
 });
 

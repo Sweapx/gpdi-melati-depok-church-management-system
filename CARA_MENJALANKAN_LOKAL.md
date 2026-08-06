@@ -135,4 +135,4 @@ Jika Anda ingin menguji aplikasi dalam mode produksi yang sudah terkompilasi (*B
 
 ---
 
-*Panduan ini dibuat agar proyek GPdI Melati Depok Church Management System dapat dijalankan dengan mudah di perangkat manapun.*
+
