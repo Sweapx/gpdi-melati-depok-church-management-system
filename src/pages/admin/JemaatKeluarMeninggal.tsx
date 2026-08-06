@@ -52,7 +52,6 @@ export default function JemaatKeluarMeninggal() {
     const noTelepon = (formData.get('noTelepon') as string) || (editingJemaat as any).noTelepon;
     const noHp = (formData.get('noHp') as string) || editingJemaat.noHp;
     const alamat = (formData.get('alamat') as string) || editingJemaat.alamat;
-    const nik = (formData.get('nik') as string) || editingJemaat.nik;
 
     const payload = {
       ...editingJemaat,
@@ -85,8 +84,7 @@ export default function JemaatKeluarMeninggal() {
           rayon,
           noTelepon,
           noHp,
-          alamat,
-          nik
+          alamat
         };
         setData(data.map(j => j.id === editingJemaat.id ? updated : j));
         setEditingJemaat(null);
@@ -105,7 +103,7 @@ export default function JemaatKeluarMeninggal() {
     (filterStatus === 'Semua' || j.statusJemaat === filterStatus) &&
     (filterWadah === 'Semua Wadah' || (j as any).wadah === filterWadah) &&
     (filterRayon === 'Semua Rayon' || (j as any).rayon === filterRayon) &&
-    ((j.nama && j.nama.toLowerCase().includes(search.toLowerCase())) || (j.nik && j.nik.includes(search)))
+    (j.nama && j.nama.toLowerCase().includes(search.toLowerCase()))
   );
 
   const wadahOptions = ['Semua Wadah', ...Array.from(new Set(data.map(j => (j as any).wadah).filter(Boolean)))];
@@ -316,16 +314,7 @@ export default function JemaatKeluarMeninggal() {
                     required
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-navy">NIK</label>
-                  <input 
-                    type="text" 
-                    name="nik"
-                    defaultValue={editingJemaat.nik}
-                    className="w-full border border-border-subtle rounded-xl px-4 py-2.5 focus:ring-1 focus:ring-gold outline-none bg-sand-dark/50"
-                    required
-                  />
-                </div>
+
               </form>
             </div>
             <div className="p-6 border-t border-border-subtle bg-sand-dark flex justify-end gap-3">
