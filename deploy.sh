@@ -110,6 +110,27 @@ ADD COLUMN IF NOT EXISTS cta_type VARCHAR(50),
 ADD COLUMN IF NOT EXISTS event_name VARCHAR(255);
 EOF
 
+# Update knowledge_base table
+psql -U $DB_USER -d $DB_NAME <<EOF
+CREATE TABLE IF NOT EXISTS knowledge_base (
+  id VARCHAR(50) PRIMARY KEY,
+  category VARCHAR(100),
+  intent VARCHAR(100),
+  patterns TEXT,
+  bot_response TEXT,
+  is_active BOOLEAN DEFAULT true,
+  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+ALTER TABLE knowledge_base 
+ADD COLUMN IF NOT EXISTS category VARCHAR(100),
+ADD COLUMN IF NOT EXISTS intent VARCHAR(100),
+ADD COLUMN IF NOT EXISTS patterns TEXT,
+ADD COLUMN IF NOT EXISTS bot_response TEXT,
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
+ADD COLUMN IF NOT EXISTS last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+EOF
+
 echo -e "${GREEN}✓ Database migrations applied${NC}"
 echo ""
 

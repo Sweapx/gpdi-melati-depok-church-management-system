@@ -149,21 +149,27 @@ const ensureSchema = async (): Promise<void> => {
         id VARCHAR(50) PRIMARY KEY,
         category VARCHAR(100),
         intent VARCHAR(100),
-        patterns JSONB,
+        patterns TEXT,
         bot_response TEXT,
         is_active BOOLEAN DEFAULT true,
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS category VARCHAR(100);
+      ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS intent VARCHAR(100);
+      ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS patterns TEXT;
+      ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS bot_response TEXT;
+      ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+      ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
     `);
     try {
       const kbCheck = await pool.query("SELECT COUNT(*) FROM knowledge_base");
       if (parseInt(kbCheck.rows[0].count, 10) === 0) {
         const defaultKbs = [
-          { id: "KB-1", category: "Jadwal Ibadah", intent: "general", patterns: JSON.stringify(["jadwal ibadah", "jam berapa ibadah", "kapan ibadah minggu", "jadwal"]), bot_response: "Ibadah Raya GPdI Melati Depok dilaksanakan setiap hari Minggu: Ibadah I pukul 07.00 WIB dan Ibadah II pukul 10.00 WIB.", is_active: true },
-          { id: "KB-2", category: "Kontak & Alamat", intent: "general", patterns: JSON.stringify(["alamat gereja", "lokasi gereja", "no telepon gereja", "kontak", "alamat"]), bot_response: "📍 GPdI Melati Depok beralamat di Jl. Melati No. 8, Depok, Jawa Barat. 📞 Telepon/WA: (021) 7521216. Sekretariat buka Selasa - Minggu (08.00 - 17.00 WIB).", is_active: true },
-          { id: "KB-3", category: "Layanan", intent: "general", patterns: JSON.stringify(["baptisan", "baptis air", "daftar baptis", "syarat baptis"]), bot_response: "Pendaftaran Baptisan Air dapat dilakukan secara online melalui menu Layanan -> Baptisan di website ini. Siapkan foto dan data diri Anda.", is_active: true },
-          { id: "KB-4", category: "Layanan", intent: "general", patterns: JSON.stringify(["permohonan doa", "minta doa", "titip doa", "doa"]), bot_response: "Anda dapat mengirimkan Permohonan Doa melalui menu Layanan -> Permohonan Doa di website ini. Tim pendoa kami siap mendoakan pergumulan Anda.", is_active: true }
+          { id: "KB-1", category: "Jadwal Ibadah", intent: "general", patterns: "jadwal ibadah, jam berapa ibadah, kapan ibadah minggu, jadwal", bot_response: "Ibadah Raya GPdI Melati Depok dilaksanakan setiap hari Minggu: Ibadah I pukul 07.00 WIB dan Ibadah II pukul 10.00 WIB.", is_active: true },
+          { id: "KB-2", category: "Kontak & Alamat", intent: "general", patterns: "alamat gereja, lokasi gereja, no telepon gereja, kontak, alamat", bot_response: "📍 GPdI Melati Depok beralamat di Jl. Melati No. 8, Depok, Jawa Barat. 📞 Telepon/WA: (021) 7521216. Sekretariat buka Selasa - Minggu (08.00 - 17.00 WIB).", is_active: true },
+          { id: "KB-3", category: "Layanan", intent: "general", patterns: "baptisan, baptis air, daftar baptis, syarat baptis", bot_response: "Pendaftaran Baptisan Air dapat dilakukan secara online melalui menu Layanan -> Baptisan di website ini. Siapkan foto dan data diri Anda.", is_active: true },
+          { id: "KB-4", category: "Layanan", intent: "general", patterns: "permohonan doa, minta doa, titip doa, doa", bot_response: "Anda dapat mengirimkan Permohonan Doa melalui menu Layanan -> Permohonan Doa di website ini. Tim pendoa kami siap mendoakan pergumulan Anda.", is_active: true }
         ];
         for (const item of defaultKbs) {
           await pool.query(
@@ -1129,51 +1135,62 @@ router.delete("/registrations/:id", async (req, res) => {
   }
 });
 
+// Helper to parse KB row
+const parseKbRow = (r: any) => {
+  let patterns: string[] = [];
+  if (Array.isArray(r.patterns)) {
+    patterns = r.patterns;
+  } else if (typeof r.patterns === 'string') {
+    const trimmed = r.patterns.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        patterns = Array.isArray(parsed) ? parsed : [trimmed];
+      } catch {
+        patterns = trimmed.split(',').map((s: string) => s.trim());
+      }
+    } else {
+      patterns = trimmed.split(',').map((s: string) => s.trim());
+    }
+  }
+  return {
+    id: r.id,
+    category: r.category || 'Umum',
+    intent: r.intent || 'general',
+    patterns: patterns.filter(Boolean),
+    botResponse: r.bot_response || r.botResponse || '',
+    isActive: r.is_active !== undefined ? r.is_active : (r.isActive !== undefined ? r.isActive : true),
+    lastUpdated: r.last_updated || r.lastUpdated || r.created_at || new Date().toISOString()
+  };
+};
+
 // ============ KNOWLEDGE BASE CRUD ============
 router.get("/knowledge-base", async (req, res) => {
   try {
-    let rows: any[] = [];
+    let dbRows: any[] = [];
     if (pool) {
       try {
         const result = await queryWithAutoTable("SELECT * FROM knowledge_base ORDER BY created_at DESC");
-        rows = result.rows;
+        dbRows = result.rows;
       } catch (dbErr) {
         console.error("Database fetch knowledge base error:", dbErr);
       }
     }
 
-    if (!pool || rows.length === 0) {
-      rows = (inMemoryDB as any).knowledgeBase || [];
+    const memRows = (inMemoryDB as any).knowledgeBase || [];
+    const combinedMap = new Map<string, any>();
+
+    for (const r of memRows) {
+      const parsed = parseKbRow(r);
+      if (parsed.id) combinedMap.set(parsed.id, parsed);
     }
 
-    const data = rows.map(r => {
-      let patterns: string[] = [];
-      if (Array.isArray(r.patterns)) {
-        patterns = r.patterns;
-      } else if (typeof r.patterns === 'string') {
-        const trimmed = r.patterns.trim();
-        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-          try {
-            const parsed = JSON.parse(trimmed);
-            patterns = Array.isArray(parsed) ? parsed : [trimmed];
-          } catch {
-            patterns = trimmed.split(',').map((s: string) => s.trim());
-          }
-        } else {
-          patterns = trimmed.split(',').map((s: string) => s.trim());
-        }
-      }
-      return {
-        id: r.id,
-        category: r.category || 'Umum',
-        intent: r.intent || 'general',
-        patterns: patterns.filter(Boolean),
-        botResponse: r.bot_response || r.botResponse || '',
-        isActive: r.is_active !== undefined ? r.is_active : (r.isActive !== undefined ? r.isActive : true),
-        lastUpdated: r.last_updated || r.lastUpdated || r.created_at || new Date().toISOString()
-      };
-    });
+    for (const r of dbRows) {
+      const parsed = parseKbRow(r);
+      if (parsed.id) combinedMap.set(parsed.id, parsed);
+    }
 
+    const data = Array.from(combinedMap.values());
     res.json({ success: true, data });
   } catch (error: any) {
     console.error("Error fetching knowledge base:", error);
@@ -1196,58 +1213,38 @@ router.post("/knowledge-base", async (req, res) => {
 
     const id = generateId("KB");
     let savedItem: any = null;
-    let lastError: any = null;
 
     if (pool) {
       try {
         let result: any;
         try {
-          const query1 = `
-            INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING *
-          `;
-          result = await queryWithAutoTable(query1, [id, category, intent, patternStr, bot_response, is_active]);
-        } catch (err1) {
+          result = await queryWithAutoTable(
+            `INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [id, category, intent, patternStr, bot_response, is_active]
+          );
+        } catch (e1) {
           try {
-            const query2 = `
-              INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
-              VALUES ($1, $2, $3, $4, $5, $6)
-              RETURNING *
-            `;
-            result = await queryWithAutoTable(query2, [id, category, intent, patternsJson, bot_response, is_active]);
-          } catch (err2) {
-            const query3 = `
-              INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
-              VALUES ($1, $2, $3, $4::jsonb, $5, $6)
-              RETURNING *
-            `;
-            result = await queryWithAutoTable(query3, [id, category, intent, patternsJson, bot_response, is_active]);
+            result = await queryWithAutoTable(
+              `INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+              [id, category, intent, patternsJson, bot_response, is_active]
+            );
+          } catch (e2) {
+            result = await queryWithAutoTable(
+              `INSERT INTO knowledge_base (id, patterns, bot_response) VALUES ($1, $2, $3) RETURNING *`,
+              [id, patternStr, bot_response]
+            );
           }
         }
 
         if (result && result.rows && result.rows.length > 0) {
-          const row = result.rows[0];
-          savedItem = {
-            id: row.id,
-            category: row.category || category,
-            intent: row.intent || intent,
-            patterns,
-            botResponse: row.bot_response || row.botResponse || bot_response,
-            isActive: row.is_active !== undefined ? row.is_active : is_active,
-            lastUpdated: new Date().toISOString()
-          };
+          savedItem = parseKbRow(result.rows[0]);
         }
       } catch (dbErr: any) {
         console.error("Database insert knowledge base error:", dbErr);
-        lastError = dbErr;
       }
     }
 
     if (!savedItem) {
-      if (pool && lastError) {
-        return res.status(500).json({ success: false, message: `Database insert failed: ${lastError.message}` });
-      }
       savedItem = {
         id,
         category,
@@ -1290,61 +1287,38 @@ router.put("/knowledge-base/:id", async (req, res) => {
     const is_active = req.body.is_active !== undefined ? req.body.is_active : (req.body.isActive !== undefined ? req.body.isActive : true);
 
     let updatedItem: any = null;
-    let lastError: any = null;
 
     if (pool) {
       try {
         let result: any;
         try {
-          const query1 = `
-            UPDATE knowledge_base SET
-              category = $1, intent = $2, patterns = $3, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
-            WHERE id = $6
-            RETURNING *
-          `;
-          result = await queryWithAutoTable(query1, [category, intent, patternStr, bot_response, is_active, id]);
-        } catch (err1) {
+          result = await queryWithAutoTable(
+            `UPDATE knowledge_base SET category = $1, intent = $2, patterns = $3, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *`,
+            [category, intent, patternStr, bot_response, is_active, id]
+          );
+        } catch (e1) {
           try {
-            const query2 = `
-              UPDATE knowledge_base SET
-                category = $1, intent = $2, patterns = $3, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
-              WHERE id = $6
-              RETURNING *
-            `;
-            result = await queryWithAutoTable(query2, [category, intent, patternsJson, bot_response, is_active, id]);
-          } catch (err2) {
-            const query3 = `
-              UPDATE knowledge_base SET
-                category = $1, intent = $2, patterns = $3::jsonb, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
-              WHERE id = $6
-              RETURNING *
-            `;
-            result = await queryWithAutoTable(query3, [category, intent, patternsJson, bot_response, is_active, id]);
+            result = await queryWithAutoTable(
+              `UPDATE knowledge_base SET category = $1, intent = $2, patterns = $3, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *`,
+              [category, intent, patternsJson, bot_response, is_active, id]
+            );
+          } catch (e2) {
+            result = await queryWithAutoTable(
+              `UPDATE knowledge_base SET patterns = $1, bot_response = $2 WHERE id = $3 RETURNING *`,
+              [patternStr, bot_response, id]
+            );
           }
         }
 
         if (result && result.rows && result.rows.length > 0) {
-          const row = result.rows[0];
-          updatedItem = {
-            id: row.id,
-            category: row.category || category,
-            intent: row.intent || intent,
-            patterns,
-            botResponse: row.bot_response || row.botResponse || bot_response,
-            isActive: row.is_active !== undefined ? row.is_active : is_active,
-            lastUpdated: new Date().toISOString()
-          };
+          updatedItem = parseKbRow(result.rows[0]);
         }
       } catch (dbErr: any) {
         console.error("Database update knowledge base error:", dbErr);
-        lastError = dbErr;
       }
     }
 
     if (!updatedItem) {
-      if (pool && lastError) {
-        return res.status(500).json({ success: false, message: `Database update failed: ${lastError.message}` });
-      }
       updatedItem = {
         id,
         category,
@@ -2126,39 +2100,28 @@ router.post("/chat", async (req, res) => {
 
   try {
     // 1. Fetch Knowledge Base
-    let kbList: any[] = [];
+    let dbKbRows: any[] = [];
     if (pool) {
       try {
         const result = await queryWithAutoTable("SELECT * FROM knowledge_base WHERE is_active = true");
-        kbList = result.rows;
+        dbKbRows = result.rows;
       } catch (e) {
         console.error("Error fetching KB for chat:", e);
       }
     }
-    if (kbList.length === 0) {
-      kbList = (inMemoryDB as any).knowledgeBase || [];
+    const memKbRows = ((inMemoryDB as any).knowledgeBase || []).filter((k: any) => k.isActive !== false);
+
+    const combinedKbMap = new Map<string, any>();
+    for (const r of memKbRows) {
+      const parsed = parseKbRow(r);
+      if (parsed.id && parsed.isActive) combinedKbMap.set(parsed.id, parsed);
+    }
+    for (const r of dbKbRows) {
+      const parsed = parseKbRow(r);
+      if (parsed.id && parsed.isActive) combinedKbMap.set(parsed.id, parsed);
     }
 
-    const knowledgeBase = kbList.map(r => {
-      let patterns: string[] = [];
-      if (Array.isArray(r.patterns)) {
-        patterns = r.patterns;
-      } else if (typeof r.patterns === 'string') {
-        try {
-          const parsed = JSON.parse(r.patterns);
-          patterns = Array.isArray(parsed) ? parsed : [r.patterns];
-        } catch {
-          patterns = r.patterns.split(',').map((s: string) => s.trim());
-        }
-      }
-      return {
-        id: r.id,
-        category: r.category || 'Umum',
-        patterns,
-        botResponse: r.bot_response || r.botResponse || '',
-        isActive: r.is_active !== undefined ? r.is_active : (r.isActive !== undefined ? r.isActive : true)
-      };
-    }).filter(k => k.isActive && k.botResponse);
+    const knowledgeBase = Array.from(combinedKbMap.values()).filter(k => k.isActive && k.botResponse);
 
     // 2. Fetch Schedules & Events
     let scheduleList: any[] = [];
