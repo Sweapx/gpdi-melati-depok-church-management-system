@@ -50,6 +50,17 @@ export default function Prayers() {
     }
   };
 
+  const formatDisplayDate = (dateVal?: string) => {
+    if (!dateVal) return '-';
+    try {
+      const d = new Date(dateVal);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+      }
+    } catch (e) {}
+    return '-';
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -67,7 +78,7 @@ export default function Prayers() {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="font-bold text-navy">{item.nama}</h3>
-                  <p className="text-xs text-text-muted mt-1">{new Date(item.tanggal).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p className="text-xs text-text-muted mt-1">{formatDisplayDate(item.tanggal || (item as any).createdAt)}</p>
                 </div>
                 <span className={clsx(
                   "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",

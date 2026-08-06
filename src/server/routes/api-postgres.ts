@@ -1528,18 +1528,22 @@ router.get("/prayers", async (req, res) => {
       rows = (inMemoryDB as any).prayerRequests || [];
     }
 
-    const data = rows.map(r => ({
-      id: r.id,
-      name: r.name || r.nama || 'Anonim',
-      nama: r.name || r.nama || 'Anonim',
-      request: r.request || r.isi_doa || r.isiDoa || '',
-      isiDoa: r.request || r.isi_doa || r.isiDoa || '',
-      kategori: r.kategori || 'Umum',
-      privasi: r.privasi || 'Publik',
-      status: r.status || 'Baru',
-      noHp: r.no_hp || r.noHp || '-',
-      createdAt: r.created_at || r.createdAt
-    }));
+    const data = rows.map(r => {
+      const dateVal = r.tanggal || r.created_at || r.createdAt || new Date().toISOString();
+      return {
+        id: r.id,
+        name: r.name || r.nama || 'Anonim',
+        nama: r.name || r.nama || 'Anonim',
+        request: r.request || r.isi_doa || r.isiDoa || '',
+        isiDoa: r.request || r.isi_doa || r.isiDoa || '',
+        kategori: r.kategori || 'Umum',
+        privasi: r.privasi || 'Publik',
+        status: r.status || 'Baru',
+        noHp: r.no_hp || r.noHp || '-',
+        tanggal: dateVal,
+        createdAt: dateVal
+      };
+    });
 
     res.json({ success: true, data });
   } catch (error: any) {
@@ -1556,6 +1560,7 @@ router.post("/prayers", async (req, res) => {
     const privasi = (req.body.privasi || "Publik").toString();
     const status = (req.body.status || "Baru").toString();
     const no_hp = (req.body.noHp || req.body.no_hp || "-").toString();
+    const dateVal = req.body.tanggal || req.body.createdAt || new Date().toISOString();
 
     const id = generateId("PR");
 
@@ -1578,7 +1583,9 @@ router.post("/prayers", async (req, res) => {
               nama: row.name || row.nama,
               request: row.request || row.isi_doa,
               isiDoa: row.request || row.isi_doa,
-              noHp: row.no_hp
+              noHp: row.no_hp,
+              tanggal: row.tanggal || row.created_at || dateVal,
+              createdAt: row.created_at || dateVal
             }
           });
         }
@@ -1597,7 +1604,8 @@ router.post("/prayers", async (req, res) => {
       privasi,
       status,
       noHp: no_hp,
-      createdAt: new Date().toISOString()
+      tanggal: dateVal,
+      createdAt: dateVal
     };
     (inMemoryDB as any).prayerRequests = (inMemoryDB as any).prayerRequests || [];
     (inMemoryDB as any).prayerRequests.push(fallbackItem);
