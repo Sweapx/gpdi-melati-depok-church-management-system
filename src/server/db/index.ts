@@ -30,7 +30,8 @@ export function saveInMemoryDBToDisk(store: any) {
       heroSlides: store.heroSlides || [],
       prayerRequests: store.prayerRequests || [],
       registrations: store.registrations || [],
-      wartaJemaat: store.wartaJemaat || []
+      wartaJemaat: store.wartaJemaat || [],
+      knowledgeBase: store.knowledgeBase || []
     };
     fs.writeFileSync(STORE_FILE, JSON.stringify(dataToSave, null, 2), 'utf-8');
   } catch (err) {
@@ -50,6 +51,7 @@ export function loadInMemoryDBFromDisk(store: any) {
         if (Array.isArray(data.schedules) && data.schedules.length > 0) store.schedules = data.schedules;
         if (Array.isArray(data.announcements) && data.announcements.length > 0) store.announcements = data.announcements;
         if (Array.isArray(data.heroSlides) && data.heroSlides.length > 0) store.heroSlides = data.heroSlides;
+        if (Array.isArray(data.knowledgeBase) && data.knowledgeBase.length > 0) store.knowledgeBase = data.knowledgeBase;
       }
     }
   } catch (err) {
@@ -76,6 +78,7 @@ class InMemoryStore {
   constructor() {
     this.seedDefaultAdmin();
     loadInMemoryDBFromDisk(this);
+    this.seedDefaultKnowledgeBase();
   }
 
   seedDefaultAdmin() {
@@ -90,6 +93,50 @@ class InMemoryStore {
         mustChangePassword: false,
         createdAt: new Date().toISOString()
       } as any);
+    }
+  }
+
+  seedDefaultKnowledgeBase() {
+    if (this.knowledgeBase.length === 0) {
+      this.knowledgeBase = [
+        {
+          id: "KB-1",
+          category: "Jadwal Ibadah",
+          intent: "general",
+          patterns: ["jadwal ibadah", "jam berapa ibadah", "kapan ibadah minggu", "jadwal"],
+          botResponse: "Ibadah Raya GPdI Melati Depok dilaksanakan setiap hari Minggu: Ibadah I pukul 07.00 WIB dan Ibadah II pukul 10.00 WIB.",
+          isActive: true,
+          lastUpdated: new Date().toISOString()
+        },
+        {
+          id: "KB-2",
+          category: "Kontak & Alamat",
+          intent: "general",
+          patterns: ["alamat gereja", "lokasi gereja", "no telepon gereja", "kontak", "alamat"],
+          botResponse: "📍 GPdI Melati Depok beralamat di Jl. Melati No. 8, Depok, Jawa Barat. 📞 Telepon/WA: (021) 7521216. Sekretariat buka Selasa - Minggu (08.00 - 17.00 WIB).",
+          isActive: true,
+          lastUpdated: new Date().toISOString()
+        },
+        {
+          id: "KB-3",
+          category: "Layanan",
+          intent: "general",
+          patterns: ["baptisan", "baptis air", "daftar baptis", "syarat baptis"],
+          botResponse: "Pendaftaran Baptisan Air dapat dilakukan secara online melalui menu Layanan -> Baptisan di website ini. Siapkan foto dan data diri Anda.",
+          isActive: true,
+          lastUpdated: new Date().toISOString()
+        },
+        {
+          id: "KB-4",
+          category: "Layanan",
+          intent: "general",
+          patterns: ["permohonan doa", "minta doa", "titip doa", "doa"],
+          botResponse: "Anda dapat mengirimkan Permohonan Doa melalui menu Layanan -> Permohonan Doa di website ini. Tim pendoa kami siap mendoakan pergumulan Anda.",
+          isActive: true,
+          lastUpdated: new Date().toISOString()
+        }
+      ];
+      saveInMemoryDBToDisk(this);
     }
   }
 }

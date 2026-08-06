@@ -1127,15 +1127,28 @@ router.get("/knowledge-base", async (req, res) => {
       rows = (inMemoryDB as any).knowledgeBase || [];
     }
 
-    const data = rows.map(r => ({
-      id: r.id,
-      category: r.category || 'Umum',
-      intent: r.intent || 'general',
-      patterns: Array.isArray(r.patterns) ? r.patterns : (typeof r.patterns === 'string' ? JSON.parse(r.patterns || '[]') : []),
-      botResponse: r.bot_response || r.botResponse || '',
-      isActive: r.is_active !== undefined ? r.is_active : (r.isActive !== undefined ? r.isActive : true),
-      lastUpdated: r.last_updated || r.lastUpdated || r.created_at
-    }));
+    const data = rows.map(r => {
+      let patterns: string[] = [];
+      if (Array.isArray(r.patterns)) {
+        patterns = r.patterns;
+      } else if (typeof r.patterns === 'string') {
+        try {
+          const parsed = JSON.parse(r.patterns);
+          patterns = Array.isArray(parsed) ? parsed : [r.patterns];
+        } catch {
+          patterns = r.patterns.split(',').map((s: string) => s.trim());
+        }
+      }
+      return {
+        id: r.id,
+        category: r.category || 'Umum',
+        intent: r.intent || 'general',
+        patterns,
+        botResponse: r.bot_response || r.botResponse || '',
+        isActive: r.is_active !== undefined ? r.is_active : (r.isActive !== undefined ? r.isActive : true),
+        lastUpdated: r.last_updated || r.lastUpdated || r.created_at || new Date().toISOString()
+      };
+    });
 
     res.json({ success: true, data });
   } catch (error: any) {
@@ -1148,12 +1161,16 @@ router.post("/knowledge-base", async (req, res) => {
   try {
     const category = (req.body.category || "Umum").toString();
     const intent = (req.body.intent || "general").toString();
-    const patterns = req.body.patterns || [];
+    const rawPatterns = req.body.patterns || [];
+    const patterns = Array.isArray(rawPatterns) 
+      ? rawPatterns 
+      : (typeof rawPatterns === 'string' ? rawPatterns.split(',').map(s => s.trim()) : [rawPatterns]);
     const bot_response = (req.body.bot_response || req.body.botResponse || "").toString();
     const is_active = req.body.is_active !== undefined ? req.body.is_active : (req.body.isActive !== undefined ? req.body.isActive : true);
 
     const id = generateId("KB");
-    const patternsJson = Array.isArray(patterns) ? JSON.stringify(patterns) : (typeof patterns === 'string' ? patterns : JSON.stringify([patterns]));
+    const patternsJson = JSON.stringify(patterns);
+    let savedItem: any = null;
 
     if (pool) {
       try {
@@ -1166,35 +1183,43 @@ router.post("/knowledge-base", async (req, res) => {
         const result = await queryWithAutoTable(query, values);
         if (result.rows.length > 0) {
           const row = result.rows[0];
-          return res.json({
-            success: true,
-            data: {
-              id: row.id,
-              category: row.category,
-              intent: row.intent,
-              patterns: Array.isArray(row.patterns) ? row.patterns : (typeof row.patterns === 'string' ? JSON.parse(row.patterns) : patterns),
-              botResponse: row.bot_response,
-              isActive: row.is_active
-            }
-          });
+          savedItem = {
+            id: row.id,
+            category: row.category,
+            intent: row.intent,
+            patterns,
+            botResponse: row.bot_response,
+            isActive: row.is_active,
+            lastUpdated: new Date().toISOString()
+          };
         }
       } catch (dbErr) {
         console.error("Database insert knowledge base error, using fallback:", dbErr);
       }
     }
 
-    const fallbackItem = {
-      id,
-      category,
-      intent,
-      patterns: Array.isArray(patterns) ? patterns : [patterns],
-      botResponse: bot_response,
-      isActive: is_active,
-      lastUpdated: new Date().toISOString()
-    };
+    if (!savedItem) {
+      savedItem = {
+        id,
+        category,
+        intent,
+        patterns,
+        botResponse: bot_response,
+        isActive: is_active,
+        lastUpdated: new Date().toISOString()
+      };
+    }
+
     (inMemoryDB as any).knowledgeBase = (inMemoryDB as any).knowledgeBase || [];
-    (inMemoryDB as any).knowledgeBase.push(fallbackItem);
-    res.json({ success: true, data: fallbackItem });
+    const idx = (inMemoryDB as any).knowledgeBase.findIndex((k: any) => k.id === id);
+    if (idx >= 0) {
+      (inMemoryDB as any).knowledgeBase[idx] = savedItem;
+    } else {
+      (inMemoryDB as any).knowledgeBase.unshift(savedItem);
+    }
+    saveInMemoryDBToDisk(inMemoryDB);
+
+    res.json({ success: true, data: savedItem });
   } catch (error: any) {
     console.error("Error creating knowledge base:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -1206,11 +1231,15 @@ router.put("/knowledge-base/:id", async (req, res) => {
     const { id } = req.params;
     const category = (req.body.category || "Umum").toString();
     const intent = (req.body.intent || "general").toString();
-    const patterns = req.body.patterns || [];
+    const rawPatterns = req.body.patterns || [];
+    const patterns = Array.isArray(rawPatterns) 
+      ? rawPatterns 
+      : (typeof rawPatterns === 'string' ? rawPatterns.split(',').map(s => s.trim()) : [rawPatterns]);
     const bot_response = (req.body.bot_response || req.body.botResponse || "").toString();
     const is_active = req.body.is_active !== undefined ? req.body.is_active : (req.body.isActive !== undefined ? req.body.isActive : true);
 
-    const patternsJson = Array.isArray(patterns) ? JSON.stringify(patterns) : (typeof patterns === 'string' ? patterns : JSON.stringify([patterns]));
+    const patternsJson = JSON.stringify(patterns);
+    let updatedItem: any = null;
 
     if (pool) {
       try {
@@ -1224,36 +1253,38 @@ router.put("/knowledge-base/:id", async (req, res) => {
         const result = await queryWithAutoTable(query, values);
         if (result.rows.length > 0) {
           const row = result.rows[0];
-          return res.json({
-            success: true,
-            data: {
-              id: row.id,
-              category: row.category,
-              intent: row.intent,
-              patterns: Array.isArray(row.patterns) ? row.patterns : (typeof row.patterns === 'string' ? JSON.parse(row.patterns) : patterns),
-              botResponse: row.bot_response,
-              isActive: row.is_active
-            }
-          });
+          updatedItem = {
+            id: row.id,
+            category: row.category,
+            intent: row.intent,
+            patterns,
+            botResponse: row.bot_response,
+            isActive: row.is_active,
+            lastUpdated: new Date().toISOString()
+          };
         }
       } catch (dbErr) {
         console.error("Database update knowledge base error, using fallback:", dbErr);
       }
     }
 
-    const updated = {
-      id,
-      category,
-      intent,
-      patterns: Array.isArray(patterns) ? patterns : [patterns],
-      botResponse: bot_response,
-      isActive: is_active,
-      lastUpdated: new Date().toISOString()
-    };
-    if ((inMemoryDB as any).knowledgeBase) {
-      (inMemoryDB as any).knowledgeBase = (inMemoryDB as any).knowledgeBase.map((k: any) => k.id === id ? updated : k);
+    if (!updatedItem) {
+      updatedItem = {
+        id,
+        category,
+        intent,
+        patterns,
+        botResponse: bot_response,
+        isActive: is_active,
+        lastUpdated: new Date().toISOString()
+      };
     }
-    res.json({ success: true, data: updated });
+
+    (inMemoryDB as any).knowledgeBase = (inMemoryDB as any).knowledgeBase || [];
+    (inMemoryDB as any).knowledgeBase = (inMemoryDB as any).knowledgeBase.map((k: any) => k.id === id ? updatedItem : k);
+    saveInMemoryDBToDisk(inMemoryDB);
+
+    res.json({ success: true, data: updatedItem });
   } catch (error: any) {
     console.error("Error updating knowledge base:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -1272,6 +1303,7 @@ router.delete("/knowledge-base/:id", async (req, res) => {
     }
     if ((inMemoryDB as any).knowledgeBase) {
       (inMemoryDB as any).knowledgeBase = (inMemoryDB as any).knowledgeBase.filter((k: any) => k.id !== id);
+      saveInMemoryDBToDisk(inMemoryDB);
     }
     res.json({ success: true, message: "Deleted" });
   } catch (error: any) {
@@ -2031,13 +2063,26 @@ router.post("/chat", async (req, res) => {
       kbList = (inMemoryDB as any).knowledgeBase || [];
     }
 
-    const knowledgeBase = kbList.map(r => ({
-      id: r.id,
-      category: r.category || 'Umum',
-      patterns: Array.isArray(r.patterns) ? r.patterns : (typeof r.patterns === 'string' ? JSON.parse(r.patterns || '[]') : []),
-      botResponse: r.bot_response || r.botResponse || '',
-      isActive: r.is_active !== undefined ? r.is_active : (r.isActive !== undefined ? r.isActive : true)
-    })).filter(k => k.isActive);
+    const knowledgeBase = kbList.map(r => {
+      let patterns: string[] = [];
+      if (Array.isArray(r.patterns)) {
+        patterns = r.patterns;
+      } else if (typeof r.patterns === 'string') {
+        try {
+          const parsed = JSON.parse(r.patterns);
+          patterns = Array.isArray(parsed) ? parsed : [r.patterns];
+        } catch {
+          patterns = r.patterns.split(',').map((s: string) => s.trim());
+        }
+      }
+      return {
+        id: r.id,
+        category: r.category || 'Umum',
+        patterns,
+        botResponse: r.bot_response || r.botResponse || '',
+        isActive: r.is_active !== undefined ? r.is_active : (r.isActive !== undefined ? r.isActive : true)
+      };
+    }).filter(k => k.isActive && k.botResponse);
 
     // 2. Fetch Schedules & Events
     let scheduleList: any[] = [];
@@ -2065,9 +2110,14 @@ router.post("/chat", async (req, res) => {
 
     // 3. Match against Knowledge Base patterns
     for (const kb of knowledgeBase) {
-      for (const pattern of kb.patterns) {
-        if (pattern && lowercaseMsg.includes(pattern.toLowerCase())) {
-          return res.json({ success: true, data: { response: kb.botResponse } });
+      if (Array.isArray(kb.patterns)) {
+        for (const pattern of kb.patterns) {
+          if (pattern && typeof pattern === 'string') {
+            const trimmedPat = pattern.trim().toLowerCase();
+            if (trimmedPat && lowercaseMsg.includes(trimmedPat)) {
+              return res.json({ success: true, data: { response: kb.botResponse } });
+            }
+          }
         }
       }
     }

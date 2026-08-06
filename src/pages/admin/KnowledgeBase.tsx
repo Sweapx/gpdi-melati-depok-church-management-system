@@ -17,7 +17,7 @@ export default function KnowledgeBase() {
     fetch('/api/knowledge-base')
       .then(res => res.json())
       .then(res => {
-        if (res.success) setData(res.data);
+        if (res.success && Array.isArray(res.data)) setData(res.data);
         setIsLoading(false);
       })
       .catch(() => setIsLoading(false));
@@ -30,9 +30,14 @@ export default function KnowledgeBase() {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
-      if (res.ok) setData(data.filter(k => k.id !== id));
+      if (res.ok) {
+        setData(prev => prev.filter(k => k.id !== id));
+      } else {
+        alert('Gagal menghapus data.');
+      }
     } catch (e) {
       console.error(e);
+      alert('Terjadi kesalahan saat menghapus data.');
     }
   };
 
@@ -40,24 +45,33 @@ export default function KnowledgeBase() {
     e.preventDefault();
     
     if (formData.category && formData.patterns && formData.botResponse) {
-      const patterns = formData.patterns.split(',').map(s => s.trim());
-      const res = await fetch('/api/knowledge-base', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ 
-          category: formData.category, 
-          intent: 'general', 
-          botResponse: formData.botResponse, 
-          patterns, 
-          isActive: true, 
-          lastUpdated: new Date().toISOString() 
-        })
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setData([...data, json.data]);
-        setFormData({ category: '', patterns: '', botResponse: '' });
-        setShowAddForm(false);
+      const patterns = formData.patterns.split(',').map(s => s.trim()).filter(Boolean);
+      try {
+        const res = await fetch('/api/knowledge-base', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({ 
+            category: formData.category, 
+            intent: 'general', 
+            botResponse: formData.botResponse, 
+            patterns, 
+            isActive: true, 
+            lastUpdated: new Date().toISOString() 
+          })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            setData(prev => [json.data, ...prev]);
+            setFormData({ category: '', patterns: '', botResponse: '' });
+            setShowAddForm(false);
+          }
+        } else {
+          alert('Gagal menyimpan data.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Terjadi kesalahan saat menyimpan data.');
       }
     }
   };
@@ -66,22 +80,31 @@ export default function KnowledgeBase() {
     e.preventDefault();
     if (!editingItem) return;
     
-    const patterns = formData.patterns.split(',').map(s => s.trim());
-    const res = await fetch(`/api/knowledge-base/${editingItem.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ 
-        ...editingItem,
-        category: formData.category, 
-        botResponse: formData.botResponse, 
-        patterns, 
-        lastUpdated: new Date().toISOString() 
-      })
-    });
-    if (res.ok) {
-      setData(data.map(k => k.id === editingItem.id ? { ...editingItem, category: formData.category, botResponse: formData.botResponse, patterns } : k));
-      setEditingItem(null);
-      setFormData({ category: '', patterns: '', botResponse: '' });
+    const patterns = formData.patterns.split(',').map(s => s.trim()).filter(Boolean);
+    try {
+      const res = await fetch(`/api/knowledge-base/${editingItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ 
+          ...editingItem,
+          category: formData.category, 
+          botResponse: formData.botResponse, 
+          patterns, 
+          lastUpdated: new Date().toISOString() 
+        })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const updatedItem = json.data || { ...editingItem, category: formData.category, botResponse: formData.botResponse, patterns };
+        setData(prev => prev.map(k => k.id === editingItem.id ? updatedItem : k));
+        setEditingItem(null);
+        setFormData({ category: '', patterns: '', botResponse: '' });
+      } else {
+        alert('Gagal memperbarui data.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Terjadi kesalahan saat memperbarui data.');
     }
   };
 
