@@ -1,6 +1,0 @@
-{
-  "name": "GPdI Melati Depok Church Management System",
-  "description": "Sistem Manajemen Gereja Digital GPdI Melati Depok. Termasuk Portal Publik, Portal Admin, dan Chatbot AI.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
