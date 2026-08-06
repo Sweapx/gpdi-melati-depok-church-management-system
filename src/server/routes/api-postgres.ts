@@ -1151,18 +1151,23 @@ router.get("/knowledge-base", async (req, res) => {
       if (Array.isArray(r.patterns)) {
         patterns = r.patterns;
       } else if (typeof r.patterns === 'string') {
-        try {
-          const parsed = JSON.parse(r.patterns);
-          patterns = Array.isArray(parsed) ? parsed : [r.patterns];
-        } catch {
-          patterns = r.patterns.split(',').map((s: string) => s.trim());
+        const trimmed = r.patterns.trim();
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            patterns = Array.isArray(parsed) ? parsed : [trimmed];
+          } catch {
+            patterns = trimmed.split(',').map((s: string) => s.trim());
+          }
+        } else {
+          patterns = trimmed.split(',').map((s: string) => s.trim());
         }
       }
       return {
         id: r.id,
         category: r.category || 'Umum',
         intent: r.intent || 'general',
-        patterns,
+        patterns: patterns.filter(Boolean),
         botResponse: r.bot_response || r.botResponse || '',
         isActive: r.is_active !== undefined ? r.is_active : (r.isActive !== undefined ? r.isActive : true),
         lastUpdated: r.last_updated || r.lastUpdated || r.created_at || new Date().toISOString()
@@ -1184,38 +1189,49 @@ router.post("/knowledge-base", async (req, res) => {
     const patterns = Array.isArray(rawPatterns) 
       ? rawPatterns 
       : (typeof rawPatterns === 'string' ? rawPatterns.split(',').map(s => s.trim()) : [rawPatterns]);
+    const patternStr = patterns.join(', ');
+    const patternsJson = JSON.stringify(patterns);
     const bot_response = (req.body.bot_response || req.body.botResponse || "").toString();
     const is_active = req.body.is_active !== undefined ? req.body.is_active : (req.body.isActive !== undefined ? req.body.isActive : true);
 
     const id = generateId("KB");
-    const patternsJson = JSON.stringify(patterns);
     let savedItem: any = null;
+    let lastError: any = null;
 
     if (pool) {
       try {
         let result: any;
         try {
-          const query = `
-            INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
-            VALUES ($1, $2, $3, $4::jsonb, $5, $6)
-            RETURNING *
-          `;
-          result = await queryWithAutoTable(query, [id, category, intent, patternsJson, bot_response, is_active]);
-        } catch (jsonErr) {
-          const queryAlt = `
+          const query1 = `
             INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *
           `;
-          result = await queryWithAutoTable(queryAlt, [id, category, intent, patternsJson, bot_response, is_active]);
+          result = await queryWithAutoTable(query1, [id, category, intent, patternStr, bot_response, is_active]);
+        } catch (err1) {
+          try {
+            const query2 = `
+              INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
+              VALUES ($1, $2, $3, $4, $5, $6)
+              RETURNING *
+            `;
+            result = await queryWithAutoTable(query2, [id, category, intent, patternsJson, bot_response, is_active]);
+          } catch (err2) {
+            const query3 = `
+              INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
+              VALUES ($1, $2, $3, $4::jsonb, $5, $6)
+              RETURNING *
+            `;
+            result = await queryWithAutoTable(query3, [id, category, intent, patternsJson, bot_response, is_active]);
+          }
         }
 
         if (result && result.rows && result.rows.length > 0) {
           const row = result.rows[0];
           savedItem = {
             id: row.id,
-            category: row.category,
-            intent: row.intent,
+            category: row.category || category,
+            intent: row.intent || intent,
             patterns,
             botResponse: row.bot_response || row.botResponse || bot_response,
             isActive: row.is_active !== undefined ? row.is_active : is_active,
@@ -1224,10 +1240,14 @@ router.post("/knowledge-base", async (req, res) => {
         }
       } catch (dbErr: any) {
         console.error("Database insert knowledge base error:", dbErr);
+        lastError = dbErr;
       }
     }
 
     if (!savedItem) {
+      if (pool && lastError) {
+        return res.status(500).json({ success: false, message: `Database insert failed: ${lastError.message}` });
+      }
       savedItem = {
         id,
         category,
@@ -1264,39 +1284,51 @@ router.put("/knowledge-base/:id", async (req, res) => {
     const patterns = Array.isArray(rawPatterns) 
       ? rawPatterns 
       : (typeof rawPatterns === 'string' ? rawPatterns.split(',').map(s => s.trim()) : [rawPatterns]);
+    const patternStr = patterns.join(', ');
+    const patternsJson = JSON.stringify(patterns);
     const bot_response = (req.body.bot_response || req.body.botResponse || "").toString();
     const is_active = req.body.is_active !== undefined ? req.body.is_active : (req.body.isActive !== undefined ? req.body.isActive : true);
 
-    const patternsJson = JSON.stringify(patterns);
     let updatedItem: any = null;
+    let lastError: any = null;
 
     if (pool) {
       try {
         let result: any;
         try {
-          const query = `
-            UPDATE knowledge_base SET
-              category = $1, intent = $2, patterns = $3::jsonb, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
-            WHERE id = $6
-            RETURNING *
-          `;
-          result = await queryWithAutoTable(query, [category, intent, patternsJson, bot_response, is_active, id]);
-        } catch (jsonErr) {
-          const queryAlt = `
+          const query1 = `
             UPDATE knowledge_base SET
               category = $1, intent = $2, patterns = $3, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
             WHERE id = $6
             RETURNING *
           `;
-          result = await queryWithAutoTable(queryAlt, [category, intent, patternsJson, bot_response, is_active, id]);
+          result = await queryWithAutoTable(query1, [category, intent, patternStr, bot_response, is_active, id]);
+        } catch (err1) {
+          try {
+            const query2 = `
+              UPDATE knowledge_base SET
+                category = $1, intent = $2, patterns = $3, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
+              WHERE id = $6
+              RETURNING *
+            `;
+            result = await queryWithAutoTable(query2, [category, intent, patternsJson, bot_response, is_active, id]);
+          } catch (err2) {
+            const query3 = `
+              UPDATE knowledge_base SET
+                category = $1, intent = $2, patterns = $3::jsonb, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
+              WHERE id = $6
+              RETURNING *
+            `;
+            result = await queryWithAutoTable(query3, [category, intent, patternsJson, bot_response, is_active, id]);
+          }
         }
 
         if (result && result.rows && result.rows.length > 0) {
           const row = result.rows[0];
           updatedItem = {
             id: row.id,
-            category: row.category,
-            intent: row.intent,
+            category: row.category || category,
+            intent: row.intent || intent,
             patterns,
             botResponse: row.bot_response || row.botResponse || bot_response,
             isActive: row.is_active !== undefined ? row.is_active : is_active,
@@ -1305,10 +1337,14 @@ router.put("/knowledge-base/:id", async (req, res) => {
         }
       } catch (dbErr: any) {
         console.error("Database update knowledge base error:", dbErr);
+        lastError = dbErr;
       }
     }
 
     if (!updatedItem) {
+      if (pool && lastError) {
+        return res.status(500).json({ success: false, message: `Database update failed: ${lastError.message}` });
+      }
       updatedItem = {
         id,
         category,
