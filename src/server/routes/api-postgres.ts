@@ -1142,7 +1142,7 @@ router.get("/knowledge-base", async (req, res) => {
       }
     }
 
-    if (rows.length === 0) {
+    if (!pool || rows.length === 0) {
       rows = (inMemoryDB as any).knowledgeBase || [];
     }
 
@@ -1193,27 +1193,37 @@ router.post("/knowledge-base", async (req, res) => {
 
     if (pool) {
       try {
-        const query = `
-          INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
-          VALUES ($1, $2, $3, $4, $5, $6)
-          RETURNING *
-        `;
-        const values = [id, category, intent, patternsJson, bot_response, is_active];
-        const result = await queryWithAutoTable(query, values);
-        if (result.rows.length > 0) {
+        let result: any;
+        try {
+          const query = `
+            INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
+            VALUES ($1, $2, $3, $4::jsonb, $5, $6)
+            RETURNING *
+          `;
+          result = await queryWithAutoTable(query, [id, category, intent, patternsJson, bot_response, is_active]);
+        } catch (jsonErr) {
+          const queryAlt = `
+            INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+          `;
+          result = await queryWithAutoTable(queryAlt, [id, category, intent, patternsJson, bot_response, is_active]);
+        }
+
+        if (result && result.rows && result.rows.length > 0) {
           const row = result.rows[0];
           savedItem = {
             id: row.id,
             category: row.category,
             intent: row.intent,
             patterns,
-            botResponse: row.bot_response,
-            isActive: row.is_active,
+            botResponse: row.bot_response || row.botResponse || bot_response,
+            isActive: row.is_active !== undefined ? row.is_active : is_active,
             lastUpdated: new Date().toISOString()
           };
         }
-      } catch (dbErr) {
-        console.error("Database insert knowledge base error, using fallback:", dbErr);
+      } catch (dbErr: any) {
+        console.error("Database insert knowledge base error:", dbErr);
       }
     }
 
@@ -1262,28 +1272,39 @@ router.put("/knowledge-base/:id", async (req, res) => {
 
     if (pool) {
       try {
-        const query = `
-          UPDATE knowledge_base SET
-            category = $1, intent = $2, patterns = $3, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
-          WHERE id = $6
-          RETURNING *
-        `;
-        const values = [category, intent, patternsJson, bot_response, is_active, id];
-        const result = await queryWithAutoTable(query, values);
-        if (result.rows.length > 0) {
+        let result: any;
+        try {
+          const query = `
+            UPDATE knowledge_base SET
+              category = $1, intent = $2, patterns = $3::jsonb, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
+            WHERE id = $6
+            RETURNING *
+          `;
+          result = await queryWithAutoTable(query, [category, intent, patternsJson, bot_response, is_active, id]);
+        } catch (jsonErr) {
+          const queryAlt = `
+            UPDATE knowledge_base SET
+              category = $1, intent = $2, patterns = $3, bot_response = $4, is_active = $5, last_updated = CURRENT_TIMESTAMP
+            WHERE id = $6
+            RETURNING *
+          `;
+          result = await queryWithAutoTable(queryAlt, [category, intent, patternsJson, bot_response, is_active, id]);
+        }
+
+        if (result && result.rows && result.rows.length > 0) {
           const row = result.rows[0];
           updatedItem = {
             id: row.id,
             category: row.category,
             intent: row.intent,
             patterns,
-            botResponse: row.bot_response,
-            isActive: row.is_active,
+            botResponse: row.bot_response || row.botResponse || bot_response,
+            isActive: row.is_active !== undefined ? row.is_active : is_active,
             lastUpdated: new Date().toISOString()
           };
         }
-      } catch (dbErr) {
-        console.error("Database update knowledge base error, using fallback:", dbErr);
+      } catch (dbErr: any) {
+        console.error("Database update knowledge base error:", dbErr);
       }
     }
 
