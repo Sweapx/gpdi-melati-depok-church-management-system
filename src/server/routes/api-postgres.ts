@@ -156,6 +156,25 @@ const ensureSchema = async (): Promise<void> => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    try {
+      const kbCheck = await pool.query("SELECT COUNT(*) FROM knowledge_base");
+      if (parseInt(kbCheck.rows[0].count, 10) === 0) {
+        const defaultKbs = [
+          { id: "KB-1", category: "Jadwal Ibadah", intent: "general", patterns: JSON.stringify(["jadwal ibadah", "jam berapa ibadah", "kapan ibadah minggu", "jadwal"]), bot_response: "Ibadah Raya GPdI Melati Depok dilaksanakan setiap hari Minggu: Ibadah I pukul 07.00 WIB dan Ibadah II pukul 10.00 WIB.", is_active: true },
+          { id: "KB-2", category: "Kontak & Alamat", intent: "general", patterns: JSON.stringify(["alamat gereja", "lokasi gereja", "no telepon gereja", "kontak", "alamat"]), bot_response: "📍 GPdI Melati Depok beralamat di Jl. Melati No. 8, Depok, Jawa Barat. 📞 Telepon/WA: (021) 7521216. Sekretariat buka Selasa - Minggu (08.00 - 17.00 WIB).", is_active: true },
+          { id: "KB-3", category: "Layanan", intent: "general", patterns: JSON.stringify(["baptisan", "baptis air", "daftar baptis", "syarat baptis"]), bot_response: "Pendaftaran Baptisan Air dapat dilakukan secara online melalui menu Layanan -> Baptisan di website ini. Siapkan foto dan data diri Anda.", is_active: true },
+          { id: "KB-4", category: "Layanan", intent: "general", patterns: JSON.stringify(["permohonan doa", "minta doa", "titip doa", "doa"]), bot_response: "Anda dapat mengirimkan Permohonan Doa melalui menu Layanan -> Permohonan Doa di website ini. Tim pendoa kami siap mendoakan pergumulan Anda.", is_active: true }
+        ];
+        for (const item of defaultKbs) {
+          await pool.query(
+            `INSERT INTO knowledge_base (id, category, intent, patterns, bot_response, is_active) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
+            [item.id, item.category, item.intent, item.patterns, item.bot_response, item.is_active]
+          );
+        }
+      }
+    } catch (seedErr) {
+      console.error("Knowledge base seeding error:", seedErr);
+    }
     await pool.query(`
       CREATE TABLE IF NOT EXISTS prayer_requests (
         id VARCHAR(50) PRIMARY KEY,
