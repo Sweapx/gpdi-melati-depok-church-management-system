@@ -52,6 +52,7 @@ export default function JemaatKeluarMeninggal() {
     const noTelepon = (formData.get('noTelepon') as string) || (editingJemaat as any).noTelepon;
     const noHp = (formData.get('noHp') as string) || editingJemaat.noHp;
     const alamat = (formData.get('alamat') as string) || editingJemaat.alamat;
+    const nik = (formData.get('nik') as string) || editingJemaat.nik || '';
 
     const payload = {
       ...editingJemaat,

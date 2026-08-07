@@ -14,7 +14,7 @@ import path from 'path';
 
 const STORE_FILE = path.join(process.cwd(), 'data', 'local_db_store.json');
 
-export function saveInMemoryDBToDisk(store: any) {
+export function saveInMemoryDBToDisk(store: any = inMemoryDB) {
   try {
     const dir = path.dirname(STORE_FILE);
     if (!fs.existsSync(dir)) {

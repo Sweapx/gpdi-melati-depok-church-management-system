@@ -1706,15 +1706,160 @@ router.put("/registrations/:id/status", async (req, res) => {
   }
 });
 
+router.put("/prayers/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    let updatedItem: any = null;
+
+    if (pool) {
+      try {
+        const result = await queryWithAutoTable(
+          "UPDATE prayer_requests SET status = $1 WHERE id = $2 RETURNING *",
+          [status, id]
+        );
+        if (result.rows.length > 0) {
+          const r = result.rows[0];
+          updatedItem = {
+            id: r.id,
+            name: r.name || r.nama || 'Anonim',
+            nama: r.name || r.nama || 'Anonim',
+            request: r.request || r.isi_doa || r.isiDoa || '',
+            isiDoa: r.request || r.isi_doa || r.isiDoa || '',
+            kategori: r.kategori || 'Umum',
+            privasi: r.privasi || 'Publik',
+            status: r.status || status,
+            noHp: r.no_hp || r.noHp || '-',
+            tanggal: r.tanggal || r.created_at || new Date().toISOString(),
+            createdAt: r.created_at || new Date().toISOString()
+          };
+        }
+      } catch (dbErr) {
+        console.error("Database update prayer status error:", dbErr);
+      }
+    }
+
+    // Fallback or update inMemoryDB
+    const inMemList = (inMemoryDB as any).prayerRequests || [];
+    const foundIndex = inMemList.findIndex((item: any) => item.id === id);
+    if (foundIndex !== -1) {
+      inMemList[foundIndex].status = status;
+      if (!updatedItem) {
+        updatedItem = inMemList[foundIndex];
+      }
+    }
+
+    if (updatedItem) {
+      return res.json({ success: true, data: updatedItem });
+    } else {
+      return res.status(404).json({ success: false, message: "Prayer request not found" });
+    }
+  } catch (error: any) {
+    console.error("Error updating prayer status:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.put("/prayers/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const name = req.body.name || req.body.nama;
+    const request = req.body.request || req.body.isiDoa || req.body.isi_doa;
+    const kategori = req.body.kategori;
+    const privasi = req.body.privasi;
+    const status = req.body.status;
+    const noHp = req.body.noHp || req.body.no_hp;
+
+    let updatedItem: any = null;
+
+    if (pool) {
+      try {
+        const result = await queryWithAutoTable(
+          `UPDATE prayer_requests 
+           SET name = COALESCE($1, name),
+               nama = COALESCE($1, nama),
+               request = COALESCE($2, request),
+               isi_doa = COALESCE($2, isi_doa),
+               kategori = COALESCE($3, kategori),
+               privasi = COALESCE($4, privasi),
+               status = COALESCE($5, status),
+               no_hp = COALESCE($6, no_hp)
+           WHERE id = $7 RETURNING *`,
+          [name, request, kategori, privasi, status, noHp, id]
+        );
+        if (result.rows.length > 0) {
+          const r = result.rows[0];
+          updatedItem = {
+            id: r.id,
+            name: r.name || r.nama || 'Anonim',
+            nama: r.name || r.nama || 'Anonim',
+            request: r.request || r.isi_doa || r.isiDoa || '',
+            isiDoa: r.request || r.isi_doa || r.isiDoa || '',
+            kategori: r.kategori || 'Umum',
+            privasi: r.privasi || 'Publik',
+            status: r.status || 'Baru',
+            noHp: r.no_hp || r.noHp || '-',
+            tanggal: r.tanggal || r.created_at || new Date().toISOString(),
+            createdAt: r.created_at || new Date().toISOString()
+          };
+        }
+      } catch (dbErr) {
+        console.error("Database update prayer error:", dbErr);
+      }
+    }
+
+    const inMemList = (inMemoryDB as any).prayerRequests || [];
+    const foundIndex = inMemList.findIndex((item: any) => item.id === id);
+    if (foundIndex !== -1) {
+      if (name) inMemList[foundIndex].nama = name;
+      if (request) inMemList[foundIndex].isiDoa = request;
+      if (kategori) inMemList[foundIndex].kategori = kategori;
+      if (privasi) inMemList[foundIndex].privasi = privasi;
+      if (status) inMemList[foundIndex].status = status;
+      if (noHp) inMemList[foundIndex].noHp = noHp;
+      if (!updatedItem) {
+        updatedItem = inMemList[foundIndex];
+      }
+    }
+
+    if (updatedItem) {
+      return res.json({ success: true, data: updatedItem });
+    } else {
+      return res.status(404).json({ success: false, message: "Prayer request not found" });
+    }
+  } catch (error: any) {
+    console.error("Error updating prayer request:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.delete("/prayers/:id", async (req, res) => {
   try {
-    checkPostgres();
     const { id } = req.params;
-    const result = await pool!.query("DELETE FROM prayer_requests WHERE id = $1 RETURNING *", [id]);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Prayer request not found" });
-    } else {
+    let deleted = false;
+
+    if (pool) {
+      try {
+        const result = await pool.query("DELETE FROM prayer_requests WHERE id = $1 RETURNING *", [id]);
+        if (result.rows.length > 0) {
+          deleted = true;
+        }
+      } catch (dbErr) {
+        console.error("Database delete prayer error:", dbErr);
+      }
+    }
+
+    const inMemList = (inMemoryDB as any).prayerRequests || [];
+    const foundIndex = inMemList.findIndex((item: any) => item.id === id);
+    if (foundIndex !== -1) {
+      inMemList.splice(foundIndex, 1);
+      deleted = true;
+    }
+
+    if (deleted) {
       res.json({ success: true, message: "Deleted" });
+    } else {
+      res.status(404).json({ success: false, message: "Prayer request not found" });
     }
   } catch (error: any) {
     console.error("Error deleting prayer request:", error);
