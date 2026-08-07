@@ -107,7 +107,7 @@ export interface PrayerRequest {
   id: string;
   nama: string;
   noHp: string;
-  kategori: 'Kesehatan' | 'Keluarga' | 'Pemulihan' | 'Pekerjaan' | 'Spiritual' | 'Lainnya';
+  kategori: 'Kesehatan' | 'Keluarga' | 'Pemulihan' | 'Pekerjaan' | 'Spiritual' | 'Umum' | 'Lainnya';
   isiDoa: string;
   privasi: 'Publik' | 'Rahasia Tim Doa';
   status: 'Baru' | 'Didoakan' | 'Selesai';
