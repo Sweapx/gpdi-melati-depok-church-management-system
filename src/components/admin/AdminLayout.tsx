@@ -46,7 +46,7 @@ export default function AdminLayout() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    navigate('/');
+    navigate('/admin/login');
   };
 
   const handlePublicWeb = () => {

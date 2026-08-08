@@ -63,10 +63,8 @@ const sanitizeUrl = (rawUrl?: string): string => {
 };
 
 // Helper function to check if PostgreSQL is available
-const checkPostgres = (): void => {
-  if (!pool) {
-    throw new Error("PostgreSQL not available");
-  }
+const isPostgresAvailable = (): boolean => {
+  return !!pool;
 };
 
 let schemaInitialized = false;
@@ -276,140 +274,216 @@ const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().
 
 // ============ JEMAAT CRUD ============
 router.get("/jemaat", async (req, res) => {
-  try {
-    checkPostgres();
-    let result = await pool!.query("SELECT * FROM jemaat ORDER BY created_at DESC");
-    
-    if (result.rows.length === 0) {
-      const parsedPath = path.resolve(process.cwd(), './data_jemaat_parsed.json');
-      if (fs.existsSync(parsedPath)) {
-        try {
-          const parsedData = JSON.parse(fs.readFileSync(parsedPath, 'utf-8'));
-          for (const item of parsedData) {
-            await pool!.query(`
-              INSERT INTO jemaat (id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat, no_hp, status_jemaat, wadah, rayon)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-              ON CONFLICT (id) DO UPDATE SET
-                nama = EXCLUDED.nama,
-                gender = EXCLUDED.gender,
-                tanggal_lahir = EXCLUDED.tanggal_lahir,
-                status_jemaat = EXCLUDED.status_jemaat,
-                wadah = EXCLUDED.wadah,
-                rayon = EXCLUDED.rayon;
-            `, [
-              item.id, item.nama, item.nik, item.gender, item.tempat_lahir,
-              item.tanggal_lahir, item.alamat, item.no_hp, item.status_jemaat || 'Aktif',
-              item.wadah, item.rayon
-            ]);
+  if (pool) {
+    try {
+      let result = await pool.query("SELECT * FROM jemaat ORDER BY created_at DESC");
+      
+      if (result.rows.length === 0) {
+        const parsedPath = path.resolve(process.cwd(), './data_jemaat_parsed.json');
+        if (fs.existsSync(parsedPath)) {
+          try {
+            const parsedData = JSON.parse(fs.readFileSync(parsedPath, 'utf-8'));
+            for (const item of parsedData) {
+              await pool.query(`
+                INSERT INTO jemaat (id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat, no_hp, status_jemaat, wadah, rayon)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                ON CONFLICT (id) DO UPDATE SET
+                  nama = EXCLUDED.nama,
+                  gender = EXCLUDED.gender,
+                  tanggal_lahir = EXCLUDED.tanggal_lahir,
+                  status_jemaat = EXCLUDED.status_jemaat,
+                  wadah = EXCLUDED.wadah,
+                  rayon = EXCLUDED.rayon;
+              `, [
+                item.id, item.nama, item.nik, item.gender, item.tempat_lahir,
+                item.tanggal_lahir, item.alamat, item.no_hp, item.status_jemaat || 'Aktif',
+                item.wadah, item.rayon
+              ]);
+            }
+            result = await pool.query("SELECT * FROM jemaat ORDER BY created_at DESC");
+          } catch (seedErr) {
+            console.error("Error auto-seeding jemaat table:", seedErr);
           }
-          result = await pool!.query("SELECT * FROM jemaat ORDER BY created_at DESC");
-        } catch (seedErr) {
-          console.error("Error auto-seeding jemaat table:", seedErr);
         }
       }
-    }
 
-    const data = result.rows.map(row => ({
-      ...row,
-      tempatLahir: row.tempat_lahir || row.tempatLahir || '',
-      tanggalLahir: row.tanggal_lahir ? (typeof row.tanggal_lahir === 'string' ? row.tanggal_lahir.split('T')[0] : new Date(row.tanggal_lahir).toISOString().split('T')[0]) : '',
-      noHp: row.no_hp || row.noHp || '',
-      statusPernikahan: row.status_pernikahan || row.statusPernikahan || '',
-      statusJemaat: row.status_jemaat || row.statusJemaat || 'Aktif',
-      kategoriKaum: row.kategori_kaum || row.kategoriKaum || '',
-      noTelepon: row.no_telepon || row.noTelepon || '',
-      anggotaKeluarga: row.anggota_keluarga || row.anggotaKeluarga || []
-    }));
-    res.json({ success: true, data });
-  } catch (error: any) {
-    console.error("Error fetching jemaat:", error);
-    res.status(500).json({ success: false, message: error.message });
+      const data = result.rows.map(row => ({
+        ...row,
+        tempatLahir: row.tempat_lahir || row.tempatLahir || '',
+        tanggalLahir: row.tanggal_lahir ? (typeof row.tanggal_lahir === 'string' ? row.tanggal_lahir.split('T')[0] : new Date(row.tanggal_lahir).toISOString().split('T')[0]) : '',
+        noHp: row.no_hp || row.noHp || '',
+        statusPernikahan: row.status_pernikahan || row.statusPernikahan || '',
+        statusJemaat: row.status_jemaat || row.statusJemaat || 'Aktif',
+        kategoriKaum: row.kategori_kaum || row.kategoriKaum || '',
+        noTelepon: row.no_telepon || row.noTelepon || '',
+        anggotaKeluarga: row.anggota_keluarga || row.anggotaKeluarga || []
+      }));
+      return res.json({ success: true, data });
+    } catch (error: any) {
+      console.warn("PostgreSQL fetch failed for jemaat, using in-memory store:", error.message);
+    }
   }
+
+  // In-Memory Mode
+  if (inMemoryDB.jemaat.length === 0) {
+    inMemoryDB.seedDefaultJemaat();
+  }
+
+  const data = inMemoryDB.jemaat.map((row: any) => ({
+    ...row,
+    tempatLahir: row.tempat_lahir || row.tempatLahir || '',
+    tanggalLahir: row.tanggal_lahir ? (typeof row.tanggal_lahir === 'string' ? row.tanggal_lahir.split('T')[0] : new Date(row.tanggal_lahir).toISOString().split('T')[0]) : '',
+    noHp: row.no_hp || row.noHp || '',
+    statusPernikahan: row.status_pernikahan || row.statusPernikahan || '',
+    statusJemaat: row.status_jemaat || row.statusJemaat || 'Aktif',
+    kategoriKaum: row.kategori_kaum || row.kategoriKaum || '',
+    noTelepon: row.no_telepon || row.noTelepon || '',
+    anggotaKeluarga: row.anggota_keluarga || row.anggotaKeluarga || []
+  }));
+  return res.json({ success: true, data });
 });
 
 router.post("/jemaat", async (req, res) => {
-  try {
-    checkPostgres();
-    const {
-      nama, nik, gender, tempat_lahir, tanggal_lahir, alamat,
-      no_hp, status_pernikahan, status_jemaat, kategori_kaum,
-      sektor, wadah, rayon, no_telepon, anggota_keluarga
-    } = req.body;
+  const {
+    nama, nik, gender, tempat_lahir, tempatLahir, tanggal_lahir, tanggalLahir, alamat,
+    no_hp, noHp, status_pernikahan, statusPernikahan, status_jemaat, statusJemaat, kategori_kaum, kategoriKaum,
+    sektor, wadah, rayon, no_telepon, noTelepon, anggota_keluarga, anggotaKeluarga
+  } = req.body;
 
-    const id = generateId("JEM");
-    const query = `
-      INSERT INTO jemaat (
-        id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat,
-        no_hp, status_pernikahan, status_jemaat, kategori_kaum,
-        sektor, wadah, rayon, no_telepon, anggota_keluarga
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-      RETURNING *
-    `;
-    const values = [
-      id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat,
-      no_hp, status_pernikahan, status_jemaat, kategori_kaum,
-      sektor, wadah, rayon, no_telepon, anggota_keluarga ? JSON.stringify(anggota_keluarga) : null
-    ];
+  const id = generateId("JEM");
+  const itemData = {
+    id,
+    nama,
+    nik,
+    gender,
+    tempat_lahir: tempat_lahir || tempatLahir || '',
+    tempatLahir: tempat_lahir || tempatLahir || '',
+    tanggal_lahir: tanggal_lahir || tanggalLahir || '',
+    tanggalLahir: tanggal_lahir || tanggalLahir || '',
+    alamat,
+    no_hp: no_hp || noHp || '',
+    noHp: no_hp || noHp || '',
+    status_pernikahan: status_pernikahan || statusPernikahan || '',
+    statusPernikahan: status_pernikahan || statusPernikahan || '',
+    status_jemaat: status_jemaat || statusJemaat || 'Aktif',
+    statusJemaat: status_jemaat || statusJemaat || 'Aktif',
+    kategori_kaum: kategori_kaum || kategoriKaum || '',
+    kategoriKaum: kategori_kaum || kategoriKaum || '',
+    sektor,
+    wadah,
+    rayon,
+    no_telepon: no_telepon || noTelepon || '',
+    noTelepon: no_telepon || noTelepon || '',
+    anggota_keluarga: anggota_keluarga || anggotaKeluarga || [],
+    anggotaKeluarga: anggota_keluarga || anggotaKeluarga || []
+  };
 
-    const result = await pool!.query(query, values);
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error: any) {
-    console.error("Error creating jemaat:", error);
-    res.status(500).json({ success: false, message: error.message });
+  if (pool) {
+    try {
+      const query = `
+        INSERT INTO jemaat (
+          id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat,
+          no_hp, status_pernikahan, status_jemaat, kategori_kaum,
+          sektor, wadah, rayon, no_telepon, anggota_keluarga
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        RETURNING *
+      `;
+      const values = [
+        id, nama, nik, gender, itemData.tempat_lahir, itemData.tanggal_lahir, alamat,
+        itemData.no_hp, itemData.status_pernikahan, itemData.status_jemaat, itemData.kategori_kaum,
+        sektor, wadah, rayon, itemData.no_telepon, itemData.anggota_keluarga ? JSON.stringify(itemData.anggota_keluarga) : null
+      ];
+      const result = await pool.query(query, values);
+      return res.json({ success: true, data: result.rows[0] });
+    } catch (error: any) {
+      console.warn("PostgreSQL insert failed for jemaat, using in-memory store:", error.message);
+    }
   }
+
+  // In-Memory Mode
+  (inMemoryDB.jemaat as any[]).unshift(itemData);
+  saveInMemoryDBToDisk(inMemoryDB);
+  return res.json({ success: true, data: itemData });
 });
 
 router.put("/jemaat/:id", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const {
-      nama, nik, gender, tempat_lahir, tanggal_lahir, alamat,
-      no_hp, status_pernikahan, status_jemaat, kategori_kaum,
-      sektor, wadah, rayon, no_telepon, anggota_keluarga
-    } = req.body;
+  const { id } = req.params;
+  const body = req.body;
 
-    const query = `
-      UPDATE jemaat SET
-        nama = $1, nik = $2, gender = $3, tempat_lahir = $4, tanggal_lahir = $5,
-        alamat = $6, no_hp = $7, status_pernikahan = $8, status_jemaat = $9,
-        kategori_kaum = $10, sektor = $11, wadah = $12, rayon = $13,
-        no_telepon = $14, anggota_keluarga = $15
-      WHERE id = $16
-      RETURNING *
-    `;
-    const values = [
-      nama, nik, gender, tempat_lahir, tanggal_lahir, alamat,
-      no_hp, status_pernikahan, status_jemaat, kategori_kaum,
-      sektor, wadah, rayon, no_telepon, anggota_keluarga ? JSON.stringify(anggota_keluarga) : null,
-      id
-    ];
-
-    const result = await pool!.query(query, values);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Jemaat not found" });
-    } else {
-      res.json({ success: true, data: result.rows[0] });
+  if (pool) {
+    try {
+      const query = `
+        UPDATE jemaat SET
+          nama = $1, nik = $2, gender = $3, tempat_lahir = $4, tanggal_lahir = $5,
+          alamat = $6, no_hp = $7, status_pernikahan = $8, status_jemaat = $9,
+          kategori_kaum = $10, sektor = $11, wadah = $12, rayon = $13,
+          no_telepon = $14, anggota_keluarga = $15
+        WHERE id = $16
+        RETURNING *
+      `;
+      const values = [
+        body.nama, body.nik, body.gender,
+        body.tempat_lahir || body.tempatLahir,
+        body.tanggal_lahir || body.tanggalLahir,
+        body.alamat,
+        body.no_hp || body.noHp,
+        body.status_pernikahan || body.statusPernikahan,
+        body.status_jemaat || body.statusJemaat,
+        body.kategori_kaum || body.kategoriKaum,
+        body.sektor, body.wadah, body.rayon,
+        body.no_telepon || body.noTelepon,
+        (body.anggota_keluarga || body.anggotaKeluarga) ? JSON.stringify(body.anggota_keluarga || body.anggotaKeluarga) : null,
+        id
+      ];
+      const result = await pool.query(query, values);
+      if (result.rows.length > 0) {
+        return res.json({ success: true, data: result.rows[0] });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL update failed for jemaat, using in-memory store:", error.message);
     }
-  } catch (error: any) {
-    console.error("Error updating jemaat:", error);
-    res.status(500).json({ success: false, message: error.message });
+  }
+
+  // In-Memory Mode
+  const idx = inMemoryDB.jemaat.findIndex(j => j.id === id);
+  if (idx > -1) {
+    inMemoryDB.jemaat[idx] = {
+      ...inMemoryDB.jemaat[idx],
+      ...body,
+      tempatLahir: body.tempat_lahir || body.tempatLahir || inMemoryDB.jemaat[idx].tempatLahir,
+      tanggalLahir: body.tanggal_lahir || body.tanggalLahir || inMemoryDB.jemaat[idx].tanggalLahir,
+      noHp: body.no_hp || body.noHp || inMemoryDB.jemaat[idx].noHp,
+      statusJemaat: body.status_jemaat || body.statusJemaat || inMemoryDB.jemaat[idx].statusJemaat
+    };
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, data: inMemoryDB.jemaat[idx] });
+  } else {
+    return res.status(404).json({ success: false, message: "Jemaat not found" });
   }
 });
 
 router.delete("/jemaat/:id", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const result = await pool!.query("DELETE FROM jemaat WHERE id = $1 RETURNING *", [id]);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Jemaat not found" });
-    } else {
-      res.json({ success: true, message: "Deleted" });
+  const { id } = req.params;
+
+  if (pool) {
+    try {
+      const result = await pool.query("DELETE FROM jemaat WHERE id = $1 RETURNING *", [id]);
+      if (result.rows.length > 0) {
+        return res.json({ success: true, message: "Deleted" });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL delete failed for jemaat, using in-memory store:", error.message);
     }
-  } catch (error: any) {
-    console.error("Error deleting jemaat:", error);
-    res.status(500).json({ success: false, message: error.message });
+  }
+
+  // In-Memory Mode
+  const idx = inMemoryDB.jemaat.findIndex(j => j.id === id);
+  if (idx > -1) {
+    inMemoryDB.jemaat.splice(idx, 1);
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, message: "Deleted" });
+  } else {
+    return res.status(404).json({ success: false, message: "Jemaat not found" });
   }
 });
 
@@ -602,117 +676,102 @@ router.post("/import-excel-jemaat", async (req, res) => {
 
 // ============ SCHEDULES CRUD ============
 router.get("/schedules", async (req, res) => {
-  try {
-    checkPostgres();
-    const result = await pool!.query("SELECT * FROM schedules ORDER BY created_at DESC");
-    // Convert snake_case to camelCase for frontend
-    const data = result.rows.map(row => ({
-      id: row.id,
-      judul: row.judul,
-      tanggal: row.tanggal ? (typeof row.tanggal === 'string' ? row.tanggal.split('T')[0] : new Date(row.tanggal).toISOString().split('T')[0]) : '',
-      waktu: row.waktu,
-      lokasi: row.lokasi,
-      deskripsi: row.deskripsi,
-      isRegistrationRequired: row.is_registration_required,
-      hariJam: row.hari_jam,
-      kategori: row.kategori,
-      kuota: row.kuota,
-      terdaftar: row.terdaftar,
-      registrationFee: row.registration_fee,
-      needPaymentProof: row.need_payment_proof,
-      createdAt: row.created_at
-    }));
-    res.json({ success: true, data });
-  } catch (error: any) {
-    console.error("Error fetching schedules:", error);
-    res.status(500).json({ success: false, message: error.message });
+  if (pool) {
+    try {
+      const result = await pool.query("SELECT * FROM schedules ORDER BY created_at DESC");
+      const data = result.rows.map(row => ({
+        id: row.id,
+        judul: row.judul,
+        tanggal: row.tanggal ? (typeof row.tanggal === 'string' ? row.tanggal.split('T')[0] : new Date(row.tanggal).toISOString().split('T')[0]) : '',
+        waktu: row.waktu,
+        lokasi: row.lokasi,
+        deskripsi: row.deskripsi,
+        isRegistrationRequired: row.is_registration_required,
+        hariJam: row.hari_jam,
+        kategori: row.kategori,
+        kuota: row.kuota,
+        terdaftar: row.terdaftar,
+        registrationFee: row.registration_fee,
+        needPaymentProof: row.need_payment_proof,
+        createdAt: row.created_at
+      }));
+      return res.json({ success: true, data });
+    } catch (error: any) {
+      console.warn("PostgreSQL fetch failed for schedules, using in-memory store:", error.message);
+    }
   }
+
+  // In-Memory Mode
+  if (inMemoryDB.schedules.length === 0) {
+    inMemoryDB.seedDefaultSchedules();
+  }
+  const data = inMemoryDB.schedules.map((row: any) => ({
+    id: row.id,
+    judul: row.judul,
+    tanggal: row.tanggal ? (typeof row.tanggal === 'string' ? row.tanggal.split('T')[0] : new Date(row.tanggal).toISOString().split('T')[0]) : '',
+    waktu: row.waktu,
+    lokasi: row.lokasi,
+    deskripsi: row.deskripsi,
+    isRegistrationRequired: row.is_registration_required || row.isRegistrationRequired,
+    hariJam: row.hari_jam || row.hariJam,
+    kategori: row.kategori,
+    kuota: row.kuota,
+    terdaftar: row.terdaftar,
+    registrationFee: row.registration_fee || row.registrationFee,
+    needPaymentProof: row.need_payment_proof || row.needPaymentProof,
+    createdAt: row.created_at || row.createdAt
+  }));
+  return res.json({ success: true, data });
 });
 
 router.post("/schedules", async (req, res) => {
-  try {
-    checkPostgres();
-    const {
-      judul, tanggal, waktu, lokasi, deskripsi, is_registration_required,
-      hari_jam, kategori, kuota, terdaftar, registration_fee, need_payment_proof
-    } = req.body;
+  const {
+    judul, tanggal, waktu, lokasi, deskripsi, is_registration_required, isRegistrationRequired,
+    hari_jam, hariJam, kategori, kuota, terdaftar, registration_fee, registrationFee, need_payment_proof, needPaymentProof
+  } = req.body;
 
-    const finalTanggal = (tanggal && typeof tanggal === 'string' && tanggal.trim() !== '') ? tanggal : new Date().toISOString().split('T')[0];
-    const finalWaktu = (waktu && typeof waktu === 'string' && waktu.trim() !== '') ? waktu : null;
-    const id = generateId("SCH");
-    const query = `
-      INSERT INTO schedules (
-        id, judul, tanggal, waktu, lokasi, deskripsi, is_registration_required,
-        hari_jam, kategori, kuota, terdaftar, registration_fee, need_payment_proof
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-      RETURNING *
-    `;
-    const values = [
-      id, judul, finalTanggal, finalWaktu, lokasi, deskripsi,
-      is_registration_required || false, hari_jam, kategori,
-      kuota || 0, terdaftar || 0, registration_fee, need_payment_proof || false
-    ];
+  const finalTanggal = (tanggal && typeof tanggal === 'string' && tanggal.trim() !== '') ? tanggal : new Date().toISOString().split('T')[0];
+  const finalWaktu = (waktu && typeof waktu === 'string' && waktu.trim() !== '') ? waktu : null;
+  const id = generateId("SCH");
 
-    const result = await pool!.query(query, values);
-    // Convert snake_case to camelCase for frontend
-    const row = result.rows[0];
-    const data = {
-      id: row.id,
-      judul: row.judul,
-      tanggal: row.tanggal,
-      waktu: row.waktu,
-      lokasi: row.lokasi,
-      deskripsi: row.deskripsi,
-      isRegistrationRequired: row.is_registration_required,
-      hariJam: row.hari_jam,
-      kategori: row.kategori,
-      kuota: row.kuota,
-      terdaftar: row.terdaftar,
-      registrationFee: row.registration_fee,
-      needPaymentProof: row.need_payment_proof,
-      createdAt: row.created_at
-    };
-    res.json({ success: true, data });
-  } catch (error: any) {
-    console.error("Error creating schedule:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+  const newItem = {
+    id,
+    judul,
+    tanggal: finalTanggal,
+    waktu: finalWaktu,
+    lokasi,
+    deskripsi,
+    isRegistrationRequired: is_registration_required || isRegistrationRequired || false,
+    is_registration_required: is_registration_required || isRegistrationRequired || false,
+    hariJam: hari_jam || hariJam || '',
+    hari_jam: hari_jam || hariJam || '',
+    kategori,
+    kuota: kuota || 0,
+    terdaftar: terdaftar || 0,
+    registrationFee: registration_fee || registrationFee || '',
+    registration_fee: registration_fee || registrationFee || '',
+    needPaymentProof: need_payment_proof || needPaymentProof || false,
+    need_payment_proof: need_payment_proof || needPaymentProof || false,
+    createdAt: new Date().toISOString()
+  };
 
-router.put("/schedules/:id", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const {
-      judul, tanggal, waktu, lokasi, deskripsi, is_registration_required,
-      hari_jam, kategori, kuota, terdaftar, registration_fee, need_payment_proof
-    } = req.body;
-
-    const finalTanggal = (tanggal && typeof tanggal === 'string' && tanggal.trim() !== '') ? tanggal : new Date().toISOString().split('T')[0];
-    const finalWaktu = (waktu && typeof waktu === 'string' && waktu.trim() !== '') ? waktu : null;
-
-    const query = `
-      UPDATE schedules SET
-        judul = $1, tanggal = $2, waktu = $3, lokasi = $4, deskripsi = $5,
-        is_registration_required = $6, hari_jam = $7, kategori = $8,
-        kuota = $9, terdaftar = $10, registration_fee = $11, need_payment_proof = $12
-      WHERE id = $13
-      RETURNING *
-    `;
-    const values = [
-      judul, finalTanggal, finalWaktu, lokasi, deskripsi,
-      is_registration_required || false, hari_jam, kategori,
-      kuota || 0, terdaftar || 0, registration_fee, need_payment_proof || false,
-      id
-    ];
-
-    const result = await pool!.query(query, values);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Schedule not found" });
-    } else {
-      // Convert snake_case to camelCase for frontend
+  if (pool) {
+    try {
+      const query = `
+        INSERT INTO schedules (
+          id, judul, tanggal, waktu, lokasi, deskripsi, is_registration_required,
+          hari_jam, kategori, kuota, terdaftar, registration_fee, need_payment_proof
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        RETURNING *
+      `;
+      const values = [
+        id, judul, finalTanggal, finalWaktu, lokasi, deskripsi,
+        newItem.is_registration_required, newItem.hari_jam, kategori,
+        newItem.kuota, newItem.terdaftar, newItem.registration_fee, newItem.need_payment_proof
+      ];
+      const result = await pool.query(query, values);
       const row = result.rows[0];
-      const data = {
+      return res.json({ success: true, data: {
         id: row.id,
         judul: row.judul,
         tanggal: row.tanggal,
@@ -727,237 +786,360 @@ router.put("/schedules/:id", async (req, res) => {
         registrationFee: row.registration_fee,
         needPaymentProof: row.need_payment_proof,
         createdAt: row.created_at
-      };
-      res.json({ success: true, data });
+      }});
+    } catch (error: any) {
+      console.warn("PostgreSQL insert failed for schedules, using in-memory store:", error.message);
     }
-  } catch (error: any) {
-    console.error("Error updating schedule:", error);
-    res.status(500).json({ success: false, message: error.message });
+  }
+
+  // In-Memory Mode
+  (inMemoryDB.schedules as any[]).unshift(newItem);
+  saveInMemoryDBToDisk(inMemoryDB);
+  return res.json({ success: true, data: newItem });
+});
+
+router.put("/schedules/:id", async (req, res) => {
+  const { id } = req.params;
+  const {
+    judul, tanggal, waktu, lokasi, deskripsi, is_registration_required, isRegistrationRequired,
+    hari_jam, hariJam, kategori, kuota, terdaftar, registration_fee, registrationFee, need_payment_proof, needPaymentProof
+  } = req.body;
+
+  const finalTanggal = (tanggal && typeof tanggal === 'string' && tanggal.trim() !== '') ? tanggal : new Date().toISOString().split('T')[0];
+  const finalWaktu = (waktu && typeof waktu === 'string' && waktu.trim() !== '') ? waktu : null;
+
+  if (pool) {
+    try {
+      const query = `
+        UPDATE schedules SET
+          judul = $1, tanggal = $2, waktu = $3, lokasi = $4, deskripsi = $5,
+          is_registration_required = $6, hari_jam = $7, kategori = $8,
+          kuota = $9, terdaftar = $10, registration_fee = $11, need_payment_proof = $12
+        WHERE id = $13
+        RETURNING *
+      `;
+      const values = [
+        judul, finalTanggal, finalWaktu, lokasi, deskripsi,
+        is_registration_required || isRegistrationRequired || false,
+        hari_jam || hariJam, kategori, kuota || 0, terdaftar || 0,
+        registration_fee || registrationFee, need_payment_proof || needPaymentProof || false, id
+      ];
+      const result = await pool.query(query, values);
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        return res.json({ success: true, data: {
+          id: row.id,
+          judul: row.judul,
+          tanggal: row.tanggal,
+          waktu: row.waktu,
+          lokasi: row.lokasi,
+          deskripsi: row.deskripsi,
+          isRegistrationRequired: row.is_registration_required,
+          hariJam: row.hari_jam,
+          kategori: row.kategori,
+          kuota: row.kuota,
+          terdaftar: row.terdaftar,
+          registrationFee: row.registration_fee,
+          needPaymentProof: row.need_payment_proof,
+          createdAt: row.created_at
+        }});
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL update failed for schedule, using in-memory store:", error.message);
+    }
+  }
+
+  // In-Memory Mode
+  const idx = inMemoryDB.schedules.findIndex(s => s.id === id);
+  if (idx > -1) {
+    inMemoryDB.schedules[idx] = {
+      ...inMemoryDB.schedules[idx],
+      ...req.body,
+      tanggal: finalTanggal,
+      waktu: finalWaktu,
+      isRegistrationRequired: is_registration_required || isRegistrationRequired || inMemoryDB.schedules[idx].isRegistrationRequired,
+      hariJam: hari_jam || hariJam || inMemoryDB.schedules[idx].hariJam
+    };
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, data: inMemoryDB.schedules[idx] });
+  } else {
+    return res.status(404).json({ success: false, message: "Schedule not found" });
   }
 });
 
 router.delete("/schedules/:id", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const result = await pool!.query("DELETE FROM schedules WHERE id = $1 RETURNING *", [id]);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Schedule not found" });
-    } else {
-      res.json({ success: true, message: "Deleted" });
+  const { id } = req.params;
+
+  if (pool) {
+    try {
+      const result = await pool.query("DELETE FROM schedules WHERE id = $1 RETURNING *", [id]);
+      if (result.rows.length > 0) {
+        return res.json({ success: true, message: "Deleted" });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL delete failed for schedule, using in-memory store:", error.message);
     }
-  } catch (error: any) {
-    console.error("Error deleting schedule:", error);
-    res.status(500).json({ success: false, message: error.message });
+  }
+
+  // In-Memory Mode
+  const idx = inMemoryDB.schedules.findIndex(s => s.id === id);
+  if (idx > -1) {
+    inMemoryDB.schedules.splice(idx, 1);
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, message: "Deleted" });
+  } else {
+    return res.status(404).json({ success: false, message: "Schedule not found" });
   }
 });
 
 // ============ HERO SLIDES CRUD ============
 router.get("/hero-slides", async (req, res) => {
-  try {
-    checkPostgres();
-    const result = await pool!.query("SELECT * FROM hero_slides ORDER BY order_index ASC");
-    res.json({ success: true, data: result.rows });
-  } catch (error: any) {
-    console.error("Error fetching hero slides:", error);
-    res.status(500).json({ success: false, message: error.message });
+  if (pool) {
+    try {
+      const result = await pool.query("SELECT * FROM hero_slides ORDER BY order_index ASC");
+      return res.json({ success: true, data: result.rows });
+    } catch (error: any) {
+      console.warn("PostgreSQL fetch failed for hero slides, using in-memory store:", error.message);
+    }
   }
+  return res.json({ success: true, data: inMemoryDB.heroSlides });
 });
 
 router.post("/hero-slides", async (req, res) => {
-  try {
-    checkPostgres();
-    const { title, image_url, link_url, is_active, order_index, subtitle, badge, cta_text, cta_type, event_name } = req.body;
+  const { title, image_url, link_url, is_active, order_index, subtitle, badge, cta_text, cta_type, event_name } = req.body;
+  const id = generateId("HS");
+  const newItem = {
+    id, title, image_url, link_url, is_active: is_active !== undefined ? is_active : true,
+    order_index: order_index || 0, subtitle, badge, cta_text, cta_type, event_name,
+    created_at: new Date().toISOString()
+  };
 
-    const id = generateId("HS");
-    const query = `
-      INSERT INTO hero_slides (
-        id, title, image_url, link_url, is_active, order_index,
-        subtitle, badge, cta_text, cta_type, event_name
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING *
-    `;
-    const values = [
-      id, title, image_url, link_url, is_active !== undefined ? is_active : true,
-      order_index || 0, subtitle, badge, cta_text, cta_type, event_name
-    ];
-
-    const result = await pool!.query(query, values);
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error: any) {
-    console.error("Error creating hero slide:", error);
-    res.status(500).json({ success: false, message: error.message });
+  if (pool) {
+    try {
+      const query = `
+        INSERT INTO hero_slides (
+          id, title, image_url, link_url, is_active, order_index,
+          subtitle, badge, cta_text, cta_type, event_name
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING *
+      `;
+      const values = [
+        id, title, image_url, link_url, newItem.is_active,
+        newItem.order_index, subtitle, badge, cta_text, cta_type, event_name
+      ];
+      const result = await pool.query(query, values);
+      return res.json({ success: true, data: result.rows[0] });
+    } catch (error: any) {
+      console.warn("PostgreSQL insert failed for hero slide, using in-memory store:", error.message);
+    }
   }
+
+  (inMemoryDB.heroSlides as any[]).push(newItem);
+  saveInMemoryDBToDisk(inMemoryDB);
+  return res.json({ success: true, data: newItem });
 });
 
 router.put("/hero-slides/:id", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const { title, image_url, link_url, is_active, order_index, subtitle, badge, cta_text, cta_type, event_name } = req.body;
+  const { id } = req.params;
+  const { title, image_url, link_url, is_active, order_index, subtitle, badge, cta_text, cta_type, event_name } = req.body;
 
-    const query = `
-      UPDATE hero_slides SET
-        title = $1, image_url = $2, link_url = $3, is_active = $4, order_index = $5,
-        subtitle = $6, badge = $7, cta_text = $8, cta_type = $9, event_name = $10
-      WHERE id = $11
-      RETURNING *
-    `;
-    const values = [
-      title, image_url, link_url, is_active !== undefined ? is_active : true,
-      order_index || 0, subtitle, badge, cta_text, cta_type, event_name, id
-    ];
-
-    const result = await pool!.query(query, values);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Hero slide not found" });
-    } else {
-      res.json({ success: true, data: result.rows[0] });
+  if (pool) {
+    try {
+      const query = `
+        UPDATE hero_slides SET
+          title = $1, image_url = $2, link_url = $3, is_active = $4,
+          order_index = $5, subtitle = $6, badge = $7, cta_text = $8,
+          cta_type = $9, event_name = $10
+        WHERE id = $11
+        RETURNING *
+      `;
+      const values = [
+        title, image_url, link_url, is_active !== undefined ? is_active : true,
+        order_index || 0, subtitle, badge, cta_text, cta_type, event_name, id
+      ];
+      const result = await pool.query(query, values);
+      if (result.rows.length > 0) {
+        return res.json({ success: true, data: result.rows[0] });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL update failed for hero slide, using in-memory store:", error.message);
     }
-  } catch (error: any) {
-    console.error("Error updating hero slide:", error);
-    res.status(500).json({ success: false, message: error.message });
+  }
+
+  const idx = inMemoryDB.heroSlides.findIndex(h => h.id === id);
+  if (idx > -1) {
+    inMemoryDB.heroSlides[idx] = { ...inMemoryDB.heroSlides[idx], ...req.body };
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, data: inMemoryDB.heroSlides[idx] });
+  } else {
+    return res.status(404).json({ success: false, message: "Hero slide not found" });
   }
 });
 
 router.delete("/hero-slides/:id", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const result = await pool!.query("DELETE FROM hero_slides WHERE id = $1 RETURNING *", [id]);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Hero slide not found" });
-    } else {
-      res.json({ success: true, message: "Deleted" });
+  const { id } = req.params;
+
+  if (pool) {
+    try {
+      const result = await pool.query("DELETE FROM hero_slides WHERE id = $1 RETURNING *", [id]);
+      if (result.rows.length > 0) {
+        return res.json({ success: true, message: "Deleted" });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL delete failed for hero slide, using in-memory store:", error.message);
     }
-  } catch (error: any) {
-    console.error("Error deleting hero slide:", error);
-    res.status(500).json({ success: false, message: error.message });
+  }
+
+  const idx = inMemoryDB.heroSlides.findIndex(h => h.id === id);
+  if (idx > -1) {
+    inMemoryDB.heroSlides.splice(idx, 1);
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, message: "Deleted" });
+  } else {
+    return res.status(404).json({ success: false, message: "Hero slide not found" });
   }
 });
 
 // ============ ANNOUNCEMENTS CRUD ============
 router.get("/announcements", async (req, res) => {
-  try {
-    checkPostgres();
-    const result = await pool!.query("SELECT * FROM announcements ORDER BY created_at DESC");
-    res.json({ success: true, data: result.rows });
-  } catch (error: any) {
-    console.error("Error fetching announcements:", error);
-    res.status(500).json({ success: false, message: error.message });
+  if (pool) {
+    try {
+      const result = await pool.query("SELECT * FROM announcements ORDER BY created_at DESC");
+      return res.json({ success: true, data: result.rows });
+    } catch (error: any) {
+      console.warn("PostgreSQL fetch failed for announcements, using in-memory store:", error.message);
+    }
   }
+  return res.json({ success: true, data: inMemoryDB.announcements });
 });
 
 router.post("/announcements", async (req, res) => {
-  try {
-    checkPostgres();
-    const { judul, konten, tanggal, is_active, ringkasan, isi, penting, gambar_url } = req.body;
+  const { judul, konten, tanggal, is_active, ringkasan, isi, penting, gambar_url } = req.body;
+  const id = generateId("ANN");
+  const newItem = {
+    id, judul, konten, tanggal, is_active: is_active !== undefined ? is_active : true,
+    ringkasan, isi, penting: penting || false, gambar_url, created_at: new Date().toISOString()
+  };
 
-    const id = generateId("ANN");
-    const query = `
-      INSERT INTO announcements (
-        id, judul, konten, tanggal, is_active, ringkasan, isi, penting, gambar_url
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *
-    `;
-    const values = [
-      id, judul, konten, tanggal, is_active !== undefined ? is_active : true,
-      ringkasan, isi, penting || false, gambar_url
-    ];
-
-    const result = await pool!.query(query, values);
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error: any) {
-    console.error("Error creating announcement:", error);
-    res.status(500).json({ success: false, message: error.message });
+  if (pool) {
+    try {
+      const query = `
+        INSERT INTO announcements (
+          id, judul, konten, tanggal, is_active, ringkasan, isi, penting, gambar_url
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING *
+      `;
+      const values = [id, judul, konten, tanggal, newItem.is_active, ringkasan, isi, penting || false, gambar_url];
+      const result = await pool.query(query, values);
+      return res.json({ success: true, data: result.rows[0] });
+    } catch (error: any) {
+      console.warn("PostgreSQL insert failed for announcement, using in-memory store:", error.message);
+    }
   }
+
+  (inMemoryDB.announcements as any[]).unshift(newItem);
+  saveInMemoryDBToDisk(inMemoryDB);
+  return res.json({ success: true, data: newItem });
 });
 
 router.put("/announcements/:id", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const { judul, konten, tanggal, is_active, ringkasan, isi, penting, gambar_url } = req.body;
+  const { id } = req.params;
+  const { judul, konten, tanggal, is_active, ringkasan, isi, penting, gambar_url } = req.body;
 
-    const query = `
-      UPDATE announcements SET
-        judul = $1, konten = $2, tanggal = $3, is_active = $4,
-        ringkasan = $5, isi = $6, penting = $7, gambar_url = $8
-      WHERE id = $9
-      RETURNING *
-    `;
-    const values = [
-      judul, konten, tanggal, is_active !== undefined ? is_active : true,
-      ringkasan, isi, penting || false, gambar_url, id
-    ];
-
-    const result = await pool!.query(query, values);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Announcement not found" });
-    } else {
-      res.json({ success: true, data: result.rows[0] });
+  if (pool) {
+    try {
+      const query = `
+        UPDATE announcements SET
+          judul = $1, konten = $2, tanggal = $3, is_active = $4,
+          ringkasan = $5, isi = $6, penting = $7, gambar_url = $8
+        WHERE id = $9
+        RETURNING *
+      `;
+      const values = [judul, konten, tanggal, is_active !== undefined ? is_active : true, ringkasan, isi, penting || false, gambar_url, id];
+      const result = await pool.query(query, values);
+      if (result.rows.length > 0) {
+        return res.json({ success: true, data: result.rows[0] });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL update failed for announcement, using in-memory store:", error.message);
     }
-  } catch (error: any) {
-    console.error("Error updating announcement:", error);
-    res.status(500).json({ success: false, message: error.message });
+  }
+
+  const idx = inMemoryDB.announcements.findIndex(a => a.id === id);
+  if (idx > -1) {
+    inMemoryDB.announcements[idx] = { ...inMemoryDB.announcements[idx], ...req.body };
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, data: inMemoryDB.announcements[idx] });
+  } else {
+    return res.status(404).json({ success: false, message: "Announcement not found" });
   }
 });
 
 router.delete("/announcements/:id", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const result = await pool!.query("DELETE FROM announcements WHERE id = $1 RETURNING *", [id]);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Announcement not found" });
-    } else {
-      res.json({ success: true, message: "Deleted" });
+  const { id } = req.params;
+
+  if (pool) {
+    try {
+      const result = await pool.query("DELETE FROM announcements WHERE id = $1 RETURNING *", [id]);
+      if (result.rows.length > 0) {
+        return res.json({ success: true, message: "Deleted" });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL delete failed for announcement, using in-memory store:", error.message);
     }
-  } catch (error: any) {
-    console.error("Error deleting announcement:", error);
-    res.status(500).json({ success: false, message: error.message });
+  }
+
+  const idx = inMemoryDB.announcements.findIndex(a => a.id === id);
+  if (idx > -1) {
+    inMemoryDB.announcements.splice(idx, 1);
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, message: "Deleted" });
+  } else {
+    return res.status(404).json({ success: false, message: "Announcement not found" });
   }
 });
 
 // ============ WARTA JEMAAT CRUD ============
 router.get("/warta-jemaat", async (req, res) => {
-  try {
-    checkPostgres();
-    const result = await pool!.query("SELECT * FROM warta_jemaat ORDER BY created_at DESC");
-    const data = result.rows.map(row => {
-      const origPdf = row.pdf_url || row.pdfUrl || '';
-      const cleanPdf = sanitizeUrl(origPdf);
-      if (cleanPdf !== origPdf && pool) {
-        pool.query("UPDATE warta_jemaat SET pdf_url = $1 WHERE id = $2", [cleanPdf, row.id]).catch(() => {});
-      }
-      return {
-        ...row,
-        pdfUrl: cleanPdf,
-        pdf_url: cleanPdf,
-        temaMinggu: row.tema_minggu || row.temaMinggu || '',
-        ayatMinggu: row.ayat_minggu || row.ayatMinggu || '',
-        petugasList: row.petugas_list || row.petugasList || []
-      };
-    });
-    res.json({ success: true, data });
-  } catch (error: any) {
-    console.warn("PostgreSQL unavailable for warta-jemaat, falling back to inMemoryDB:", error.message);
-    const data = (inMemoryDB.wartaJemaat || []).map((row: any) => {
-      const origPdf = row.pdf_url || row.pdfUrl || '';
-      const cleanPdf = sanitizeUrl(origPdf);
-      row.pdf_url = cleanPdf;
-      row.pdfUrl = cleanPdf;
-      return {
-        ...row,
-        pdfUrl: cleanPdf,
-        pdf_url: cleanPdf,
-        temaMinggu: row.tema_minggu || row.temaMinggu || '',
-        ayatMinggu: row.ayat_minggu || row.ayatMinggu || '',
-        petugasList: row.petugas_list || row.petugasList || []
-      };
-    });
-    res.json({ success: true, data });
+  if (pool) {
+    try {
+      const result = await pool.query("SELECT * FROM warta_jemaat ORDER BY created_at DESC");
+      const data = result.rows.map(row => {
+        const origPdf = row.pdf_url || row.pdfUrl || '';
+        const cleanPdf = sanitizeUrl(origPdf);
+        if (cleanPdf !== origPdf) {
+          pool.query("UPDATE warta_jemaat SET pdf_url = $1 WHERE id = $2", [cleanPdf, row.id]).catch(() => {});
+        }
+        return {
+          ...row,
+          pdfUrl: cleanPdf,
+          pdf_url: cleanPdf,
+          temaMinggu: row.tema_minggu || row.temaMinggu || '',
+          ayatMinggu: row.ayat_minggu || row.ayatMinggu || '',
+          petugasList: row.petugas_list || row.petugasList || []
+        };
+      });
+      return res.json({ success: true, data });
+    } catch (error: any) {
+      console.warn("PostgreSQL unavailable for warta-jemaat, falling back to inMemoryDB:", error.message);
+    }
   }
+
+  const data = (inMemoryDB.wartaJemaat || []).map((row: any) => {
+    const origPdf = row.pdf_url || row.pdfUrl || '';
+    const cleanPdf = sanitizeUrl(origPdf);
+    row.pdf_url = cleanPdf;
+    row.pdfUrl = cleanPdf;
+    return {
+      ...row,
+      pdfUrl: cleanPdf,
+      pdf_url: cleanPdf,
+      temaMinggu: row.tema_minggu || row.temaMinggu || '',
+      ayatMinggu: row.ayat_minggu || row.ayatMinggu || '',
+      petugasList: row.petugas_list || row.petugasList || []
+    };
+  });
+  return res.json({ success: true, data });
 });
 
 router.post("/warta-jemaat", async (req, res) => {
@@ -970,51 +1152,54 @@ router.post("/warta-jemaat", async (req, res) => {
   const finalAyat = ayat_minggu || ayatMinggu || '';
   const id = generateId("WJ");
 
-  try {
-    checkPostgres();
-    const query = `
-      INSERT INTO warta_jemaat (
-        id, judul, tanggal, pdf_url, petugas_list, edisi, tema_minggu, ayat_minggu, pengumuman
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *
-    `;
-    const values = [
-      id, finalJudul, finalTanggal, finalPdf,
-      petugas_list ? JSON.stringify(petugas_list) : null,
-      edisi, finalTema, finalAyat, pengumuman
-    ];
+  if (pool) {
+    try {
+      const query = `
+        INSERT INTO warta_jemaat (
+          id, judul, tanggal, pdf_url, petugas_list, edisi, tema_minggu, ayat_minggu, pengumuman
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING *
+      `;
+      const values = [
+        id, finalJudul, finalTanggal, finalPdf,
+        petugas_list ? JSON.stringify(petugas_list) : null,
+        edisi, finalTema, finalAyat, pengumuman
+      ];
 
-    const result = await pool!.query(query, values);
-    const item = result.rows[0];
-    const formatted = {
-      ...item,
-      pdfUrl: item.pdf_url || item.pdfUrl || finalPdf,
-      temaMinggu: item.tema_minggu || item.temaMinggu || finalTema,
-      ayatMinggu: item.ayat_minggu || item.ayatMinggu || finalAyat
-    };
-    (inMemoryDB.wartaJemaat as any[]).unshift(formatted);
-    res.json({ success: true, data: formatted });
-  } catch (error: any) {
-    console.warn("PostgreSQL unavailable for create warta-jemaat, falling back to inMemoryDB:", error.message);
-    const newItem = {
-      id,
-      judul: finalJudul,
-      tanggal: finalTanggal,
-      pdf_url: finalPdf,
-      pdfUrl: finalPdf,
-      petugas_list: petugas_list || [],
-      edisi,
-      tema_minggu: finalTema,
-      temaMinggu: finalTema,
-      ayat_minggu: finalAyat,
-      ayatMinggu: finalAyat,
-      pengumuman,
-      createdAt: new Date().toISOString()
-    };
-    (inMemoryDB.wartaJemaat as any[]).unshift(newItem);
-    saveInMemoryDBToDisk();
-    res.json({ success: true, data: newItem });
+      const result = await pool.query(query, values);
+      const item = result.rows[0];
+      const formatted = {
+        ...item,
+        pdfUrl: item.pdf_url || item.pdfUrl || finalPdf,
+        temaMinggu: item.tema_minggu || item.temaMinggu || finalTema,
+        ayatMinggu: item.ayat_minggu || item.ayatMinggu || finalAyat
+      };
+      (inMemoryDB.wartaJemaat as any[]).unshift(formatted);
+      saveInMemoryDBToDisk(inMemoryDB);
+      return res.json({ success: true, data: formatted });
+    } catch (error: any) {
+      console.warn("PostgreSQL unavailable for create warta-jemaat, falling back to inMemoryDB:", error.message);
+    }
   }
+
+  const newItem = {
+    id,
+    judul: finalJudul,
+    tanggal: finalTanggal,
+    pdf_url: finalPdf,
+    pdfUrl: finalPdf,
+    petugas_list: petugas_list || [],
+    edisi,
+    tema_minggu: finalTema,
+    temaMinggu: finalTema,
+    ayat_minggu: finalAyat,
+    ayatMinggu: finalAyat,
+    pengumuman,
+    createdAt: new Date().toISOString()
+  };
+  (inMemoryDB.wartaJemaat as any[]).unshift(newItem);
+  saveInMemoryDBToDisk(inMemoryDB);
+  return res.json({ success: true, data: newItem });
 });
 
 router.put("/warta-jemaat/:id", async (req, res) => {
@@ -1025,262 +1210,375 @@ router.put("/warta-jemaat/:id", async (req, res) => {
   const finalTema = tema_minggu || temaMinggu || '';
   const finalAyat = ayat_minggu || ayatMinggu || '';
 
-  try {
-    checkPostgres();
-    const query = `
-      UPDATE warta_jemaat SET
-        judul = $1, tanggal = $2, pdf_url = $3, petugas_list = $4,
-        edisi = $5, tema_minggu = $6, ayat_minggu = $7, pengumuman = $8
-      WHERE id = $9
-      RETURNING *
-    `;
-    const values = [
-      judul, tanggal, finalPdf,
-      petugas_list ? JSON.stringify(petugas_list) : null,
-      edisi, finalTema, finalAyat, pengumuman, id
-    ];
+  if (pool) {
+    try {
+      const query = `
+        UPDATE warta_jemaat SET
+          judul = $1, tanggal = $2, pdf_url = $3, petugas_list = $4,
+          edisi = $5, tema_minggu = $6, ayat_minggu = $7, pengumuman = $8
+        WHERE id = $9
+        RETURNING *
+      `;
+      const values = [
+        judul, tanggal, finalPdf,
+        petugas_list ? JSON.stringify(petugas_list) : null,
+        edisi, finalTema, finalAyat, pengumuman, id
+      ];
 
-    const result = await pool!.query(query, values);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Warta jemaat not found" });
-    } else {
-      const item = result.rows[0];
-      const formatted = {
-        ...item,
-        pdfUrl: item.pdf_url || item.pdfUrl || finalPdf,
-        temaMinggu: item.tema_minggu || item.temaMinggu || finalTema,
-        ayatMinggu: item.ayat_minggu || item.ayatMinggu || finalAyat
-      };
-      const idx = (inMemoryDB.wartaJemaat as any[]).findIndex(w => w.id === id);
-      if (idx > -1) inMemoryDB.wartaJemaat[idx] = formatted;
-      res.json({ success: true, data: formatted });
+      const result = await pool.query(query, values);
+      if (result.rows.length > 0) {
+        const item = result.rows[0];
+        const formatted = {
+          ...item,
+          pdfUrl: item.pdf_url || item.pdfUrl || finalPdf,
+          temaMinggu: item.tema_minggu || item.temaMinggu || finalTema,
+          ayatMinggu: item.ayat_minggu || item.ayatMinggu || finalAyat
+        };
+        const idx = (inMemoryDB.wartaJemaat as any[]).findIndex(w => w.id === id);
+        if (idx > -1) inMemoryDB.wartaJemaat[idx] = formatted;
+        saveInMemoryDBToDisk(inMemoryDB);
+        return res.json({ success: true, data: formatted });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL unavailable for update warta-jemaat, falling back to inMemoryDB:", error.message);
     }
-  } catch (error: any) {
-    console.warn("PostgreSQL unavailable for update warta-jemaat, falling back to inMemoryDB:", error.message);
-    const arr = inMemoryDB.wartaJemaat as any[];
-    const idx = arr.findIndex(w => w.id === id);
-    if (idx > -1) {
-      arr[idx] = {
-        ...arr[idx],
-        judul: judul || arr[idx].judul,
-        tanggal: tanggal || arr[idx].tanggal,
-        pdf_url: finalPdf || arr[idx].pdf_url,
-        pdfUrl: finalPdf || arr[idx].pdfUrl,
-        edisi: edisi || arr[idx].edisi,
-        tema_minggu: finalTema || arr[idx].tema_minggu,
-        temaMinggu: finalTema || arr[idx].temaMinggu,
-        ayat_minggu: finalAyat || arr[idx].ayat_minggu,
-        ayatMinggu: finalAyat || arr[idx].ayatMinggu,
-        pengumuman: pengumuman || arr[idx].pengumuman
-      };
-      saveInMemoryDBToDisk();
-      res.json({ success: true, data: arr[idx] });
-    } else {
-      res.status(404).json({ success: false, message: "Warta jemaat not found" });
-    }
+  }
+
+  const arr = inMemoryDB.wartaJemaat as any[];
+  const idx = arr.findIndex(w => w.id === id);
+  if (idx > -1) {
+    arr[idx] = {
+      ...arr[idx],
+      judul: judul || arr[idx].judul,
+      tanggal: tanggal || arr[idx].tanggal,
+      pdf_url: finalPdf || arr[idx].pdf_url,
+      pdfUrl: finalPdf || arr[idx].pdfUrl,
+      edisi: edisi || arr[idx].edisi,
+      tema_minggu: finalTema || arr[idx].tema_minggu,
+      temaMinggu: finalTema || arr[idx].temaMinggu,
+      ayat_minggu: finalAyat || arr[idx].ayat_minggu,
+      ayatMinggu: finalAyat || arr[idx].ayatMinggu,
+      pengumuman: pengumuman || arr[idx].pengumuman
+    };
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, data: arr[idx] });
+  } else {
+    return res.status(404).json({ success: false, message: "Warta jemaat not found" });
   }
 });
 
 router.delete("/warta-jemaat/:id", async (req, res) => {
   const { id } = req.params;
-  try {
-    checkPostgres();
-    const result = await pool!.query("DELETE FROM warta_jemaat WHERE id = $1 RETURNING *", [id]);
-    const idx = (inMemoryDB.wartaJemaat as any[]).findIndex(w => w.id === id);
-    if (idx > -1) (inMemoryDB.wartaJemaat as any[]).splice(idx, 1);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Warta jemaat not found" });
-    } else {
-      res.json({ success: true, message: "Deleted" });
+  if (pool) {
+    try {
+      const result = await pool.query("DELETE FROM warta_jemaat WHERE id = $1 RETURNING *", [id]);
+      const idx = (inMemoryDB.wartaJemaat as any[]).findIndex(w => w.id === id);
+      if (idx > -1) (inMemoryDB.wartaJemaat as any[]).splice(idx, 1);
+      saveInMemoryDBToDisk(inMemoryDB);
+      if (result.rows.length > 0) {
+        return res.json({ success: true, message: "Deleted" });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL unavailable for delete warta-jemaat, falling back to inMemoryDB:", error.message);
     }
-  } catch (error: any) {
-    console.warn("PostgreSQL unavailable for delete warta-jemaat, falling back to inMemoryDB:", error.message);
-    const arr = inMemoryDB.wartaJemaat as any[];
-    const idx = arr.findIndex(w => w.id === id);
-    if (idx > -1) {
-      arr.splice(idx, 1);
-      saveInMemoryDBToDisk();
-      res.json({ success: true, message: "Deleted" });
-    } else {
-      res.status(404).json({ success: false, message: "Not found" });
-    }
+  }
+
+  const arr = inMemoryDB.wartaJemaat as any[];
+  const idx = arr.findIndex(w => w.id === id);
+  if (idx > -1) {
+    arr.splice(idx, 1);
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, message: "Deleted" });
+  } else {
+    return res.status(404).json({ success: false, message: "Not found" });
   }
 });
 
 // ============ REGISTRATIONS CRUD ============
 router.get("/registrations", async (req, res) => {
-  try {
-    checkPostgres();
-    const result = await pool!.query("SELECT * FROM registrations ORDER BY created_at DESC");
-    // Convert snake_case to camelCase for frontend
-    const data = result.rows.map(row => ({
-      id: row.id,
-      type: row.type,
-      namaPendaftar: row.nama_pendaftar || row.namaPendaftar || row.nama || 'Pendaftar Baru',
-      nik: row.nik,
-      gender: row.gender,
-      tempatLahir: row.tempat_lahir || row.tempatLahir || '',
-      tanggalLahir: row.tanggal_lahir || row.tanggalLahir || '',
-      alamat: row.alamat,
-      noHp: row.no_hp || row.noHp || '-',
-      lampiranKtp: row.lampiran_ktp,
-      lampiranBuktiBayar: row.lampiran_bukti_bayar,
-      status: row.status,
-      statusNote: row.status_note,
-      anggotaKeluarga: row.anggota_keluarga,
-      rayon: row.rayon,
-      jenisKegiatan: row.jenis_kegiatan || row.jenisKegiatan || '-',
-      tanggalDaftar: row.tanggal_daftar || row.created_at,
-      createdAt: row.created_at
-    }));
-    res.json({ success: true, data });
-  } catch (error: any) {
-    console.error("Error fetching registrations:", error);
-    res.status(500).json({ success: false, message: error.message });
+  if (pool) {
+    try {
+      const result = await pool.query("SELECT * FROM registrations ORDER BY created_at DESC");
+      const data = result.rows.map(row => ({
+        id: row.id,
+        type: row.type,
+        namaPendaftar: row.nama_pendaftar || row.namaPendaftar || row.nama || 'Pendaftar Baru',
+        nik: row.nik,
+        gender: row.gender,
+        tempatLahir: row.tempat_lahir || row.tempatLahir || '',
+        tanggalLahir: row.tanggal_lahir || row.tanggalLahir || '',
+        alamat: row.alamat,
+        noHp: row.no_hp || row.noHp || '-',
+        lampiranKtp: row.lampiran_ktp,
+        lampiranBuktiBayar: row.lampiran_bukti_bayar,
+        status: row.status,
+        statusNote: row.status_note,
+        anggotaKeluarga: row.anggota_keluarga,
+        rayon: row.rayon,
+        jenisKegiatan: row.jenis_kegiatan || row.jenisKegiatan || '-',
+        tanggalDaftar: row.tanggal_daftar || row.created_at,
+        createdAt: row.created_at
+      }));
+      return res.json({ success: true, data });
+    } catch (error: any) {
+      console.warn("PostgreSQL fetch failed for registrations, using in-memory store:", error.message);
+    }
   }
+
+  // In-Memory Mode
+  const data = (inMemoryDB.registrations || []).map((row: any) => ({
+    id: row.id,
+    type: row.type,
+    namaPendaftar: row.nama_pendaftar || row.namaPendaftar || row.nama || 'Pendaftar Baru',
+    nik: row.nik,
+    gender: row.gender,
+    tempatLahir: row.tempat_lahir || row.tempatLahir || '',
+    tanggalLahir: row.tanggal_lahir || row.tanggalLahir || '',
+    alamat: row.alamat,
+    noHp: row.no_hp || row.noHp || '-',
+    lampiranKtp: row.lampiran_ktp || row.lampiranKtp,
+    lampiranBuktiBayar: row.lampiran_bukti_bayar || row.lampiranBuktiBayar,
+    status: row.status,
+    statusNote: row.status_note || row.statusNote,
+    anggotaKeluarga: row.anggota_keluarga || row.anggotaKeluarga,
+    rayon: row.rayon,
+    jenisKegiatan: row.jenis_kegiatan || row.jenisKegiatan || '-',
+    tanggalDaftar: row.tanggal_daftar || row.tanggalDaftar || row.createdAt,
+    createdAt: row.createdAt || row.created_at
+  }));
+  return res.json({ success: true, data });
 });
 
 router.post("/registrations", async (req, res) => {
-  try {
-    checkPostgres();
-    const {
-      type, status, status_note, anggota_keluarga, rayon
-    } = req.body;
+  const { type, status, status_note, statusNote, anggota_keluarga, anggotaKeluarga, rayon } = req.body;
+  const nama_pendaftar = req.body.nama_pendaftar || req.body.namaPendaftar;
+  const nik = req.body.nik;
+  const gender = req.body.gender;
+  const tempat_lahir = req.body.tempat_lahir || req.body.tempatLahir;
+  const tanggal_lahir = req.body.tanggal_lahir || req.body.tanggalLahir;
+  const alamat = req.body.alamat;
+  const no_hp = req.body.no_hp || req.body.noHp;
+  const lampiran_ktp = req.body.lampiran_ktp || req.body.lampiranKtp;
+  const lampiran_bukti_bayar = req.body.lampiran_bukti_bayar || req.body.lampiranBuktiBayar;
+  const jenis_kegiatan = req.body.jenis_kegiatan || req.body.jenisKegiatan;
+  const tanggal_daftar = req.body.tanggal_daftar || req.body.tanggalDaftar || new Date().toISOString();
 
-    const nama_pendaftar = req.body.nama_pendaftar || req.body.namaPendaftar;
-    const nik = req.body.nik;
-    const gender = req.body.gender;
-    const tempat_lahir = req.body.tempat_lahir || req.body.tempatLahir;
-    const tanggal_lahir = req.body.tanggal_lahir || req.body.tanggalLahir;
-    const alamat = req.body.alamat;
-    const no_hp = req.body.no_hp || req.body.noHp;
-    const lampiran_ktp = req.body.lampiran_ktp || req.body.lampiranKtp;
-    const lampiran_bukti_bayar = req.body.lampiran_bukti_bayar || req.body.lampiranBuktiBayar;
-    const jenis_kegiatan = req.body.jenis_kegiatan || req.body.jenisKegiatan;
-    const tanggal_daftar = req.body.tanggal_daftar || req.body.tanggalDaftar || new Date().toISOString();
+  const id = generateId("REG");
+  const newItem: any = {
+    id,
+    type,
+    nama_pendaftar,
+    namaPendaftar: nama_pendaftar,
+    nik,
+    gender,
+    tempat_lahir,
+    tempatLahir: tempat_lahir,
+    tanggal_lahir,
+    tanggalLahir: tanggal_lahir,
+    alamat,
+    no_hp,
+    noHp: no_hp,
+    lampiran_ktp,
+    lampiranKtp: lampiran_ktp,
+    lampiran_bukti_bayar,
+    lampiranBuktiBayar: lampiran_bukti_bayar,
+    status: status || 'Pending',
+    status_note: status_note || statusNote,
+    statusNote: status_note || statusNote,
+    anggota_keluarga: anggota_keluarga || anggotaKeluarga,
+    anggotaKeluarga: anggota_keluarga || anggotaKeluarga,
+    rayon,
+    jenis_kegiatan,
+    jenisKegiatan: jenis_kegiatan,
+    tanggal_daftar,
+    tanggalDaftar: tanggal_daftar,
+    createdAt: new Date().toISOString()
+  };
 
-    const id = generateId("REG");
-    const query = `
-      INSERT INTO registrations (
+  if (pool) {
+    try {
+      const query = `
+        INSERT INTO registrations (
+          id, type, nama_pendaftar, nik, gender, tempat_lahir, tanggal_lahir,
+          alamat, no_hp, lampiran_ktp, lampiran_bukti_bayar, status,
+          status_note, anggota_keluarga, rayon, jenis_kegiatan, tanggal_daftar
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        RETURNING *
+      `;
+      const values = [
         id, type, nama_pendaftar, nik, gender, tempat_lahir, tanggal_lahir,
-        alamat, no_hp, lampiran_ktp, lampiran_bukti_bayar, status,
-        status_note, anggota_keluarga, rayon, jenis_kegiatan, tanggal_daftar
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-      RETURNING *
-    `;
-    const values = [
-      id, type, nama_pendaftar, nik, gender, tempat_lahir, tanggal_lahir,
-      alamat, no_hp, lampiran_ktp, lampiran_bukti_bayar,
-      status || 'Pending', status_note,
-      anggota_keluarga ? JSON.stringify(anggota_keluarga) : null,
-      rayon, jenis_kegiatan, tanggal_daftar
-    ];
-
-    const result = await pool!.query(query, values);
-    // Convert snake_case to camelCase for frontend
-    const row = result.rows[0];
-    const data = {
-      id: row.id,
-      type: row.type,
-      namaPendaftar: row.nama_pendaftar,
-      nik: row.nik,
-      gender: row.gender,
-      tempatLahir: row.tempat_lahir,
-      tanggalLahir: row.tanggal_lahir,
-      alamat: row.alamat,
-      noHp: row.no_hp,
-      lampiranKtp: row.lampiran_ktp,
-      lampiranBuktiBayar: row.lampiran_bukti_bayar,
-      status: row.status,
-      statusNote: row.status_note,
-      anggotaKeluarga: row.anggota_keluarga,
-      rayon: row.rayon,
-      jenisKegiatan: row.jenis_kegiatan,
-      tanggalDaftar: row.tanggal_daftar,
-      createdAt: row.created_at
-    };
-    res.json({ success: true, data });
-  } catch (error: any) {
-    console.error("Error creating registration:", error);
-    res.status(500).json({ success: false, message: error.message });
+        alamat, no_hp, lampiran_ktp, lampiran_bukti_bayar,
+        newItem.status, newItem.status_note,
+        newItem.anggota_keluarga ? JSON.stringify(newItem.anggota_keluarga) : null,
+        rayon, jenis_kegiatan, tanggal_daftar
+      ];
+      const result = await pool.query(query, values);
+      const row = result.rows[0];
+      return res.json({ success: true, data: {
+        id: row.id,
+        type: row.type,
+        namaPendaftar: row.nama_pendaftar,
+        nik: row.nik,
+        gender: row.gender,
+        tempatLahir: row.tempat_lahir,
+        tanggalLahir: row.tanggal_lahir,
+        alamat: row.alamat,
+        noHp: row.no_hp,
+        lampiranKtp: row.lampiran_ktp,
+        lampiranBuktiBayar: row.lampiran_bukti_bayar,
+        status: row.status,
+        statusNote: row.status_note,
+        anggotaKeluarga: row.anggota_keluarga,
+        rayon: row.rayon,
+        jenisKegiatan: row.jenis_kegiatan,
+        tanggalDaftar: row.tanggal_daftar,
+        createdAt: row.created_at
+      }});
+    } catch (error: any) {
+      console.warn("PostgreSQL insert failed for registration, using in-memory store:", error.message);
+    }
   }
+
+  // In-Memory Mode
+  (inMemoryDB.registrations as any[]).unshift(newItem);
+  saveInMemoryDBToDisk(inMemoryDB);
+  return res.json({ success: true, data: newItem });
 });
 
 router.put("/registrations/:id/status", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const { status, status_note } = req.body;
+  const { id } = req.params;
+  const { status, status_note, statusNote } = req.body;
+  const note = status_note || statusNote;
 
-    const query = `
-      UPDATE registrations SET status = $1, status_note = $2
-      WHERE id = $3
-      RETURNING *
-    `;
-    const result = await pool!.query(query, [status, status_note, id]);
+  if (pool) {
+    try {
+      const query = `
+        UPDATE registrations SET status = $1, status_note = $2
+        WHERE id = $3
+        RETURNING *
+      `;
+      const result = await pool.query(query, [status, note, id]);
 
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Registration not found" });
-    } else {
-      // Auto insert into jemaat if approved
-      if (status === "Disetujui") {
-        const reg = result.rows[0];
-        if (reg.type === "jemaat_baru" || reg.type === "pendataan_terdaftar") {
-          const jemaatId = generateId("JEM");
-
-          // Determine Wadah
-          let computedWadah = 'Kaum Pria';
-          const genderLower = (reg.gender || '').toLowerCase();
-          let age = 35;
-          if (reg.tanggal_lahir) {
-            const birthStr = reg.tanggal_lahir.toString().split('T')[0];
-            const parts = birthStr.split('-');
-            if (parts.length === 3) {
-              const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-              const today = new Date();
-              age = today.getFullYear() - birthDate.getFullYear();
+      if (result.rows.length > 0) {
+        if (status === "Disetujui") {
+          const reg = result.rows[0];
+          if (reg.type === "jemaat_baru" || reg.type === "pendataan_terdaftar") {
+            const jemaatId = generateId("JEM");
+            let computedWadah = 'Kaum Pria';
+            const genderLower = (reg.gender || '').toLowerCase();
+            let age = 35;
+            if (reg.tanggal_lahir) {
+              const birthStr = reg.tanggal_lahir.toString().split('T')[0];
+              const parts = birthStr.split('-');
+              if (parts.length === 3) {
+                const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                const today = new Date();
+                age = today.getFullYear() - birthDate.getFullYear();
+              }
             }
-          }
-          if (age <= 13) computedWadah = 'Sekolah Minggu';
-          else if (age <= 20) computedWadah = 'Kaum Remaja';
-          else if (age <= 30) computedWadah = 'Kaum Muda';
-          else if (genderLower === 'wanita' || genderLower === 'perempuan') computedWadah = 'Kaum Wanita';
-          else computedWadah = 'Kaum Pria';
+            if (age <= 13) computedWadah = 'Sekolah Minggu';
+            else if (age <= 20) computedWadah = 'Kaum Remaja';
+            else if (age <= 30) computedWadah = 'Kaum Muda';
+            else if (genderLower === 'wanita' || genderLower === 'perempuan') computedWadah = 'Kaum Wanita';
+            else computedWadah = 'Kaum Pria';
 
-          const jemaatQuery = `
-            INSERT INTO jemaat (
-              id, nama, nik, gender, tempat_lahir, tanggal_lahir,
-              alamat, no_hp, status_jemaat, anggota_keluarga, rayon, wadah
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-          `;
-          await pool!.query(jemaatQuery, [
-            jemaatId, reg.nama_pendaftar, reg.nik, reg.gender,
-            reg.tempat_lahir, reg.tanggal_lahir, reg.alamat,
-            reg.no_hp, 'Aktif', reg.anggota_keluarga, reg.rayon || 'Rayon 1', computedWadah
-          ]);
+            const jemaatQuery = `
+              INSERT INTO jemaat (
+                id, nama, nik, gender, tempat_lahir, tanggal_lahir,
+                alamat, no_hp, status_jemaat, anggota_keluarga, rayon, wadah
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            `;
+            await pool.query(jemaatQuery, [
+              jemaatId, reg.nama_pendaftar, reg.nik, reg.gender,
+              reg.tempat_lahir, reg.tanggal_lahir, reg.alamat,
+              reg.no_hp, 'Aktif', reg.anggota_keluarga, reg.rayon || 'Rayon 1', computedWadah
+            ]);
+          }
+        }
+        return res.json({ success: true, data: result.rows[0] });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL update status failed for registration, using in-memory store:", error.message);
+    }
+  }
+
+  // In-Memory Mode
+  const reg = inMemoryDB.registrations.find(r => r.id === id);
+  if (reg) {
+    reg.status = status;
+    (reg as any).status_note = note;
+    (reg as any).statusNote = note;
+
+    if (status === "Disetujui" && (reg.type === "jemaat_baru" || reg.type === "pendataan_terdaftar")) {
+      const jemaatId = generateId("JEM");
+      let computedWadah = 'Kaum Pria';
+      const genderLower = (reg.gender || '').toLowerCase();
+      let age = 35;
+      const r = reg as any;
+      const birthStr = (r.tanggal_lahir || r.tanggalLahir || '').toString().split('T')[0];
+      if (birthStr) {
+        const parts = birthStr.split('-');
+        if (parts.length === 3) {
+          const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          const today = new Date();
+          age = today.getFullYear() - birthDate.getFullYear();
         }
       }
-      res.json({ success: true, data: result.rows[0] });
+      if (age <= 13) computedWadah = 'Sekolah Minggu';
+      else if (age <= 20) computedWadah = 'Kaum Remaja';
+      else if (age <= 30) computedWadah = 'Kaum Muda';
+      else if (genderLower === 'wanita' || genderLower === 'perempuan') computedWadah = 'Kaum Wanita';
+      else computedWadah = 'Kaum Pria';
+
+      const newJemaat: any = {
+        id: jemaatId,
+        nama: r.nama_pendaftar || r.namaPendaftar,
+        nik: r.nik,
+        gender: r.gender,
+        tempat_lahir: r.tempat_lahir || r.tempatLahir,
+        tempatLahir: r.tempat_lahir || r.tempatLahir,
+        tanggal_lahir: birthStr,
+        tanggalLahir: birthStr,
+        alamat: r.alamat,
+        no_hp: r.no_hp || r.noHp,
+        noHp: r.no_hp || r.noHp,
+        status_jemaat: 'Aktif',
+        statusJemaat: 'Aktif',
+        anggota_keluarga: r.anggota_keluarga || r.anggotaKeluarga || [],
+        anggotaKeluarga: r.anggota_keluarga || r.anggotaKeluarga || [],
+        rayon: r.rayon || 'Rayon 1',
+        wadah: computedWadah
+      };
+      (inMemoryDB.jemaat as any[]).unshift(newJemaat);
     }
-  } catch (error: any) {
-    console.error("Error updating registration status:", error);
-    res.status(500).json({ success: false, message: error.message });
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, data: reg });
+  } else {
+    return res.status(404).json({ success: false, message: "Registration not found" });
   }
 });
 
 router.delete("/registrations/:id", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const result = await pool!.query("DELETE FROM registrations WHERE id = $1 RETURNING *", [id]);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Registration not found" });
-    } else {
-      res.json({ success: true, message: "Deleted" });
+  const { id } = req.params;
+
+  if (pool) {
+    try {
+      const result = await pool.query("DELETE FROM registrations WHERE id = $1 RETURNING *", [id]);
+      if (result.rows.length > 0) {
+        return res.json({ success: true, message: "Deleted" });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL delete failed for registration, using in-memory store:", error.message);
     }
-  } catch (error: any) {
-    console.error("Error deleting registration:", error);
-    res.status(500).json({ success: false, message: error.message });
+  }
+
+  const idx = inMemoryDB.registrations.findIndex(r => r.id === id);
+  if (idx > -1) {
+    inMemoryDB.registrations.splice(idx, 1);
+    saveInMemoryDBToDisk(inMemoryDB);
+    return res.json({ success: true, message: "Deleted" });
+  } else {
+    return res.status(404).json({ success: false, message: "Registration not found" });
   }
 });
 
@@ -1616,95 +1914,6 @@ router.post("/prayers", async (req, res) => {
   }
 });
 
-router.put("/registrations/:id/status", async (req, res) => {
-  try {
-    checkPostgres();
-    const { id } = req.params;
-    const { status, status_note } = req.body;
-
-    const query = `
-      UPDATE registrations SET status = $1, status_note = $2
-      WHERE id = $3
-      RETURNING *
-    `;
-    const values = [status, status_note, id];
-
-    const result = await pool!.query(query, values);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Registration not found" });
-    } else {
-      const row = result.rows[0];
-
-      // Auto-insert into jemaat table if new jemaat registration is approved
-      if (status === 'Disetujui' && (row.type === 'jemaat_baru' || row.type === 'pendataan_terdaftar')) {
-        try {
-          const jId = generateId("JEM");
-          const tglStr = row.tanggal_lahir ? (typeof row.tanggal_lahir === 'string' ? row.tanggal_lahir.split('T')[0] : new Date(row.tanggal_lahir).toISOString().split('T')[0]) : null;
-          let age = 30;
-          if (tglStr) {
-            const parts = tglStr.split(/[-/]/);
-            if (parts.length === 3) {
-              let year = 0, month = 0, day = 0;
-              if (parseInt(parts[0]) > 1000) { year = parseInt(parts[0]); month = parseInt(parts[1]) - 1; day = parseInt(parts[2]); }
-              else if (parseInt(parts[2]) > 1000) { year = parseInt(parts[2]); month = parseInt(parts[1]) - 1; day = parseInt(parts[0]); }
-              if (year > 0) {
-                const birthDate = new Date(year, month, day);
-                const today = new Date();
-                age = today.getFullYear() - birthDate.getFullYear();
-                const m = today.getMonth() - birthDate.getMonth();
-                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-              }
-            }
-          }
-          let autoWadah = '';
-          if (age > 0 && age <= 13) autoWadah = 'Sekolah Minggu';
-          else if (age >= 14 && age <= 20) autoWadah = 'Kaum Remaja';
-          else if (age >= 21 && age <= 30) autoWadah = 'Kaum Muda';
-          else if ((row.gender || '').toLowerCase() === 'wanita' || (row.gender || '').toLowerCase() === 'perempuan') autoWadah = 'Kaum Wanita';
-          else autoWadah = 'Kaum Pria';
-
-          await pool!.query(`
-            INSERT INTO jemaat (id, nama, nik, gender, tempat_lahir, tanggal_lahir, alamat, no_hp, status_jemaat, wadah, rayon)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (id) DO NOTHING;
-          `, [
-            jId, row.nama_pendaftar || 'Jemaat Baru', row.nik, row.gender || 'Pria',
-            row.tempat_lahir || 'Depok', tglStr, row.alamat || '-', row.no_hp || '-',
-            'Aktif', autoWadah, row.rayon || 'Rayon 1'
-          ]);
-        } catch (jInsErr) {
-          console.error("Error auto inserting new jemaat on approval:", jInsErr);
-        }
-      }
-
-      // Convert snake_case to camelCase for frontend
-      const data = {
-        id: row.id,
-        type: row.type,
-        namaPendaftar: row.nama_pendaftar,
-        nik: row.nik,
-        gender: row.gender,
-        tempatLahir: row.tempat_lahir,
-        tanggalLahir: row.tanggal_lahir,
-        alamat: row.alamat,
-        noHp: row.no_hp,
-        lampiranKtp: row.lampiran_ktp,
-        lampiranBuktiBayar: row.lampiran_bukti_bayar,
-        status: row.status,
-        statusNote: row.status_note,
-        anggotaKeluarga: row.anggota_keluarga,
-        rayon: row.rayon,
-        jenisKegiatan: row.jenis_kegiatan,
-        tanggalDaftar: row.tanggal_daftar,
-        createdAt: row.created_at
-      };
-      res.json({ success: true, data });
-    }
-  } catch (error: any) {
-    console.error("Error updating registration status:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
 
 router.put("/prayers/:id/status", async (req, res) => {
   try {
@@ -2344,52 +2553,80 @@ router.delete("/rayon/:id", async (req, res) => {
 
 // ============ CERTIFICATE REQUESTS CRUD ============
 router.get("/certificate-requests", async (req, res) => {
-  try {
-    checkPostgres();
-    const result = await pool!.query("SELECT * FROM certificate_requests ORDER BY created_at DESC");
-    res.json({ success: true, data: result.rows });
-  } catch (error: any) {
-    console.error("Error fetching certificate requests:", error);
-    res.status(500).json({ success: false, message: error.message });
+  if (pool) {
+    try {
+      const result = await pool.query("SELECT * FROM certificate_requests ORDER BY created_at DESC");
+      return res.json({ success: true, data: result.rows });
+    } catch (error: any) {
+      console.warn("PostgreSQL fetch failed for certificate requests, using in-memory store:", error.message);
+    }
   }
+  return res.json({ success: true, data: inMemoryDB.certificateRequests || [] });
 });
 
 router.post("/certificate-requests", async (req, res) => {
-  try {
-    checkPostgres();
-    const { name, type, status } = req.body;
+  const { name, type, status } = req.body;
+  const id = generateId("CR");
+  const newItem = { id, name, type, status: status || 'Pending', createdAt: new Date().toISOString() };
 
-    const id = generateId("CR");
-    const query = `
-      INSERT INTO certificate_requests (id, name, type, status)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `;
-    const values = [id, name, type, status || 'Pending'];
-
-    const result = await pool!.query(query, values);
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error: any) {
-    console.error("Error creating certificate request:", error);
-    res.status(500).json({ success: false, message: error.message });
+  if (pool) {
+    try {
+      const query = `
+        INSERT INTO certificate_requests (id, name, type, status)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+      `;
+      const values = [id, name, type, status || 'Pending'];
+      const result = await pool.query(query, values);
+      return res.json({ success: true, data: result.rows[0] });
+    } catch (error: any) {
+      console.warn("PostgreSQL insert failed for certificate request, using in-memory store:", error.message);
+    }
   }
+
+  (inMemoryDB as any).certificateRequests = (inMemoryDB as any).certificateRequests || [];
+  (inMemoryDB as any).certificateRequests.unshift(newItem);
+  saveInMemoryDBToDisk(inMemoryDB);
+  return res.json({ success: true, data: newItem });
 });
 
 // ============ CERTIFICATE VALIDATION ============
 router.get("/certificates/validate/:code", async (req, res) => {
-  try {
-    checkPostgres();
-    const { code } = req.params;
-    const result = await pool!.query("SELECT * FROM certificates WHERE code = $1", [code]);
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: "Invalid or not found" });
-    } else {
-      res.json({ success: true, data: result.rows[0] });
+  const { code } = req.params;
+
+  if (pool) {
+    try {
+      const result = await pool.query("SELECT * FROM certificates WHERE code = $1", [code]);
+      if (result.rows.length > 0) {
+        return res.json({ success: true, data: result.rows[0] });
+      }
+    } catch (error: any) {
+      console.warn("PostgreSQL validate certificate error, checking in-memory store:", error.message);
     }
-  } catch (error: any) {
-    console.error("Error validating certificate:", error);
-    res.status(500).json({ success: false, message: error.message });
   }
+
+  const cert = inMemoryDB.certificates.find(c => c.code === code);
+  if (cert) {
+    return res.json({ success: true, data: cert });
+  }
+
+  // Also check if code matches any registration ID or NIK
+  const regMatch = inMemoryDB.registrations.find(r => r.id === code || r.nik === code);
+  if (regMatch) {
+    return res.json({
+      success: true,
+      data: {
+        id: regMatch.id,
+        code: regMatch.id,
+        nama: regMatch.namaPendaftar || (regMatch as any).nama_pendaftar,
+        jenisSurat: regMatch.type,
+        tanggalTerbit: (regMatch as any).tanggalDaftar || (regMatch as any).createdAt,
+        status: regMatch.status
+      }
+    });
+  }
+
+  return res.status(404).json({ success: false, message: "Sertifikat / Dokumen tidak ditemukan atau tidak valid" });
 });
 
 // ============ CHATBOT ============

@@ -78,7 +78,11 @@ class InMemoryStore {
   constructor() {
     this.seedDefaultAdmin();
     loadInMemoryDBFromDisk(this);
+    this.seedDefaultWadah();
+    this.seedDefaultRayon();
+    this.seedDefaultJemaat();
     this.seedDefaultKnowledgeBase();
+    this.seedDefaultSchedules();
   }
 
   seedDefaultAdmin() {
@@ -93,6 +97,106 @@ class InMemoryStore {
         mustChangePassword: false,
         createdAt: new Date().toISOString()
       } as any);
+    }
+  }
+
+  seedDefaultWadah() {
+    if (this.wadah.length === 0) {
+      this.wadah = [
+        { id: 'WAD-001', nama_wadah: 'Kaum Muda', namaWadah: 'Kaum Muda', ketua_wadah: 'Joyhill Abineno', ketuaWadah: 'Joyhill Abineno', umur_minimal: 21, umurMinimal: 21, umur_maksimal: 30, umurMaksimal: 30, jumlah_anggota: 64, jumlahAnggota: 64 },
+        { id: 'WAD-002', nama_wadah: 'Kaum Pria', namaWadah: 'Kaum Pria', ketua_wadah: 'Mardongan Simanjuntak', ketuaWadah: 'Mardongan Simanjuntak', umur_minimal: 31, umurMinimal: 31, umur_maksimal: 100, umurMaksimal: 100, jumlah_anggota: 80, jumlahAnggota: 80 },
+        { id: 'WAD-003', nama_wadah: 'Kaum Remaja', namaWadah: 'Kaum Remaja', ketua_wadah: 'Chloe Davincia Michelle', ketuaWadah: 'Chloe Davincia Michelle', umur_minimal: 14, umurMinimal: 14, umur_maksimal: 20, umurMaksimal: 20, jumlah_anggota: 23, jumlahAnggota: 23 },
+        { id: 'WAD-004', nama_wadah: 'Kaum Wanita', namaWadah: 'Kaum Wanita', ketua_wadah: 'Ester Wuarlela', ketuaWadah: 'Ester Wuarlela', umur_minimal: 31, umurMinimal: 31, umur_maksimal: 100, umurMaksimal: 100, jumlah_anggota: 136, jumlahAnggota: 136 },
+        { id: 'WAD-005', nama_wadah: 'Sekolah Minggu', namaWadah: 'Sekolah Minggu', ketua_wadah: 'Seresy Matius', ketuaWadah: 'Seresy Matius', umur_minimal: 1, umurMinimal: 1, umur_maksimal: 13, umurMaksimal: 13, jumlah_anggota: 68, jumlahAnggota: 68 }
+      ];
+      saveInMemoryDBToDisk(this);
+    }
+  }
+
+  seedDefaultRayon() {
+    if (this.rayon.length === 0) {
+      this.rayon = [
+        { id: 'RAY-001', nama_rayon: 'Rayon 1', namaRayon: 'Rayon 1', ketua_rayon: 'Suci Br Kembaren', ketuaRayon: 'Suci Br Kembaren', jumlah_anggota: 78, jumlahAnggota: 78 },
+        { id: 'RAY-002', nama_rayon: 'Rayon 2', namaRayon: 'Rayon 2', ketua_rayon: 'Tarningsih', ketuaRayon: 'Tarningsih', jumlah_anggota: 83, jumlahAnggota: 83 },
+        { id: 'RAY-003', nama_rayon: 'Rayon 3', namaRayon: 'Rayon 3', ketua_rayon: 'Harliarso', ketuaRayon: 'Harliarso', jumlah_anggota: 123, jumlahAnggota: 123 },
+        { id: 'RAY-004', nama_rayon: 'Rayon 4', namaRayon: 'Rayon 4', ketua_rayon: 'Mega Sihombing', ketuaRayon: 'Mega Sihombing', jumlah_anggota: 87, jumlahAnggota: 87 }
+      ];
+      saveInMemoryDBToDisk(this);
+    }
+  }
+
+  seedDefaultJemaat() {
+    if (this.jemaat.length === 0) {
+      try {
+        const parsedPath = path.resolve(process.cwd(), './data_jemaat_parsed.json');
+        if (fs.existsSync(parsedPath)) {
+          const parsedData = JSON.parse(fs.readFileSync(parsedPath, 'utf-8'));
+          if (Array.isArray(parsedData) && parsedData.length > 0) {
+            this.jemaat = parsedData.map((item: any) => ({
+              ...item,
+              tempatLahir: item.tempat_lahir || item.tempatLahir || '',
+              tanggalLahir: item.tanggal_lahir || item.tanggalLahir || '',
+              noHp: item.no_hp || item.noHp || '',
+              statusPernikahan: item.status_pernikahan || item.statusPernikahan || '',
+              statusJemaat: item.status_jemaat || item.statusJemaat || 'Aktif',
+              kategoriKaum: item.kategori_kaum || item.kategoriKaum || '',
+              noTelepon: item.no_telepon || item.noTelepon || '',
+              anggotaKeluarga: item.anggota_keluarga || item.anggotaKeluarga || []
+            }));
+            saveInMemoryDBToDisk(this);
+          }
+        }
+      } catch (err) {
+        console.error("Error seeding default jemaat from JSON:", err);
+      }
+    }
+  }
+
+  seedDefaultSchedules() {
+    if (this.schedules.length === 0) {
+      this.schedules = [
+        {
+          id: "SCH-001",
+          judul: "Ibadah Raya I",
+          tanggal: new Date().toISOString().split('T')[0],
+          waktu: "07:00",
+          lokasi: "Gedung Utama GPdI Melati Depok",
+          deskripsi: "Ibadah Minggu Sesi Pertama",
+          isRegistrationRequired: false,
+          is_registration_required: false,
+          hariJam: "Minggu, 07:00 WIB",
+          hari_jam: "Minggu, 07:00 WIB",
+          kategori: "Ibadah Raya",
+          kuota: 200,
+          terdaftar: 0,
+          registrationFee: "Gratis",
+          registration_fee: "Gratis",
+          needPaymentProof: false,
+          need_payment_proof: false,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "SCH-002",
+          judul: "Ibadah Raya II",
+          tanggal: new Date().toISOString().split('T')[0],
+          waktu: "10:00",
+          lokasi: "Gedung Utama GPdI Melati Depok",
+          deskripsi: "Ibadah Minggu Sesi Kedua & Sekolah Minggu",
+          isRegistrationRequired: false,
+          is_registration_required: false,
+          hariJam: "Minggu, 10:00 WIB",
+          hari_jam: "Minggu, 10:00 WIB",
+          kategori: "Ibadah Raya",
+          kuota: 200,
+          terdaftar: 0,
+          registrationFee: "Gratis",
+          registration_fee: "Gratis",
+          needPaymentProof: false,
+          need_payment_proof: false,
+          createdAt: new Date().toISOString()
+        }
+      ] as any;
+      saveInMemoryDBToDisk(this);
     }
   }
 
