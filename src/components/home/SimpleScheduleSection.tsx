@@ -58,7 +58,12 @@ export default function SimpleScheduleSection() {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          setSchedules(data.data.slice(0, 3)); // Show only first 3 schedules
+          const filtered = data.data.filter((s: ScheduleItem) => {
+            const kat = (s.kategori || '').toLowerCase();
+            const isEvent = kat.includes('event') || kat.includes('pelatihan') || kat.includes('acara') || kat.includes('seminar') || kat.includes('kegiatan') || kat.includes('retreat');
+            return !isEvent;
+          });
+          setSchedules(filtered.slice(0, 3)); // Show only first 3 schedules
         }
         setIsLoading(false);
       })
@@ -113,11 +118,7 @@ export default function SimpleScheduleSection() {
               >
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-gold rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                <div className="mb-4 flex justify-between items-start">
-                  <span className="px-3 py-1 bg-sand-dark text-navy text-[10px] font-bold rounded-full uppercase tracking-widest border border-border-subtle">
-                    {schedule.kategori?.replace('_', ' ') || schedule.kategori || 'Umum'}
-                  </span>
-                </div>
+
 
                 <h3 className="text-xl font-bold text-navy mb-2">{schedule.judul}</h3>
                 
@@ -173,11 +174,7 @@ export default function SimpleScheduleSection() {
                 <X size={20} />
               </button>
 
-              <div className="mb-4">
-                <span className="px-3 py-1 bg-gold/20 text-navy text-[10px] font-bold rounded-full uppercase tracking-widest border border-gold/30">
-                  {selectedSchedule.kategori?.replace('_', ' ') || selectedSchedule.kategori || 'Jadwal'}
-                </span>
-              </div>
+
 
               <h3 className="text-2xl font-bold text-navy mb-4">{selectedSchedule.judul}</h3>
 

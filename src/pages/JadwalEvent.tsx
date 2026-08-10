@@ -165,16 +165,13 @@ export default function JadwalEvent() {
                 >
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-gold rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                  <div className="mb-4 flex justify-between items-start">
-                    <span className="px-3 py-1 bg-sand-dark text-navy text-[10px] font-bold rounded-full uppercase tracking-widest border border-border-subtle">
-                      {schedule.kategori?.replace('_', ' ') || schedule.kategori || 'Umum'}
-                    </span>
-                    {schedule.isRegistrationRequired && (
+                  {schedule.isRegistrationRequired && (
+                    <div className="mb-4 flex justify-end items-start">
                       <span className="flex items-center gap-1 text-xs font-bold text-navy bg-gold/20 px-2 py-1 rounded-md">
                         <Users size={12} /> Pendaftaran Dibuka
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   <h3 className="text-xl font-bold text-navy mb-4">{schedule.judul}</h3>
                   
