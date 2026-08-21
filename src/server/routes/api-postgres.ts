@@ -2686,52 +2686,8 @@ router.post("/chat", async (req, res) => {
       return `📌 [${s.kategori || 'Jadwal'}] ${s.judul} - Hari/Tanggal: ${hariJam}, Jam: ${s.waktu || 'Sesuai Jadwal'}, Lokasi: ${s.lokasi || 'Gereja GPdI Melati Depok'} ${reg}`;
     }).join('\n');
 
-    // 3. Match against Knowledge Base patterns
-    for (const kb of knowledgeBase) {
-      if (Array.isArray(kb.patterns)) {
-        for (const pattern of kb.patterns) {
-          if (pattern && typeof pattern === 'string') {
-            const trimmedPat = pattern.trim().toLowerCase();
-            if (trimmedPat && lowercaseMsg.includes(trimmedPat)) {
-              return res.json({ success: true, data: { response: kb.botResponse } });
-            }
-          }
-        }
-      }
-    }
-
-    // 4. Check if user is asking about schedules / events / worship times
-    const isScheduleQuery = lowercaseMsg.includes('jadwal') || 
-                            lowercaseMsg.includes('event') || 
-                            lowercaseMsg.includes('ibadah') || 
-                            lowercaseMsg.includes('kegiatan') || 
-                            lowercaseMsg.includes('minggu') || 
-                            lowercaseMsg.includes('jam') || 
-                            lowercaseMsg.includes('waktu');
-
-    if (isScheduleQuery) {
-      if (scheduleList.length > 0) {
-        const responseText = `Berikut adalah Jadwal Ibadah & Event GPdI Melati Depok terbaru:\n\n${formattedSchedules}\n\nSilakan kunjungi menu 'Jadwal & Event' di website kami untuk informasi selengkapnya atau melakukan pendaftaran!`;
-        return res.json({ success: true, data: { response: responseText } });
-      } else {
-        return res.json({ success: true, data: { response: "Saat ini belum ada jadwal ibadah atau event khusus yang terdaftar dari Admin. Silakan cek secara berkala atau hubungi tim gereja." } });
-      }
-    }
-
-    // 5. Check if user asks about baptis / doa / pendaftaran
-    if (lowercaseMsg.includes('baptis') || lowercaseMsg.includes('baptisan')) {
-      return res.json({ success: true, data: { response: "Untuk Pendaftaran Baptisan Air, Anda dapat mendaftar langsung di halaman Layanan -> Baptisan di website ini. Pastikan menyiapkan foto dan data diri (NIK, Tanggal Lahir, Alamat, No WhatsApp)." } });
-    }
-
-    if (lowercaseMsg.includes('doa') || lowercaseMsg.includes('permohonan doa')) {
-      return res.json({ success: true, data: { response: "Anda dapat mengirimkan Permohonan Doa melalui halaman Layanan -> Permohonan Doa di website ini. Tim pendoa kami siap mendoakan pergumulan Anda." } });
-    }
-
-    if (lowercaseMsg.includes('alamat') || lowercaseMsg.includes('lokasi') || lowercaseMsg.includes('kontak') || lowercaseMsg.includes('telepon')) {
-      return res.json({ success: true, data: { response: "📍 Alamat GPdI Melati Depok:\nJl. Melati No. 8, Depok, Jawa Barat.\n📞 Telepon/WA: (021) 7521216\nJam Operasional Sekretariat: Selasa - Minggu (08.00 - 17.00 WIB)." } });
-    }
-
-    // 6. Gemini AI Call with complete DB context (KB + Schedules) if API Key is configured
+    // 3. Gemini AI Call with complete DB context (KB + Schedules) if API Key is configured
+    // Diprioritaskan agar AI dapat menjawab query spesifik seperti "ibadah rayon 3"
     if (process.env.GEMINI_API_KEY) {
       try {
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -2750,6 +2706,61 @@ router.post("/chat", async (req, res) => {
       } catch (aiErr) {
         console.error("Gemini AI call error:", aiErr);
       }
+    }
+
+    // 4. Fallback: Match against Knowledge Base patterns (Cari match paling spesifik / terpanjang)
+    let bestKbMatch: any = null;
+    let longestPatternLength = 0;
+
+    for (const kb of knowledgeBase) {
+      if (Array.isArray(kb.patterns)) {
+        for (const pattern of kb.patterns) {
+          if (pattern && typeof pattern === 'string') {
+            const trimmedPat = pattern.trim().toLowerCase();
+            if (trimmedPat && lowercaseMsg.includes(trimmedPat)) {
+              if (trimmedPat.length > longestPatternLength) {
+                longestPatternLength = trimmedPat.length;
+                bestKbMatch = kb.botResponse;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (bestKbMatch) {
+      return res.json({ success: true, data: { response: bestKbMatch } });
+    }
+
+    // 5. Fallback: Check if user is asking about schedules / events / worship times
+    const isScheduleQuery = lowercaseMsg.includes('jadwal') || 
+                            lowercaseMsg.includes('event') || 
+                            lowercaseMsg.includes('ibadah') || 
+                            lowercaseMsg.includes('kegiatan') || 
+                            lowercaseMsg.includes('minggu') || 
+                            lowercaseMsg.includes('jam') || 
+                            lowercaseMsg.includes('waktu');
+
+    if (isScheduleQuery) {
+      if (scheduleList.length > 0) {
+        const responseText = `Berikut adalah Jadwal Ibadah & Event GPdI Melati Depok terbaru:\n\n${formattedSchedules}\n\nSilakan kunjungi menu 'Jadwal & Event' di website kami untuk informasi selengkapnya atau melakukan pendaftaran!`;
+        return res.json({ success: true, data: { response: responseText } });
+      } else {
+        return res.json({ success: true, data: { response: "Saat ini belum ada jadwal ibadah atau event khusus yang terdaftar dari Admin. Silakan cek secara berkala atau hubungi tim gereja." } });
+      }
+    }
+
+    // 6. Fallback: Check if user asks about baptis / doa / pendaftaran
+    if (lowercaseMsg.includes('baptis') || lowercaseMsg.includes('baptisan')) {
+      return res.json({ success: true, data: { response: "Untuk Pendaftaran Baptisan Air, Anda dapat mendaftar langsung di halaman Layanan -> Baptisan di website ini. Pastikan menyiapkan foto dan data diri (NIK, Tanggal Lahir, Alamat, No WhatsApp)." } });
+    }
+
+    if (lowercaseMsg.includes('doa') || lowercaseMsg.includes('permohonan doa')) {
+      return res.json({ success: true, data: { response: "Anda dapat mengirimkan Permohonan Doa melalui halaman Layanan -> Permohonan Doa di website ini. Tim pendoa kami siap mendoakan pergumulan Anda." } });
+    }
+
+    if (lowercaseMsg.includes('alamat') || lowercaseMsg.includes('lokasi') || lowercaseMsg.includes('kontak') || lowercaseMsg.includes('telepon')) {
+      return res.json({ success: true, data: { response: "📍 Alamat GPdI Melati Depok:\nJl. Melati No. 8, Depok, Jawa Barat.\n📞 Telepon/WA: (021) 7521216\nJam Operasional Sekretariat: Selasa - Minggu (08.00 - 17.00 WIB)." } });
     }
 
     // 7. General friendly fallback response with schedules overview

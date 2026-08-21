@@ -189,46 +189,58 @@ router.post("/chat", async (req, res) => {
     }
     
     console.log('Knowledge base loaded:', knowledgeBase.length, 'items');
-    console.log('Knowledge base items:', JSON.stringify(knowledgeBase, null, 2));
     
-    // 1. Fallback to knowledge base first if perfect match or no api key
-    let kbMatch = null;
+    // 1. Prioritize Gemini AI Call if API Key is configured
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const kbContext = knowledgeBase.filter(k=>k.isActive).map(k => `Q: ${k.patterns.join(", ")} A: ${k.botResponse}`).join("\n");
+        const systemPrompt = `Anda adalah asisten AI ramah untuk Gereja GPdI Melati Depok. Jawab dengan singkat, padat, hangat. Gunakan pengetahuan ini:\n${kbContext}\n\nJika pertanyaan di luar konteks gereja, tolak dengan halus.`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: message,
+          config: { systemInstruction: systemPrompt },
+        });
+
+        if (response && response.text) {
+          return res.json({ success: true, data: { response: response.text } });
+        }
+      } catch (aiErr) {
+        console.error("Gemini AI call error:", aiErr);
+      }
+    }
+    
+    // 2. Fallback: Match against Knowledge Base patterns (longest pattern / most specific match)
+    let bestKbMatch = null;
+    let longestPatternLength = 0;
+
     for (const kb of knowledgeBase) {
       if (!kb.isActive) continue;
-      for (const pattern of kb.patterns) {
-        if (lowercaseMsg.includes(pattern.toLowerCase())) {
-          kbMatch = kb.botResponse;
-          break;
+      if (Array.isArray(kb.patterns)) {
+        for (const pattern of kb.patterns) {
+          if (pattern && typeof pattern === 'string') {
+            const lowerPattern = pattern.toLowerCase();
+            if (lowercaseMsg.includes(lowerPattern)) {
+              if (lowerPattern.length > longestPatternLength) {
+                longestPatternLength = lowerPattern.length;
+                bestKbMatch = kb.botResponse;
+              }
+            }
+          }
         }
       }
-      if (kbMatch) break;
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      if (kbMatch) {
-        return res.json({ success: true, data: { response: kbMatch } });
-      } else {
-        return res.json({ success: true, data: { response: "Maaf, saya hanya dapat menjawab pertanyaan seputar jadwal ibadah, pendaftaran jemaat, dan informasi gereja. Silakan hubungi sekretariat untuk informasi lebih lanjut." } });
-      }
+    if (bestKbMatch) {
+      return res.json({ success: true, data: { response: bestKbMatch } });
     }
 
-    // 2. Call Gemini API
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    // Inject KB context
-    const kbContext = inMemoryDB.knowledgeBase.filter(k=>k.isActive).map(k => `Q: ${k.patterns.join(", ")} A: ${k.botResponse}`).join("\n");
-    const systemPrompt = `Anda adalah asisten AI ramah untuk Gereja GPdI Melati Depok. Jawab dengan singkat, padat, hangat. Gunakan pengetahuan ini:\n${kbContext}\n\nJika pertanyaan di luar konteks gereja, tolak dengan halus.`;
-    
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: message,
-      config: { systemInstruction: systemPrompt },
-    });
-
-    res.json({ success: true, data: { response: response.text } });
+    // 3. Final Fallback
+    res.json({ success: true, data: { response: "Maaf, saya hanya dapat menjawab pertanyaan seputar jadwal ibadah, pendaftaran jemaat, dan informasi gereja. Silakan hubungi sekretariat untuk informasi lebih lanjut." } });
   } catch (error) {
     console.error("Chat error:", error);
-    // Fallback if AI fails
+    // Fallback if anything fails
     res.json({ success: true, data: { response: "Mohon maaf, sistem chat sedang sibuk. Silakan hubungi nomor WhatsApp sekretariat gereja." } });
   }
 });
