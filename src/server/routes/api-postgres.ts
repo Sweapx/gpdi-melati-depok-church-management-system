@@ -2694,8 +2694,65 @@ router.post("/chat", async (req, res) => {
     };
     const formattedSchedules = scheduleList.map(formatScheduleEntry).join('\n');
 
-    // 3. Gemini AI Call with complete DB context (KB + Schedules) if API Key is configured
-    // Diprioritaskan agar AI dapat menjawab query spesifik seperti "ibadah rayon 3"
+    // ===== LANGKAH 3: Deteksi keyword spesifik SEBELUM memanggil Gemini =====
+    // Ini mencegah Gemini menampilkan semua jadwal saat yang ditanyakan tidak ada
+
+    const generalWords = ['jadwal', 'ibadah', 'event', 'kegiatan', 'kapan', 'jam', 'waktu', 'ada', 'apa',
+                          'minggu', 'gereja', 'gpdi', 'melati', 'depok', 'ini', 'yang', 'untuk',
+                          'dan', 'atau', 'di', 'ke', 'dari', 'pada', 'dengan', 'adalah', 'nya',
+                          'perayaan', 'acara', 'tentang', 'mau', 'tau', 'tahu', 'cari', 'info',
+                          'tolong', 'mohon', 'bisa', 'ada', 'kapan', 'ada'];
+
+    const isScheduleQuery = lowercaseMsg.includes('jadwal') ||
+                            lowercaseMsg.includes('event') ||
+                            lowercaseMsg.includes('ibadah') ||
+                            lowercaseMsg.includes('kegiatan') ||
+                            lowercaseMsg.includes('kapan') ||
+                            lowercaseMsg.includes('waktu') ||
+                            lowercaseMsg.includes('jam');
+
+    // Ekstrak kata-kata yang bukan kata umum → ini adalah topik spesifik yang ditanyakan
+    const specificWords = lowercaseMsg
+      .replace(/[?!.,]/g, '') // hapus tanda baca
+      .split(/\s+/)
+      .filter(w => w.length > 2 && !generalWords.includes(w));
+
+    // Jika ada kata spesifik, cek apakah ada jadwal yang cocok (AND: semua kata harus ada)
+    if (specificWords.length > 0) {
+      const matchedSchedules = scheduleList.filter(s => {
+        const judulLower = (s.judul || '').toLowerCase();
+        const kategoriLower = (s.kategori || '').toLowerCase();
+        const deskripsiLower = (s.deskripsi || s.description || '').toLowerCase();
+        return specificWords.every(kw =>
+          judulLower.includes(kw) || kategoriLower.includes(kw) || deskripsiLower.includes(kw)
+        );
+      });
+
+      if (matchedSchedules.length > 0) {
+        // Ada jadwal yang cocok → format dan langsung kembalikan (tanpa Gemini)
+        const formattedMatched = matchedSchedules.map(formatScheduleEntry).join('\n');
+        const keyword = specificWords.join(' ');
+        const responseText = `Berikut informasi jadwal "${keyword}" di GPdI Melati Depok:\n\n${formattedMatched}\n\nSilakan kunjungi menu 'Jadwal & Event' di website kami untuk informasi selengkapnya atau melakukan pendaftaran!`;
+        return res.json({ success: true, data: { response: responseText } });
+      } else if (isScheduleQuery) {
+        // Ditanyakan soal jadwal tapi tidak ada yang cocok → tolak langsung
+        const keyword = specificWords.join(' ');
+        return res.json({ success: true, data: { response: `Mohon maaf, saat ini jadwal untuk "${keyword}" belum tersedia di sistem kami. Silakan hubungi sekretariat gereja atau pantau terus website GPdI Melati Depok untuk informasi terbaru. 🙏` } });
+      }
+      // Jika ada kata spesifik tapi bukan query jadwal → lanjut ke Gemini/KB
+    }
+
+    // Jika tidak ada kata spesifik dan ini query jadwal umum → tampilkan semua jadwal langsung
+    if (isScheduleQuery && specificWords.length === 0) {
+      if (scheduleList.length > 0) {
+        const responseText = `Berikut adalah Jadwal Ibadah & Event GPdI Melati Depok terbaru:\n\n${formattedSchedules}\n\nSilakan kunjungi menu 'Jadwal & Event' di website kami untuk informasi selengkapnya atau melakukan pendaftaran!`;
+        return res.json({ success: true, data: { response: responseText } });
+      } else {
+        return res.json({ success: true, data: { response: "Saat ini belum ada jadwal ibadah atau event khusus yang terdaftar dari Admin. Silakan cek secara berkala atau hubungi tim gereja." } });
+      }
+    }
+
+    // ===== LANGKAH 4: Gemini AI (hanya untuk query non-jadwal atau pertanyaan umum) =====
     if (process.env.GEMINI_API_KEY) {
       try {
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -2732,7 +2789,7 @@ Jika pertanyaan di luar konteks gereja, jawab dengan sopan bahwa Anda adalah asi
       }
     }
 
-    // 4. Fallback: Match against Knowledge Base patterns (Cari match paling spesifik / terpanjang)
+    // ===== LANGKAH 5: Fallback Knowledge Base =====
     let bestKbMatch: any = null;
     let longestPatternLength = 0;
 
@@ -2756,62 +2813,7 @@ Jika pertanyaan di luar konteks gereja, jawab dengan sopan bahwa Anda adalah asi
       return res.json({ success: true, data: { response: bestKbMatch } });
     }
 
-    // 5. Fallback: Check if user is asking about schedules / events / worship times
-    const isScheduleQuery = lowercaseMsg.includes('jadwal') || 
-                            lowercaseMsg.includes('event') || 
-                            lowercaseMsg.includes('ibadah') || 
-                            lowercaseMsg.includes('kegiatan') || 
-                            lowercaseMsg.includes('minggu') || 
-                            lowercaseMsg.includes('jam') || 
-                            lowercaseMsg.includes('waktu') ||
-                            lowercaseMsg.includes('kapan');
-
-    if (isScheduleQuery) {
-      // Kata kunci spesifik yang mungkin ada dalam judul jadwal, bersihkan kata umum dulu
-      const generalWords = ['jadwal', 'ibadah', 'event', 'kegiatan', 'kapan', 'jam', 'waktu', 'ada', 'apa',
-                            'minggu', 'gereja', 'gpdi', 'melati', 'depok', 'ini', 'yang', 'untuk',
-                            'dan', 'atau', 'di', 'ke', 'dari', 'pada', 'dengan', 'adalah', 'nya',
-                            'perayaan', 'acara', 'tentang'];
-      const words = lowercaseMsg.split(/\s+/).filter(w => w.length > 2 && !generalWords.includes(w));
-
-      // Cari keyword spesifik (mis: "natal", "paskah", "rayon", dll)
-      const specificKeywords = words.filter(w => w.length > 2);
-
-      if (specificKeywords.length > 0) {
-        // Filter schedule berdasarkan keyword spesifik
-        const matchedSchedules = scheduleList.filter(s => {
-          const judulLower = (s.judul || '').toLowerCase();
-          const kategoriLower = (s.kategori || '').toLowerCase();
-          const deskripsiLower = (s.deskripsi || s.description || '').toLowerCase();
-          return specificKeywords.every(kw =>
-            judulLower.includes(kw) || kategoriLower.includes(kw) || deskripsiLower.includes(kw)
-          );
-        });
-
-        if (matchedSchedules.length > 0) {
-          // Hanya tampilkan jadwal yang cocok
-          const formattedMatched = matchedSchedules.map(formatScheduleEntry).join('\n');
-
-          const keyword = specificKeywords.join(', ');
-          const responseText = `Berikut informasi jadwal "${keyword}" di GPdI Melati Depok:\n\n${formattedMatched}\n\nSilakan kunjungi menu 'Jadwal & Event' di website kami untuk informasi selengkapnya atau melakukan pendaftaran!`;
-          return res.json({ success: true, data: { response: responseText } });
-        } else {
-          // Keyword spesifik ada tapi tidak ditemukan di database
-          const keyword = specificKeywords.join(', ');
-          return res.json({ success: true, data: { response: `Mohon maaf, saat ini jadwal untuk "${keyword}" belum tersedia di sistem kami. Silakan hubungi sekretariat gereja atau pantau terus website GPdI Melati Depok untuk informasi terbaru. 🙏` } });
-        }
-      }
-
-      // Tidak ada keyword spesifik → tampilkan semua jadwal
-      if (scheduleList.length > 0) {
-        const responseText = `Berikut adalah Jadwal Ibadah & Event GPdI Melati Depok terbaru:\n\n${formattedSchedules}\n\nSilakan kunjungi menu 'Jadwal & Event' di website kami untuk informasi selengkapnya atau melakukan pendaftaran!`;
-        return res.json({ success: true, data: { response: responseText } });
-      } else {
-        return res.json({ success: true, data: { response: "Saat ini belum ada jadwal ibadah atau event khusus yang terdaftar dari Admin. Silakan cek secara berkala atau hubungi tim gereja." } });
-      }
-    }
-
-    // 6. Fallback: Check if user asks about baptis / doa / pendaftaran
+    // ===== LANGKAH 6: Fallback spesifik baptis / doa / lokasi =====
     if (lowercaseMsg.includes('baptis') || lowercaseMsg.includes('baptisan')) {
       return res.json({ success: true, data: { response: "Untuk Pendaftaran Baptisan Air, Anda dapat mendaftar langsung di halaman Layanan -> Baptisan di website ini. Pastikan menyiapkan foto dan data diri (NIK, Tanggal Lahir, Alamat, No WhatsApp)." } });
     }
@@ -2821,15 +2823,11 @@ Jika pertanyaan di luar konteks gereja, jawab dengan sopan bahwa Anda adalah asi
     }
 
     if (lowercaseMsg.includes('alamat') || lowercaseMsg.includes('lokasi') || lowercaseMsg.includes('kontak') || lowercaseMsg.includes('telepon')) {
-      return res.json({ success: true, data: { response: "📍 Alamat GPdI Melati Depok:\nJl. Melati No. 8, Depok, Jawa Barat.\n📞 Telepon/WA: (021) 7521216\nJam Operasional Sekretariat: Selasa - Minggu (08.00 - 17.00 WIB)." } });
+      return res.json({ success: true, data: { response: "Alamat GPdI Melati Depok:\nJl. Melati No. 8, Depok, Jawa Barat.\nTelepon/WA: (021) 7521216\nJam Operasional Sekretariat: Selasa - Minggu (08.00 - 17.00 WIB)." } });
     }
 
-    // 7. General friendly fallback response with schedules overview
-    const fallbackText = scheduleList.length > 0 
-      ? `Shalom! Terima kasih telah menghubungi asisten GPdI Melati Depok.\n\nJadwal Ibadah & Event terdekat kami:\n${formattedSchedules}\n\nAda yang bisa kami bantu lagi mengenai jadwal, pendaftaran, atau layanan gereja?`
-      : `Shalom! Terima kasih telah menghubungi GPdI Melati Depok. Ada yang bisa saya bantu terkait Jadwal Ibadah, Pendaftaran, Permohonan Doa, atau Baptisan?`;
-
-    return res.json({ success: true, data: { response: fallbackText } });
+    // ===== LANGKAH 7: Fallback umum (tanpa dump semua jadwal) =====
+    return res.json({ success: true, data: { response: "Shalom! Saya asisten GPdI Melati Depok. Saya bisa membantu informasi seputar jadwal ibadah, pendaftaran, permohonan doa, atau baptisan. Silakan tanyakan lebih spesifik ya! 😊" } });
 
   } catch (error: any) {
     console.error("Chatbot processing error:", error);
