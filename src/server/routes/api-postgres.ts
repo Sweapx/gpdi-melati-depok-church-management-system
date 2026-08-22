@@ -2739,9 +2739,53 @@ router.post("/chat", async (req, res) => {
                             lowercaseMsg.includes('kegiatan') || 
                             lowercaseMsg.includes('minggu') || 
                             lowercaseMsg.includes('jam') || 
-                            lowercaseMsg.includes('waktu');
+                            lowercaseMsg.includes('waktu') ||
+                            lowercaseMsg.includes('kapan');
 
     if (isScheduleQuery) {
+      // Kata kunci spesifik yang mungkin ada dalam judul jadwal, bersihkan kata umum dulu
+      const generalWords = ['jadwal', 'ibadah', 'event', 'kegiatan', 'kapan', 'jam', 'waktu', 'ada', 'apa',
+                            'minggu', 'gereja', 'gpdi', 'melati', 'depok', 'ini', 'yang', 'untuk',
+                            'dan', 'atau', 'di', 'ke', 'dari', 'pada', 'dengan', 'adalah', 'nya',
+                            'perayaan', 'acara', 'tentang'];
+      const words = lowercaseMsg.split(/\s+/).filter(w => w.length > 2 && !generalWords.includes(w));
+
+      // Cari keyword spesifik (mis: "natal", "paskah", "rayon", dll)
+      const specificKeywords = words.filter(w => w.length > 2);
+
+      if (specificKeywords.length > 0) {
+        // Filter schedule berdasarkan keyword spesifik
+        const matchedSchedules = scheduleList.filter(s => {
+          const judulLower = (s.judul || '').toLowerCase();
+          const kategoriLower = (s.kategori || '').toLowerCase();
+          const deskripsiLower = (s.deskripsi || s.description || '').toLowerCase();
+          return specificKeywords.some(kw =>
+            judulLower.includes(kw) || kategoriLower.includes(kw) || deskripsiLower.includes(kw)
+          );
+        });
+
+        if (matchedSchedules.length > 0) {
+          // Hanya tampilkan jadwal yang cocok
+          const formattedMatched = matchedSchedules.map(s => {
+            const tglStr = s.tanggal ? (typeof s.tanggal === 'string' ? s.tanggal : new Date(s.tanggal).toISOString().split('T')[0]) : '';
+            const dateObj = tglStr ? new Date(tglStr) : null;
+            const formattedDate = dateObj && !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : tglStr;
+            const hariJam = s.hari_jam || s.hariJam || formattedDate || '-';
+            const reg = (s.is_registration_required || s.isRegistrationRequired) ? `(Pendaftaran Dibuka, Kuota: ${s.kuota || 'Terbatas'})` : '';
+            return `📌 [${s.kategori || 'Jadwal'}] ${s.judul} - Hari/Tanggal: ${hariJam}, Jam: ${s.waktu || 'Sesuai Jadwal'}, Lokasi: ${s.lokasi || 'Gereja GPdI Melati Depok'} ${reg}`;
+          }).join('\n');
+
+          const keyword = specificKeywords.join(', ');
+          const responseText = `Berikut informasi jadwal "${keyword}" di GPdI Melati Depok:\n\n${formattedMatched}\n\nSilakan kunjungi menu 'Jadwal & Event' di website kami untuk informasi selengkapnya atau melakukan pendaftaran!`;
+          return res.json({ success: true, data: { response: responseText } });
+        } else {
+          // Keyword spesifik ada tapi tidak ditemukan di database
+          const keyword = specificKeywords.join(', ');
+          return res.json({ success: true, data: { response: `Mohon maaf, saat ini jadwal untuk "${keyword}" belum tersedia di sistem kami. Silakan hubungi sekretariat gereja atau pantau terus website GPdI Melati Depok untuk informasi terbaru. 🙏` } });
+        }
+      }
+
+      // Tidak ada keyword spesifik → tampilkan semua jadwal
       if (scheduleList.length > 0) {
         const responseText = `Berikut adalah Jadwal Ibadah & Event GPdI Melati Depok terbaru:\n\n${formattedSchedules}\n\nSilakan kunjungi menu 'Jadwal & Event' di website kami untuk informasi selengkapnya atau melakukan pendaftaran!`;
         return res.json({ success: true, data: { response: responseText } });
