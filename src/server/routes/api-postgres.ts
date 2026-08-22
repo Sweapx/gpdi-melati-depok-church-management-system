@@ -2677,14 +2677,22 @@ router.post("/chat", async (req, res) => {
     }
 
     // Format Schedules for Chat Context
-    const formattedSchedules = scheduleList.map(s => {
+    const formatScheduleEntry = (s: any) => {
       const tglStr = s.tanggal ? (typeof s.tanggal === 'string' ? s.tanggal : new Date(s.tanggal).toISOString().split('T')[0]) : '';
-      const dateObj = tglStr ? new Date(tglStr) : null;
-      const formattedDate = dateObj && !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : tglStr;
-      const hariJam = s.hari_jam || s.hariJam || formattedDate || '-';
-      const reg = (s.is_registration_required || s.isRegistrationRequired) ? `(Pendaftaran Dibuka, Kuota: ${s.kuota || 'Terbatas'})` : '';
-      return `📌 [${s.kategori || 'Jadwal'}] ${s.judul} - Hari/Tanggal: ${hariJam}, Jam: ${s.waktu || 'Sesuai Jadwal'}, Lokasi: ${s.lokasi || 'Gereja GPdI Melati Depok'} ${reg}`;
-    }).join('\n');
+      const dateObj = tglStr ? new Date(tglStr + 'T00:00:00') : null;
+      const formattedDate = dateObj && !isNaN(dateObj.getTime())
+        ? dateObj.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        : tglStr;
+      // Gabungkan tanggal dari DB dan hari_jam agar keduanya tampil
+      const hariJam = s.hari_jam || s.hariJam || '';
+      let tanggalDisplay = formattedDate || hariJam || '-';
+      // Jika ada keduanya dan berbeda, tampilkan tanggal lengkap saja (sudah termasuk hari)
+      // Jika tidak ada tanggal tapi ada hari_jam, gunakan hari_jam
+      if (!formattedDate && hariJam) tanggalDisplay = hariJam;
+      const reg = (s.is_registration_required || s.isRegistrationRequired) ? ` (Pendaftaran Dibuka, Kuota: ${s.kuota || 'Terbatas'})` : '';
+      return `📌 [${s.kategori || 'Jadwal'}] ${s.judul} - Tanggal: ${tanggalDisplay}, Jam: ${s.waktu || 'Sesuai Jadwal'}, Lokasi: ${s.lokasi || 'Gereja GPdI Melati Depok'}${reg}`;
+    };
+    const formattedSchedules = scheduleList.map(formatScheduleEntry).join('\n');
 
     // 3. Gemini AI Call with complete DB context (KB + Schedules) if API Key is configured
     // Diprioritaskan agar AI dapat menjawab query spesifik seperti "ibadah rayon 3"
@@ -2692,7 +2700,23 @@ router.post("/chat", async (req, res) => {
       try {
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
         const kbContext = knowledgeBase.map(k => `Q: ${k.patterns.join(", ")} A: ${k.botResponse}`).join("\n");
-        const systemPrompt = `Anda adalah asisten AI resmi ramah untuk Gereja GPdI Melati Depok. Jawab pertanyaan jemaat dengan ramah, hangat, dan ringkas.\n\nGunakan data terbaru berikut dari database gereja:\n\n[JADWAL & EVENT SAAT INI]:\n${formattedSchedules}\n\n[KNOWLEDGE BASE GEREJA]:\n${kbContext}\n\nJika pertanyaan di luar konteks gereja, jawab dengan sopan bahwa Anda adalah asisten gereja GPdI Melati Depok.`;
+        const systemPrompt = `Anda adalah asisten AI resmi ramah untuk Gereja GPdI Melati Depok. Jawab pertanyaan jemaat dengan ramah, hangat, dan ringkas.
+
+ATURAN FORMAT PENTING:
+- JANGAN gunakan format markdown apapun seperti **bold**, *italic*, # heading, atau bullet * dalam jawaban.
+- Gunakan teks biasa saja. Jika ingin membuat daftar, gunakan angka seperti 1. 2. 3. atau tuliskan satu per baris.
+- Jika ada informasi tanggal, sebutkan tanggal lengkapnya.
+- Jika jadwal yang ditanyakan tidak ada dalam data, sampaikan dengan jelas bahwa jadwal tersebut belum tersedia, JANGAN tampilkan jadwal lain yang tidak ditanyakan.
+
+Gunakan data terbaru berikut dari database gereja:
+
+[JADWAL & EVENT SAAT INI]:
+${formattedSchedules}
+
+[KNOWLEDGE BASE GEREJA]:
+${kbContext}
+
+Jika pertanyaan di luar konteks gereja, jawab dengan sopan bahwa Anda adalah asisten gereja GPdI Melati Depok.`;
 
         const response = await ai.models.generateContent({
           model: "gemini-2.5-flash",
@@ -2766,14 +2790,7 @@ router.post("/chat", async (req, res) => {
 
         if (matchedSchedules.length > 0) {
           // Hanya tampilkan jadwal yang cocok
-          const formattedMatched = matchedSchedules.map(s => {
-            const tglStr = s.tanggal ? (typeof s.tanggal === 'string' ? s.tanggal : new Date(s.tanggal).toISOString().split('T')[0]) : '';
-            const dateObj = tglStr ? new Date(tglStr) : null;
-            const formattedDate = dateObj && !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : tglStr;
-            const hariJam = s.hari_jam || s.hariJam || formattedDate || '-';
-            const reg = (s.is_registration_required || s.isRegistrationRequired) ? `(Pendaftaran Dibuka, Kuota: ${s.kuota || 'Terbatas'})` : '';
-            return `📌 [${s.kategori || 'Jadwal'}] ${s.judul} - Hari/Tanggal: ${hariJam}, Jam: ${s.waktu || 'Sesuai Jadwal'}, Lokasi: ${s.lokasi || 'Gereja GPdI Melati Depok'} ${reg}`;
-          }).join('\n');
+          const formattedMatched = matchedSchedules.map(formatScheduleEntry).join('\n');
 
           const keyword = specificKeywords.join(', ');
           const responseText = `Berikut informasi jadwal "${keyword}" di GPdI Melati Depok:\n\n${formattedMatched}\n\nSilakan kunjungi menu 'Jadwal & Event' di website kami untuk informasi selengkapnya atau melakukan pendaftaran!`;

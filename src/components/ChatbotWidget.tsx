@@ -5,6 +5,18 @@ import clsx from 'clsx';
 
 type Message = { role: 'user' | 'bot'; text: string };
 
+// Bersihkan format markdown dari teks bot agar tidak terlihat sebagai simbol
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')   // **bold** → bold
+    .replace(/\*(.+?)\*/g, '$1')       // *italic* → italic
+    .replace(/^#{1,6}\s+/gm, '')       // # Heading → Heading
+    .replace(/^[\*\-]\s+/gm, '• ')    // * item / - item → • item
+    .replace(/`(.+?)`/g, '$1')         // `code` → code
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1') // [text](url) → text
+    .trim();
+}
+
 export default function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -39,7 +51,7 @@ export default function ChatbotWidget() {
       
       setMessages(prev => [...prev, { 
         role: 'bot', 
-        text: data.data?.response || 'Maaf, terjadi kesalahan.' 
+        text: stripMarkdown(data.data?.response || 'Maaf, terjadi kesalahan.') 
       }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'bot', text: 'Maaf, saya sedang offline.' }]);
@@ -100,7 +112,12 @@ export default function ChatbotWidget() {
                     {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                   </div>
                   <div className={clsx("p-3 rounded-2xl text-sm leading-relaxed shadow-sm", msg.role === 'user' ? "bg-navy text-white rounded-tr-sm" : "bg-white text-navy border border-border-subtle rounded-tl-sm")}>
-                    {msg.text}
+                    {msg.role === 'bot'
+                      ? msg.text.split('\n').map((line, i) => (
+                          <span key={i}>{line}{i < msg.text.split('\n').length - 1 && <br />}</span>
+                        ))
+                      : msg.text
+                    }
                   </div>
                 </div>
               ))}
