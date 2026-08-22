@@ -2783,7 +2783,7 @@ Jika pertanyaan di luar konteks gereja, jawab dengan sopan bahwa Anda adalah asi
           const judulLower = (s.judul || '').toLowerCase();
           const kategoriLower = (s.kategori || '').toLowerCase();
           const deskripsiLower = (s.deskripsi || s.description || '').toLowerCase();
-          return specificKeywords.some(kw =>
+          return specificKeywords.every(kw =>
             judulLower.includes(kw) || kategoriLower.includes(kw) || deskripsiLower.includes(kw)
           );
         });
